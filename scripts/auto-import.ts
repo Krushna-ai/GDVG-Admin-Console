@@ -284,6 +284,13 @@ async function importItems(items: any[], jobId: string): Promise<{ success: numb
 
 function mapToContent(details: any, contentType: string): any {
     const isMovie = contentType === 'movie';
+
+    // Helper to handle empty date strings
+    const parseDate = (date: any) => {
+        if (!date || date === '') return null;
+        return date;
+    };
+
     return {
         tmdb_id: details.id,
         imdb_id: details.imdb_id || details.external_ids?.imdb_id || null,
@@ -293,8 +300,8 @@ function mapToContent(details: any, contentType: string): any {
         overview: details.overview || null,
         poster_path: details.poster_path || null,
         backdrop_path: details.backdrop_path || null,
-        release_date: isMovie ? details.release_date : null,
-        first_air_date: !isMovie ? details.first_air_date : null,
+        release_date: isMovie ? parseDate(details.release_date) : null,
+        first_air_date: !isMovie ? parseDate(details.first_air_date) : null,
         original_language: details.original_language || null,
         origin_country: details.origin_country || [],
         genres: details.genres || [],
