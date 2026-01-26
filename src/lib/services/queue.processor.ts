@@ -61,10 +61,10 @@ async function updateQueueStatus(
         updates.error_message = errorMessage;
     }
 
-    // @ts-ignore - Admin client is untyped, but operation is valid
-    const { error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any)
         .from('import_queue')
-        .update(updates as any)
+        .update(updates)
         .eq('id', id);
 
     if (error) {
@@ -88,9 +88,10 @@ async function incrementAttempts(id: string) {
 
     const attempts = ((current as any)?.attempts || 0) + 1;
 
-    await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any)
         .from('import_queue')
-        .update({ attempts } as any)
+        .update({ attempts })
         .eq('id', id);
 }
 
@@ -221,13 +222,14 @@ export async function clearProcessedItems(): Promise<number> {
 export async function retryFailedItems(): Promise<number> {
     const supabase = getAdminClient();
 
-    const { data, error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
         .from('import_queue')
         .update({
             status: 'pending',
             error_message: null,
             attempts: 0,
-        } as any)
+        })
         .eq('status', 'failed')
         .select('id');
 
