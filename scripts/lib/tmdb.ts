@@ -1,21 +1,26 @@
 /**
  * Standalone TMDB Client for GitHub Actions
- * Simplified version without Next.js dependencies
+ * Uses Bearer Token authentication (recommended by TMDB)
  */
 
-const TMDB_API_KEY = process.env.TMDB_API_KEY!;
+const TMDB_ACCESS_TOKEN = process.env.TMDB_ACCESS_TOKEN!;
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
-if (!TMDB_API_KEY) {
-    throw new Error('Missing TMDB_API_KEY environment variable');
+if (!TMDB_ACCESS_TOKEN) {
+    throw new Error('Missing TMDB_ACCESS_TOKEN environment variable');
 }
 
 async function tmdbFetch<T>(endpoint: string, params: Record<string, string> = {}): Promise<T> {
     const url = new URL(`${TMDB_BASE_URL}${endpoint}`);
-    url.searchParams.set('api_key', TMDB_API_KEY);
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 
-    const res = await fetch(url.toString());
+    const res = await fetch(url.toString(), {
+        headers: {
+            'Authorization': `Bearer ${TMDB_ACCESS_TOKEN}`,
+            'Content-Type': 'application/json',
+        },
+    });
+
     if (!res.ok) {
         throw new Error(`TMDB API error: ${res.status} ${res.statusText}`);
     }
