@@ -74,7 +74,8 @@ async function main() {
             const results = await importItems(itemsToImport, jobId);
             console.log(`✅ Imported: ${results.success}, ❌ Failed: ${results.failed}`);
 
-            await updateJobStats(jobId, {
+            // Calculate stats breakdown
+            const stats = {
                 status: 'completed',
                 total_discovered: discovered.length,
                 total_queued: itemsToImport.length,
@@ -82,7 +83,27 @@ async function main() {
                 total_failed: results.failed,
                 total_skipped: discovered.length - newItems.length,
                 completed_at: new Date().toISOString(),
+                kr_count: 0, cn_count: 0, th_count: 0, tr_count: 0, jp_count: 0,
+                anime_count: 0, in_count: 0, western_count: 0, other_count: 0
+            };
+
+            // Count by region/type
+            itemsToImport.forEach(item => {
+                const country = item._country || 'US';
+                const type = item.content_type;
+
+                if (type === 'anime') stats.anime_count++;
+                else if (country === 'KR') stats.kr_count++;
+                else if (['CN', 'TW', 'HK'].includes(country)) stats.cn_count++;
+                else if (country === 'TH') stats.th_count++;
+                else if (country === 'TR') stats.tr_count++;
+                else if (country === 'JP') stats.jp_count++;
+                else if (country === 'IN') stats.in_count++;
+                else if (['US', 'GB', 'CA', 'AU'].includes(country)) stats.western_count++;
+                else stats.other_count++;
             });
+
+            await updateJobStats(jobId, stats);
         } else {
             console.log('\n🧪 DRY RUN - Skipping actual import');
             logSampleItems(itemsToImport.slice(0, 10));
@@ -140,6 +161,7 @@ async function discoverByRegion(countries: string[], maxPages: number): Promise<
                         origin_country: item.origin_country || [country],
                         original_language: item.original_language,
                         priority_score: priority.total,
+                        _country: country,
                     });
                 }
                 await delay(100);
@@ -169,6 +191,7 @@ async function discoverByRegion(countries: string[], maxPages: number): Promise<
                     origin_country: [country],
                     original_language: item.original_language,
                     priority_score: priority.total,
+                    _country: country,
                 });
             }
             await delay(100);
