@@ -9,6 +9,13 @@
             "maxDuration": 60
         }
     },
+    "redirects": [
+        {
+            "source": "/admin-login",
+            "destination": "/login",
+            "permanent": true
+        }
+    ],
     "headers": [
         {
             "source": "/api/(.*)",
