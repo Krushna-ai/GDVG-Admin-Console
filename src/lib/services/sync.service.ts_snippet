@@ -1,0 +1,100 @@
+// [Add this to sync.service.ts]
+
+/**
+ * Discover content by region using TMDB Discover API
+ * Paginates through multiple pages to get more results
+ */
+export async function discoverByRegion(countries: string[], maxPages: number) {
+    const results: any[] = [];
+
+    for (const country of countries) {
+        // Discover TV shows (dramas) - multiple pages
+        for (let page = 1; page <= maxPages; page++) {
+            try {
+                const tvResults = await discoverTv({
+                    with_origin_country: country,
+                    sort_by: 'popularity.desc',
+                    page: page,
+                });
+
+                for (const item of (tvResults.results || [])) {
+                    const countryCode = getPrimaryCountry(item.origin_country || [country]);
+                    const contentType = classifyContentType(
+                        'tv',
+                        item.origin_country || [country],
+                        [],
+                        item.original_language
+                    );
+                    const priority = calculatePriorityScore(
+                        countryCode, 
+                        contentType, 
+                        item.popularity || 0,
+                        item.first_air_date // Pass release date for recency
+                    );
+
+                    results.push({
+                        tmdb_id: item.id,
+                        content_type: contentType,
+                        title: item.name,
+                        original_title: item.original_name,
+                        poster_path: item.poster_path,
+                        popularity: item.popularity,
+                        vote_average: item.vote_average,
+                        first_air_date: item.first_air_date,
+                        origin_country: item.origin_country || [country],
+                        original_language: item.original_language,
+                        country_code: countryCode,
+                        country_priority: priority.country,
+                        type_priority: priority.type,
+                        popularity_score: priority.pop,
+                        recency_score: priority.recency,
+                    });
+                }
+            } catch (e) {
+                console.error(`Failed to discover TV for ${country} page ${page}:`, e);
+            }
+        }
+
+        // Discover Movies - single page per country
+        try {
+            const movieResults = await discoverMovies({
+                with_origin_country: country,
+                sort_by: 'popularity.desc',
+                page: 1,
+            });
+
+            for (const item of (movieResults.results || [])) {
+                const countryCode = country;
+                const contentType = 'movie' as const;
+                const priority = calculatePriorityScore(
+                    countryCode, 
+                    contentType, 
+                    item.popularity || 0,
+                    item.release_date // Pass release date
+                );
+
+                results.push({
+                    tmdb_id: item.id,
+                    content_type: contentType,
+                    title: item.title,
+                    original_title: item.original_title,
+                    poster_path: item.poster_path,
+                    popularity: item.popularity,
+                    vote_average: item.vote_average,
+                    release_date: item.release_date,
+                    origin_country: [country],
+                    original_language: item.original_language,
+                    country_code: countryCode,
+                    country_priority: priority.country,
+                    type_priority: priority.type,
+                    popularity_score: priority.pop,
+                    recency_score: priority.recency,
+                });
+            }
+        } catch (e) {
+            console.error(`Failed to discover movies for ${country}:`, e);
+        }
+    }
+
+    return results;
+}

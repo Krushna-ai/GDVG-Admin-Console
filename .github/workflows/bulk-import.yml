@@ -1,0 +1,72 @@
+name: Bulk Import
+
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: 'Region to import (KR, CN, TH, TR, JP, IN, US, ALL)'
+        required: true
+        default: 'ALL'
+        type: choice
+        options:
+          - ALL
+          - KR
+          - CN
+          - TH
+          - TR
+          - JP
+          - IN
+          - US
+      content_type:
+        description: 'Content type (movie, tv, all)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - movie
+          - tv
+      limit:
+        description: 'Maximum items to import'
+        required: false
+        default: '500'
+        type: string
+
+env:
+  NODE_VERSION: '20'
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+  TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+
+jobs:
+  bulk-import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360  # 6 hour timeout for large imports
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Bulk Import Script
+        run: npx tsx scripts/bulk-import.ts
+        env:
+          IMPORT_REGION: ${{ github.event.inputs.region }}
+          IMPORT_TYPE: ${{ github.event.inputs.content_type }}
+          IMPORT_LIMIT: ${{ github.event.inputs.limit }}
+
+      - name: Report Results
+        if: always()
+        run: |
+          echo "## Bulk Import Results" >> $GITHUB_STEP_SUMMARY
+          echo "Region: ${{ github.event.inputs.region }}" >> $GITHUB_STEP_SUMMARY
+          echo "Type: ${{ github.event.inputs.content_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "Limit: ${{ github.event.inputs.limit }}" >> $GITHUB_STEP_SUMMARY

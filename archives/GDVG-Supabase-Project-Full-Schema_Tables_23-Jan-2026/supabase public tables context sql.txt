@@ -1,0 +1,106 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.admin_users (
+  id uuid NOT NULL,
+  email text NOT NULL UNIQUE,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT admin_users_pkey PRIMARY KEY (id),
+  CONSTRAINT admin_users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.content (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  tmdb_id integer NOT NULL UNIQUE,
+  imdb_id text,
+  content_type text NOT NULL CHECK (content_type = ANY (ARRAY['movie'::text, 'tv'::text, 'drama'::text, 'anime'::text, 'variety'::text, 'documentary'::text])),
+  title text NOT NULL,
+  original_title text,
+  overview text,
+  poster_path text,
+  backdrop_path text,
+  release_date date,
+  first_air_date date,
+  status text DEFAULT 'draft'::text CHECK (status = ANY (ARRAY['draft'::text, 'published'::text, 'archived'::text])),
+  original_language text,
+  origin_country ARRAY,
+  genres jsonb,
+  popularity numeric,
+  vote_average numeric,
+  vote_count integer,
+  runtime integer,
+  number_of_seasons integer,
+  number_of_episodes integer,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  tagline text,
+  homepage text,
+  budget bigint,
+  revenue bigint,
+  production_companies jsonb,
+  production_countries jsonb,
+  spoken_languages jsonb,
+  networks jsonb,
+  last_air_date date,
+  in_production boolean DEFAULT false,
+  tmdb_status text,
+  CONSTRAINT content_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.content_cast (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  content_id uuid NOT NULL,
+  person_id uuid NOT NULL,
+  character_name text,
+  order_index integer,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT content_cast_pkey PRIMARY KEY (id),
+  CONSTRAINT content_cast_content_id_fkey FOREIGN KEY (content_id) REFERENCES public.content(id),
+  CONSTRAINT content_cast_person_id_fkey FOREIGN KEY (person_id) REFERENCES public.people(id)
+);
+CREATE TABLE public.content_crew (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  content_id uuid NOT NULL,
+  person_id uuid NOT NULL,
+  job text NOT NULL,
+  department text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT content_crew_pkey PRIMARY KEY (id),
+  CONSTRAINT content_crew_content_id_fkey FOREIGN KEY (content_id) REFERENCES public.content(id),
+  CONSTRAINT content_crew_person_id_fkey FOREIGN KEY (person_id) REFERENCES public.people(id)
+);
+CREATE TABLE public.import_queue (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  tmdb_id integer NOT NULL,
+  content_type text NOT NULL CHECK (content_type = ANY (ARRAY['movie'::text, 'tv'::text])),
+  priority integer DEFAULT 0,
+  status text DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'processing'::text, 'completed'::text, 'failed'::text, 'skipped'::text])),
+  batch_name text,
+  release_year integer,
+  release_month integer,
+  error_message text,
+  attempts integer DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  processed_at timestamp with time zone,
+  metadata jsonb,
+  source text DEFAULT 'manual'::text,
+  CONSTRAINT import_queue_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.people (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  tmdb_id integer NOT NULL UNIQUE,
+  name text NOT NULL,
+  gender integer,
+  biography text,
+  birthday date,
+  deathday date,
+  place_of_birth text,
+  profile_path text,
+  known_for_department text,
+  popularity numeric,
+  imdb_id text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  also_known_as ARRAY,
+  homepage text,
+  adult boolean DEFAULT false,
+  CONSTRAINT people_pkey PRIMARY KEY (id)
+);
