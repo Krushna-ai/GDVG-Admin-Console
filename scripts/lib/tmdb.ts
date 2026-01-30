@@ -65,6 +65,24 @@ export async function getChangedTvIds(startDate?: string, endDate?: string, page
     return tmdbFetch<any>('/tv/changes', params);
 }
 
+/**
+ * Fetch complete content details (movie or TV)
+ * Used by enrichment scripts
+ */
+export async function fetchContentDetails(tmdbId: number, contentType: 'movie' | 'tv'): Promise<any | null> {
+    try {
+        if (contentType === 'movie') {
+            return await getMovieDetails(tmdbId);
+        } else {
+            return await getTvDetails(tmdbId);
+        }
+    } catch (error) {
+        console.error(`Error fetching ${contentType} ${tmdbId}:`, error);
+        return null;
+    }
+}
+
+
 export function delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
