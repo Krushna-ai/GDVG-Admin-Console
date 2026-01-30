@@ -27,6 +27,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Check Sync Pause State
+        id: pause_check
+        run: |
+          RESPONSE=$(curl -s "${{ secrets.VERCEL_URL }}/api/sync/status" || echo '{"success":false}')
+          IS_PAUSED=$(echo $RESPONSE | jq -r '.is_paused // false')
+          
+          if [ "$IS_PAUSED" = "true" ]; then
+            echo "⏸️ Sync is currently paused. Skipping workflow." >> $GITHUB_STEP_SUMMARY
+            echo "Paused at: $(echo $RESPONSE | jq -r '.paused_at // "unknown"')" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+          
+          echo "✅ Sync is active. Proceeding with sync changes." >> $GITHUB_STEP_SUMMARY
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:

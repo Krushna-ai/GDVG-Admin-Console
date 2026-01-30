@@ -360,3 +360,187 @@ export async function markQueueItemProcessed(
         .update({ status, error_message: errorMessage, processed_at: new Date().toISOString() })
         .eq('id', itemId);
 }
+
+// ============================================
+// SYNC SETTINGS & STATUS HELPERS (Phase 9.3)
+// ============================================
+
+/**
+ * Get all sync settings from the database
+ */
+export async function getSyncSettings() {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+        .from('sync_settings')
+        .select('*');
+
+    if (error) throw error;
+
+    // Transform array to object for easier access
+    const settings: Record<string, any> = {};
+    data?.forEach((setting) => {
+        settings[setting.setting_key] = setting.setting_value;
+    });
+
+    return settings;
+}
+
+/**
+ * Update a specific sync setting
+ */
+export async function updateSyncSetting(key: string, value: any, userId?: string) {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+        .from('sync_settings')
+        .update({
+            setting_value: value,
+            updated_at: new Date().toISOString(),
+            updated_by: userId || null,
+        })
+        .eq('setting_key', key)
+        .select()
+        .single();
+
+    if (error) throw error;
+
+    return data;
+}
+
+/**
+ * Calculate next run time based on cron expression
+ * Supports daily and weekly schedules
+ */
+export function calculateNextRun(cronExpression: string): Date | null {
+    try {
+        // Parse cron expression: "30 21 * * *" = 21:30 UTC daily
+        const parts = cronExpression.split(' ');
+        if (parts.length !== 5) return null;
+
+        const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
+
+        const now = new Date();
+        const next = new Date(now);
+
+        // Set the time
+        next.setUTCHours(parseInt(hour), parseInt(minute), 0, 0);
+
+        // If the time has passed today, move to tomorrow
+        if (next <= now) {
+            next.setUTCDate(next.getUTCDate() + 1);
+        }
+
+        // Handle weekly schedules (e.g., "30 20 * * 0" = Sundays)
+        if (dayOfWeek !== '*') {
+            const targetDay = parseInt(dayOfWeek);
+            const currentDay = next.getUTCDay();
+            let daysToAdd = targetDay - currentDay;
+
+            if (daysToAdd <= 0) {
+                daysToAdd += 7;
+            }
+
+            next.setUTCDate(next.getUTCDate() + daysToAdd);
+        }
+
+        return next;
+    } catch (error) {
+        console.error('Error calculating next run:', error);
+        return null;
+    }
+}
+
+/**
+ * Get comprehensive sync statistics
+ */
+export async function getSyncStats() {
+    const supabase = await createClient();
+
+    // Get content stats
+    const { count: totalContent } = await supabase
+        .from('content')
+        .select('*', { count: 'exact', head: true });
+
+    const { count: movieCount } = await supabase
+        .from('content')
+        .select('*', { count: 'exact', head: true })
+        .eq('content_type', 'movie');
+
+    const { count: tvCount } = await supabase
+        .from('content')
+        .select('*', { count: 'exact', head: true })
+        .eq('content_type', 'tv_series');
+
+    // Get active jobs count
+    const { count: activeJobs } = await supabase
+        .from('import_jobs')
+        .select('*', { count: 'exact', head: true })
+        .in('status', ['pending', 'running']);
+
+    // Get pending gaps count
+    const { count: pendingGaps } = await supabase
+        .from('gap_registry')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_resolved', false);
+
+    // Get latest sync log
+    const { data: lastRun } = await supabase
+        .from('sync_logs')
+        .select('*')
+        .eq('sync_type', 'cron')
+        .order('started_at', { ascending: false })
+        .limit(1)
+        .single();
+
+    return {
+        content_stats: {
+            total: totalContent || 0,
+            movies: movieCount || 0,
+            tv_series: tvCount || 0,
+        },
+        active_jobs: activeJobs || 0,
+        pending_gaps: pendingGaps || 0,
+        last_run: lastRun ? {
+            started_at: lastRun.started_at,
+            completed_at: lastRun.completed_at,
+            status: lastRun.status,
+            summary: lastRun.summary,
+        } : null,
+    };
+}
+
+/**
+ * Get pause state from sync settings
+ */
+export async function isPaused(): Promise<boolean> {
+    const settings = await getSyncSettings();
+    return settings.cron_status?.is_paused || false;
+}
+
+/**
+ * Pause sync operations
+ */
+export async function pauseSync(userId?: string) {
+    return await updateSyncSetting('cron_status', {
+        is_paused: true,
+        paused_at: new Date().toISOString(),
+        paused_by: userId || null,
+        resumed_at: null,
+        resumed_by: null,
+    }, userId);
+}
+
+/**
+ * Resume sync operations
+ */
+export async function resumeSync(userId?: string) {
+    return await updateSyncSetting('cron_status', {
+        is_paused: false,
+        paused_at: null,
+        paused_by: null,
+        resumed_at: new Date().toISOString(),
+        resumed_by: userId || null,
+    }, userId);
+}
+

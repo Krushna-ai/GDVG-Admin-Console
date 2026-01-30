@@ -296,8 +296,8 @@ export default function QueueStatusPage() {
                         <div className="text-center py-20 text-slate-400">
                             <p className="text-6xl mb-4">✨</p>
                             <p className="text-xl">Queue is empty</p>
-                            <a href="/admin/bulk-import" className="text-blue-400 hover:text-blue-300 text-sm mt-2 inline-block">
-                                Go to Bulk Import →
+                            <a href="/admin/data-sync" className="text-blue-400 hover:text-blue-300 text-sm mt-2 inline-block">
+                                Go to Data Sync Dashboard →
                             </a>
                         </div>
                     )}

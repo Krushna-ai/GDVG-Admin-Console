@@ -6,7 +6,6 @@ import Link from 'next/link';
 const navLinks = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: '📊' },
   { href: '/admin/tmdb-import', label: 'TMDB Import', icon: '📥' },
-  { href: '/admin/bulk-import', label: 'Bulk Import', icon: '📦' },
   { href: '/admin/content', label: 'Content Manager', icon: '🎬' },
   { href: '/admin/people', label: 'People Manager', icon: '👥' },
   { href: '/admin/queue', label: 'Queue Status', icon: '📋' },
