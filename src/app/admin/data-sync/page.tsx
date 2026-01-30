@@ -5,7 +5,6 @@ import AnalyticsSection from './components/AnalyticsSection';
 import SyncHistory from './components/SyncHistory';
 import BulkImportCenter from './components/BulkImportCenter';
 import ImportQueue from './components/ImportQueue';
-import GapManagement from './components/GapManagement';
 
 export const metadata = {
     title: 'Data Sync | GDVG Admin',
@@ -19,7 +18,7 @@ export default function DataSyncPage() {
                 {/* Header */}
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold text-white mb-2">Data Sync Dashboard</h1>
-                    <p className="text-zinc-400">Manage content synchronization, bulk imports, and gap filling</p>
+                    <p className="text-zinc-400">Manage content synchronization and bulk imports</p>
                 </div>
 
                 {/* Sync Controller */}
@@ -52,11 +51,6 @@ export default function DataSyncPage() {
                     {/* Import Queue */}
                     <Suspense fallback={<LoadingSkeleton />}>
                         <ImportQueue />
-                    </Suspense>
-
-                    {/* Gap Management Section */}
-                    <Suspense fallback={<LoadingSkeleton />}>
-                        <GapManagement />
                     </Suspense>
                 </div>
             </div>

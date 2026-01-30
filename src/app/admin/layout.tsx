@@ -10,6 +10,7 @@ const navLinks = [
   { href: '/admin/people', label: 'People Manager', icon: '👥' },
   { href: '/admin/queue', label: 'Queue Status', icon: '📋' },
   { href: '/admin/data-sync', label: 'Data Sync', icon: '🔄' },
+  { href: '/admin/gap-enrichment', label: 'Gap & Enrichment', icon: '⚡' },
 ];
 
 export default async function AdminLayout({

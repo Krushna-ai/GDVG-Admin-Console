@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getImportJobs } from '@/lib/services/import-job.service';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -7,42 +8,14 @@ import { createClient } from '@/lib/supabase/server';
  */
 export async function GET(request: Request) {
     try {
-        const supabase = await createClient();
         const { searchParams } = new URL(request.url);
+        const status = searchParams.get('status') || undefined;
 
-        const status = searchParams.get('status');
-        const page = parseInt(searchParams.get('page') || '1');
-        const limit = parseInt(searchParams.get('limit') || '20');
-
-        let query = supabase
-            .from('import_jobs')
-            .select('*', { count: 'exact' });
-
-        // Filter by status
-        if (status) {
-            query = query.eq('status', status);
-        }
-
-        // Pagination
-        const from = (page - 1) * limit;
-        const to = from + limit - 1;
-
-        const { data, error, count } = await query
-            .order('priority', { ascending: false })
-            .order('created_at', { ascending: false })
-            .range(from, to);
-
-        if (error) throw error;
+        const jobs = await getImportJobs(status);
 
         return NextResponse.json({
             success: true,
-            data,
-            pagination: {
-                page,
-                limit,
-                total: count || 0,
-                totalPages: Math.ceil((count || 0) / limit),
-            },
+            data: jobs,
         });
     } catch (error) {
         console.error('Error fetching import jobs:', error);
