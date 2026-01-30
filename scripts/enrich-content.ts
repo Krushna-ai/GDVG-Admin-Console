@@ -168,7 +168,7 @@ async function enrichContent(contentId: string, tmdbId: number, contentType: 'mo
         // Import crew (directors, writers, producers)
         if (details.credits?.crew && details.credits.crew.length > 0) {
             const importantRoles = ['Director', 'Writer', 'Screenplay', 'Producer', 'Executive Producer', 'Creator'];
-            const crewToImport = details.credits.crew.filter(c =>
+            const crewToImport = details.credits.crew.filter((c: any) =>
                 importantRoles.some(role => c.job?.includes(role))
             );
 
