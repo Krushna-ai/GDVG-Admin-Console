@@ -17,7 +17,7 @@ interface ImportJobConfig {
  * Process an import job by fetching content from TMDB and importing it
  */
 export async function processImportJob(jobId: string) {
-    const supabaseUrl = process.env.SUPABASE_URL!;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
     const tmdbAccessToken = process.env.TMDB_ACCESS_TOKEN!;
 
