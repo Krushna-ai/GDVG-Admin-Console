@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const tmdbApiKey = process.env.TMDB_API_KEY!;
+const tmdbAccessToken = process.env.TMDB_ACCESS_TOKEN!;
 
 interface Gap {
     gap_type: 'metadata' | 'popularity' | 'temporal';

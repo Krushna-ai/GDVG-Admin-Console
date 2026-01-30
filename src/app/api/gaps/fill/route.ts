@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Import content from TMDB for each gap
-        const tmdbApiKey = process.env.TMDB_API_KEY!;
+        const tmdbAccessToken = process.env.TMDB_ACCESS_TOKEN!;
         let successCount = 0;
         let failCount = 0;
 
@@ -66,8 +66,13 @@ export async function POST(request: NextRequest) {
             try {
                 // Fetch details from TMDB
                 const type = gap.content_type;
-                const detailsUrl = `https://api.themoviedb.org/3/${type}/${gap.tmdb_id}?api_key=${tmdbApiKey}`;
-                const detailsResponse = await fetch(detailsUrl);
+                const detailsUrl = `https://api.themoviedb.org/3/${type}/${gap.tmdb_id}`;
+                const detailsResponse = await fetch(detailsUrl, {
+                    headers: {
+                        'Authorization': `Bearer ${tmdbAccessToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                });
 
                 if (!detailsResponse.ok) {
                     throw new Error('TMDB API error');

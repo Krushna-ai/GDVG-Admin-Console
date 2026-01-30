@@ -19,7 +19,7 @@ interface ImportJobConfig {
 export async function processImportJob(jobId: string) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-    const tmdbApiKey = process.env.TMDB_API_KEY!;
+    const tmdbAccessToken = process.env.TMDB_ACCESS_TOKEN!;
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -60,7 +60,6 @@ export async function processImportJob(jobId: string) {
             while (keepFetching && totalProcessed < maxItems) {
                 // Build TMDB Discover API params
                 const params = new URLSearchParams({
-                    api_key: tmdbApiKey,
                     page: page.toString(),
                     with_origin_country: config.origin_countries.join('|'),
                     'vote_count.gte': '10',
@@ -92,7 +91,12 @@ export async function processImportJob(jobId: string) {
                 const endpoint = type === 'movie' ? 'discover/movie' : 'discover/tv';
                 const url = `https://api.themoviedb.org/3/${endpoint}?${params}`;
 
-                const response = await fetch(url);
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${tmdbAccessToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                });
                 if (!response.ok) {
                     console.error('TMDB API error:', response.statusText);
                     break;
@@ -128,8 +132,13 @@ export async function processImportJob(jobId: string) {
                     }
 
                     // Fetch full details from TMDB
-                    const detailsUrl = `https://api.themoviedb.org/3/${type}/${item.id}?api_key=${tmdbApiKey}`;
-                    const detailsResponse = await fetch(detailsUrl);
+                    const detailsUrl = `https://api.themoviedb.org/3/${type}/${item.id}`;
+                    const detailsResponse = await fetch(detailsUrl, {
+                        headers: {
+                            'Authorization': `Bearer ${tmdbAccessToken}`,
+                            'Content-Type': 'application/json',
+                        },
+                    });
 
                     if (!detailsResponse.ok) {
                         totalProcessed++;

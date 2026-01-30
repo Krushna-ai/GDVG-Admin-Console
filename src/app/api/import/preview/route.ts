@@ -31,11 +31,11 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const tmdbApiKey = process.env.TMDB_API_KEY;
-        if (!tmdbApiKey) {
-            console.error('[Preview] TMDB_API_KEY not configured');
+        const tmdbAccessToken = process.env.TMDB_ACCESS_TOKEN;
+        if (!tmdbAccessToken) {
+            console.error('[Preview] TMDB_ACCESS_TOKEN not configured');
             return NextResponse.json(
-                { error: 'TMDB API key not configured. Please set TMDB_API_KEY in environment variables.' },
+                { error: 'TMDB access token not configured. Please set TMDB_ACCESS_TOKEN in environment variables.' },
                 { status: 500 }
             );
         }
@@ -51,7 +51,6 @@ export async function POST(request: NextRequest) {
             for (let page = 1; page <= 2; page++) {
                 try {
                     const params = new URLSearchParams({
-                        api_key: tmdbApiKey,
                         page: page.toString(),
                         with_origin_country: body.origin_countries.join('|'),
                         'vote_count.gte': '10', // Minimum votes for quality
@@ -81,7 +80,12 @@ export async function POST(request: NextRequest) {
                     const url = `https://api.themoviedb.org/3/${endpoint}?${params}`;
 
                     console.log(`[Preview] Fetching TMDB ${type} page ${page}`);
-                    const response = await fetch(url);
+                    const response = await fetch(url, {
+                        headers: {
+                            'Authorization': `Bearer ${tmdbAccessToken}`,
+                            'Content-Type': 'application/json',
+                        },
+                    });
 
                     if (!response.ok) {
                         const errorText = await response.text();
