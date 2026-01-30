@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Import content from TMDB for each gap
-        const tmdbAccessToken = process.env.TMDB_ACCESS_TOKEN!;
+        const tmdbAccessToken = process.env.NEXT_PUBLIC_TMDB_ACCESS_TOKEN!;
         let successCount = 0;
         let failCount = 0;
 

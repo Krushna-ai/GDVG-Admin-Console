@@ -18,8 +18,8 @@ interface ImportJobConfig {
  */
 export async function processImportJob(jobId: string) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-    const tmdbAccessToken = process.env.TMDB_ACCESS_TOKEN!;
+    const supabaseKey = process.env.NEXT_SUPABASE_SERVICE_ROLE_KEY!;
+    const tmdbAccessToken = process.env.NEXT_PUBLIC_TMDB_ACCESS_TOKEN!;
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
