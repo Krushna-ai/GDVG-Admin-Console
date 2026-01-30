@@ -4,7 +4,8 @@
  */
 
 import supabase from './lib/supabase';
-import { getChangedMovieIds, getChangedTvIds, getMovieDetails, getTvDetails, delay } from './lib/tmdb';
+import { getChangedMovieIds, getChangedTvIds, delay } from './lib/tmdb';
+import { updateContentWithCredits } from './lib/enrich';
 
 const DAYS_BACK = parseInt(process.env.DAYS_BACK || '7', 10);
 
@@ -42,76 +43,83 @@ async function main() {
     }
     console.log(`  Found ${tvIds.length} changed TV shows`);
 
-    // Find which ones exist in our database
+    // Find which ones exist in our database (with IDs)
     const { data: existingMovies } = await supabase
         .from('content')
-        .select('tmdb_id')
+        .select('id, tmdb_id')
         .eq('content_type', 'movie')
         .in('tmdb_id', movieIds.length > 0 ? movieIds : [0]);
 
     const { data: existingTv } = await supabase
         .from('content')
-        .select('tmdb_id')
+        .select('id, tmdb_id')
         .eq('content_type', 'tv')
         .in('tmdb_id', tvIds.length > 0 ? tvIds : [0]);
 
-    const movieToUpdate = existingMovies?.map(e => e.tmdb_id) || [];
-    const tvToUpdate = existingTv?.map(e => e.tmdb_id) || [];
+    console.log(`\n🎬 Movies to update: ${existingMovies?.length || 0}`);
+    console.log(`📺 TV shows to update: ${existingTv?.length || 0}`);
 
-    console.log(`\n🎬 Movies to update: ${movieToUpdate.length}`);
-    console.log(`📺 TV shows to update: ${tvToUpdate.length}`);
+    // Update movies with cast/crew refresh
+    let updated = 0, failed = 0, totalPeople = 0;
 
-    // Update movies
-    let updated = 0, failed = 0;
-    for (const id of movieToUpdate) {
+    for (const content of existingMovies || []) {
         try {
-            const details = await getMovieDetails(id);
-            await supabase.from('content').update({
-                title: details.title,
-                overview: details.overview,
-                poster_path: details.poster_path,
-                backdrop_path: details.backdrop_path,
-                popularity: details.popularity,
-                vote_average: details.vote_average,
-                vote_count: details.vote_count,
-                runtime: details.runtime,
-                tmdb_status: details.status,
-                updated_at: new Date().toISOString(),
-            }).eq('tmdb_id', id).eq('content_type', 'movie');
-            updated++;
+            const result = await updateContentWithCredits(
+                content.id,
+                content.tmdb_id,
+                'movie'
+            );
+
+            if (result.success) {
+                updated++;
+                totalPeople += result.peopleUpdated || 0;
+
+                if (updated % 10 === 0) {
+                    console.log(`  ✓ ${updated} updated (${totalPeople} people)`);
+                }
+            } else {
+                failed++;
+                console.error(`  Failed movie ${content.tmdb_id}: ${result.error}`);
+            }
+
             await delay(300);
         } catch (e) {
-            console.error(`  Failed movie ${id}:`, e);
+            console.error(`  Failed movie ${content.tmdb_id}:`, e);
             failed++;
         }
     }
 
-    // Update TV
-    for (const id of tvToUpdate) {
+    // Update TV shows with cast/crew refresh
+    for (const content of existingTv || []) {
         try {
-            const details = await getTvDetails(id);
-            await supabase.from('content').update({
-                title: details.name,
-                overview: details.overview,
-                poster_path: details.poster_path,
-                backdrop_path: details.backdrop_path,
-                popularity: details.popularity,
-                vote_average: details.vote_average,
-                vote_count: details.vote_count,
-                number_of_seasons: details.number_of_seasons,
-                number_of_episodes: details.number_of_episodes,
-                tmdb_status: details.status,
-                updated_at: new Date().toISOString(),
-            }).eq('tmdb_id', id).eq('content_type', 'tv');
-            updated++;
+            const result = await updateContentWithCredits(
+                content.id,
+                content.tmdb_id,
+                'tv'
+            );
+
+            if (result.success) {
+                updated++;
+                totalPeople += result.peopleUpdated || 0;
+
+                if (updated % 10 === 0) {
+                    console.log(`  ✓ ${updated} updated (${totalPeople} people)`);
+                }
+            } else {
+                failed++;
+                console.error(`  Failed TV ${content.tmdb_id}: ${result.error}`);
+            }
+
             await delay(300);
         } catch (e) {
-            console.error(`  Failed TV ${id}:`, e);
+            console.error(`  Failed TV ${content.tmdb_id}:`, e);
             failed++;
         }
     }
 
-    console.log(`\n✅ Updated: ${updated}, ❌ Failed: ${failed}`);
+    console.log(`\n✅ Updated: ${updated} content`);
+    console.log(`👥 People refreshed: ${totalPeople}`);
+    console.log(`❌ Failed: ${failed}`);
 }
 
 main();

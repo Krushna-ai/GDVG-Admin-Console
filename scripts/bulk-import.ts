@@ -3,13 +3,14 @@
  * Manually triggered to import content by region/type
  */
 
-import supabase from './lib/supabase';
-import { discoverTv, discoverMovies, getMovieDetails, getTvDetails, delay } from './lib/tmdb';
+import { discoverTv, discoverMovies, delay } from './lib/tmdb';
+import { enrichAndSaveContent, checkContentExists } from './lib/enrich';
 
 // Get inputs from environment
 const REGION = process.env.IMPORT_REGION || 'ALL';
 const CONTENT_TYPE = process.env.IMPORT_TYPE || 'all';
 const LIMIT = parseInt(process.env.IMPORT_LIMIT || '500', 10);
+const MAX_PAGES_PER_COUNTRY = 50; // Safety limit
 
 const REGION_MAP: Record<string, string[]> = {
     'KR': ['KR'],
@@ -29,94 +30,183 @@ async function main() {
     console.log(`📊 Limit: ${LIMIT}`);
 
     const countries = REGION_MAP[REGION] || REGION_MAP['ALL'];
-    const discovered: any[] = [];
 
-    // Discovery phase
+    let imported = 0;
+    let skipped = 0;
+    let failed = 0;
+    let totalPeople = 0;
+    let discovered = 0;
+
+    console.log('\n📡 Starting adaptive discovery and import...\n');
+
+    // Adaptive discovery: keep fetching until limit reached
     for (const country of countries) {
+        if (imported >= LIMIT) break;
+
+        console.log(`\n🌍 Country: ${country}`);
+
+        // Process TV shows if requested
         if (CONTENT_TYPE === 'all' || CONTENT_TYPE === 'tv') {
-            console.log(`  Discovering TV from ${country}...`);
-            for (let page = 1; page <= 5; page++) {
-                try {
-                    const data = await discoverTv({ with_origin_country: country, page });
-                    for (const item of data.results || []) {
-                        discovered.push({ ...item, _type: 'tv', _country: country });
-                    }
-                    await delay(100);
-                } catch (e) {
-                    console.error(`    Error page ${page}:`, e);
-                }
-            }
+            const tvResult = await processContentType(
+                'tv',
+                country,
+                LIMIT - imported
+            );
+
+            imported += tvResult.imported;
+            skipped += tvResult.skipped;
+            failed += tvResult.failed;
+            totalPeople += tvResult.people;
+            discovered += tvResult.discovered;
         }
+
+        if (imported >= LIMIT) break;
+
+        // Process movies if requested
         if (CONTENT_TYPE === 'all' || CONTENT_TYPE === 'movie') {
-            console.log(`  Discovering Movies from ${country}...`);
-            for (let page = 1; page <= 3; page++) {
+            const movieResult = await processContentType(
+                'movie',
+                country,
+                LIMIT - imported,
+                5 // Max 5 pages for movies
+            );
+
+            imported += movieResult.imported;
+            skipped += movieResult.skipped;
+            failed += movieResult.failed;
+            totalPeople += movieResult.people;
+            discovered += movieResult.discovered;
+        }
+    }
+
+    console.log('\n\n🎉 Bulk Import completed successfully!');
+    console.log(`📊 Final Stats:`);
+    console.log(`  ✅ Imported: ${imported} content`);
+    console.log(`  👥 People: ${totalPeople}`);
+    console.log(`  ⏭️  Skipped: ${skipped} (duplicates)`);
+    console.log(`  ❌ Failed: ${failed}`);
+    console.log(`  📡 Discovered: ${discovered} total items`);
+}
+
+// ============================================
+// ADAPTIVE DISCOVERY
+// ============================================
+
+interface ProcessResult {
+    imported: number;
+    skipped: number;
+    failed: number;
+    people: number;
+    discovered: number;
+}
+
+/**
+ * Process content type for a country with adaptive page fetching
+ */
+async function processContentType(
+    contentType: 'movie' | 'tv',
+    country: string,
+    remainingQuota: number,
+    maxPages: number = MAX_PAGES_PER_COUNTRY
+): Promise<ProcessResult> {
+    let imported = 0;
+    let skipped = 0;
+    let failed = 0;
+    let totalPeople = 0;
+    let discovered = 0;
+    let page = 1;
+    let consecutiveEmptyPages = 0;
+
+    console.log(`  ${contentType.toUpperCase()} (${country}):`);
+
+    while (imported < remainingQuota && page <= maxPages) {
+        try {
+            // Fetch page from TMDB
+            const data = contentType === 'tv'
+                ? await discoverTv({ with_origin_country: country, sort_by: 'popularity.desc', page })
+                : await discoverMovies({ with_origin_country: country, sort_by: 'popularity.desc', page });
+
+            const items = data.results || [];
+            discovered += items.length;
+
+            if (items.length === 0) {
+                consecutiveEmptyPages++;
+                if (consecutiveEmptyPages >= 2) {
+                    console.log(`    No more content available`);
+                    break;
+                }
+                page++;
+                continue;
+            }
+
+            consecutiveEmptyPages = 0;
+            let pageNewItems = 0;
+
+            // Process each item
+            for (const item of items) {
+                if (imported >= remainingQuota) break;
+
+                const tmdbId = item.id;
+
+                // Check if already exists
+                const exists = await checkContentExists(tmdbId, contentType);
+
+                if (exists) {
+                    skipped++;
+                    continue;
+                }
+
+                // Import with enrichment (content + cast/crew)
                 try {
-                    const data = await discoverMovies({ with_origin_country: country, page });
-                    for (const item of data.results || []) {
-                        discovered.push({ ...item, _type: 'movie', _country: country });
+                    const result = await enrichAndSaveContent(tmdbId, contentType);
+
+                    if (result.success) {
+                        imported++;
+                        pageNewItems++;
+                        totalPeople += result.peopleImported || 0;
+
+                        // Progress log every 25 items
+                        if (imported % 25 === 0) {
+                            console.log(`    ✓ ${imported}/${remainingQuota} (${skipped} skipped, ${totalPeople} people)`);
+                        }
+                    } else {
+                        failed++;
+                        console.error(`    Failed ${tmdbId}: ${result.error}`);
                     }
-                    await delay(100);
-                } catch (e) {
-                    console.error(`    Error page ${page}:`, e);
+
+                    // Rate limiting delay
+                    await delay(300);
+                } catch (error) {
+                    failed++;
+                    console.error(`    Error importing ${tmdbId}:`, error);
                 }
             }
-        }
-    }
 
-    console.log(`\n📡 Discovered ${discovered.length} items`);
-
-    // Filter existing
-    const tmdbIds = discovered.map(d => d.id);
-    const { data: existing } = await supabase
-        .from('content')
-        .select('tmdb_id')
-        .in('tmdb_id', tmdbIds.length > 0 ? tmdbIds : [0]);
-    const existingSet = new Set(existing?.map(e => e.tmdb_id) || []);
-
-    const newItems = discovered.filter(d => !existingSet.has(d.id)).slice(0, LIMIT);
-    console.log(`🔍 ${newItems.length} new items to import`);
-
-    // Import
-    let success = 0, failed = 0;
-    for (const item of newItems) {
-        try {
-            const details = item._type === 'movie'
-                ? await getMovieDetails(item.id)
-                : await getTvDetails(item.id);
-
-            const contentData = {
-                tmdb_id: details.id,
-                content_type: item._type,
-                title: item._type === 'movie' ? details.title : details.name,
-                original_title: item._type === 'movie' ? details.original_title : details.original_name,
-                overview: details.overview,
-                poster_path: details.poster_path,
-                backdrop_path: details.backdrop_path,
-                release_date: item._type === 'movie' ? details.release_date : null,
-                first_air_date: item._type === 'tv' ? details.first_air_date : null,
-                original_language: details.original_language,
-                origin_country: details.origin_country || [item._country],
-                genres: details.genres || [],
-                popularity: details.popularity,
-                vote_average: details.vote_average,
-                vote_count: details.vote_count,
-                tmdb_status: details.status,
-            };
-
-            await supabase.from('content').upsert(contentData, { onConflict: 'tmdb_id,content_type' });
-            success++;
-
-            if ((success + failed) % 25 === 0) {
-                console.log(`  Progress: ${success + failed}/${newItems.length}`);
+            // If no new items in this page, might be hitting duplicates
+            if (pageNewItems === 0 && page > 3) {
+                console.log(`    Page ${page}: all duplicates, continuing...`);
             }
-            await delay(300);
-        } catch (e) {
-            console.error(`  Failed ${item.id}:`, e);
-            failed++;
+
+            page++;
+            await delay(100); // Delay between pages
+
+        } catch (error) {
+            console.error(`    Error on page ${page}:`, error);
+            page++;
         }
     }
 
-    console.log(`\n✅ Imported: ${success}, ❌ Failed: ${failed}`);
+    if (imported > 0) {
+        console.log(`    ✅ ${contentType}: ${imported} imported, ${skipped} skipped, ${totalPeople} people`);
+    }
+
+    return {
+        imported,
+        skipped,
+        failed,
+        people: totalPeople,
+        discovered,
+    };
 }
 
 main();
