@@ -26,12 +26,11 @@ export async function createImportJob(config: ImportJobConfig, createdBy: string
     const { data, error } = await supabase
         .from('import_jobs')
         .insert({
-            config,
-            status: 'queued',
-            progress: 0,
-            processed_items: 0,
-            total_items: 0,
-            created_by: createdBy,
+            configuration: config,
+            status: 'pending',
+            progress: { processed: 0, total: 0, percentage: 0 },
+            created_by: createdBy, // This must be a UUID
+            name: `Import ${config.content_type} (${config.origin_countries.join(',')})`,
         })
         .select()
         .single();

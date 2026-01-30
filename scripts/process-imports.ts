@@ -24,10 +24,13 @@ interface ImportJobConfig {
 
 interface ImportJob {
     id: string;
-    config: ImportJobConfig;
-    status: 'queued' | 'processing' | 'completed' | 'failed';
-    processed_items: number;
-    total_items: number;
+    configuration: ImportJobConfig;
+    status: 'pending' | 'running' | 'completed' | 'failed';
+    progress: {
+        processed: number;
+        total: number;
+        percentage: number;
+    };
     created_at: string;
 }
 
@@ -36,24 +39,25 @@ interface ImportJob {
  */
 async function processJob(job: ImportJob) {
     console.log(`\n📥 Processing Job ${job.id}`);
-    console.log(`   Type: ${job.config.content_type}`);
-    console.log(`   Countries: ${job.config.origin_countries.join(', ')}`);
+    console.log(`   Type: ${job.configuration.content_type}`);
+    console.log(`   Countries: ${job.configuration.origin_countries.join(', ')}`);
 
     try {
         // Update status to processing
         await supabase
             .from('import_jobs')
             .update({
-                status: 'processing',
+                status: job.status,
                 started_at: new Date().toISOString()
             })
             .eq('id', job.id);
 
-        const config = job.config;
+        const config = job.configuration;
         const maxItems = config.max_items || 500;
 
-        let totalProcessed = job.processed_items || 0;
-        let totalImported = job.total_items || 0; // successfully upserted
+        // Initialize progress
+        let totalProcessed = job.progress?.processed || 0;
+        let totalImported = job.progress?.total || 0;
 
         // Determine content types to process
         const contentTypes = config.content_type === 'both'
@@ -153,9 +157,11 @@ async function processJob(job: ImportJob) {
                         await supabase
                             .from('import_jobs')
                             .update({
-                                processed_items: totalProcessed,
-                                total_items: totalImported,
-                                progress: progressPercent
+                                progress: {
+                                    processed: totalProcessed,
+                                    total: totalImported,
+                                    percentage: progressPercent
+                                }
                             })
                             .eq('id', job.id);
 
@@ -164,8 +170,7 @@ async function processJob(job: ImportJob) {
                 }
 
                 if (pageProcessed === 0) {
-                    // Safety break if we loop a page without processing anything (shouldn't happen with updated logic but good safety)
-                    // But here we increment totalProcessed even for skips, so it should be fine.
+                    // Safety break
                 }
 
                 page++;
@@ -179,9 +184,11 @@ async function processJob(job: ImportJob) {
             .from('import_jobs')
             .update({
                 status: 'completed',
-                progress: 100,
-                processed_items: totalProcessed,
-                total_items: totalImported,
+                progress: {
+                    processed: totalProcessed,
+                    total: totalImported,
+                    percentage: 100
+                },
                 completed_at: new Date().toISOString()
             })
             .eq('id', job.id);
@@ -192,7 +199,7 @@ async function processJob(job: ImportJob) {
             .from('import_jobs')
             .update({
                 status: 'failed',
-                error_message: String(error),
+                error_log: [String(error)], // Use error_log array
                 completed_at: new Date().toISOString()
             })
             .eq('id', job.id);
@@ -210,7 +217,7 @@ async function main() {
         const { data: jobs, error } = await supabase
             .from('import_jobs')
             .select('*')
-            .eq('status', 'queued')
+            .eq('status', 'pending')
             .order('created_at', { ascending: true })
             .limit(1); // Process one by one to avoid conflicts if multiple runners
 

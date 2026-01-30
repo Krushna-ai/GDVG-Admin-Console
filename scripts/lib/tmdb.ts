@@ -3,14 +3,14 @@
  * Uses Bearer Token authentication (recommended by TMDB)
  */
 
-const TMDB_ACCESS_TOKEN = process.env.TMDB_ACCESS_TOKEN!;
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
-if (!TMDB_ACCESS_TOKEN) {
-    throw new Error('Missing TMDB_ACCESS_TOKEN environment variable');
-}
-
 async function tmdbFetch<T>(endpoint: string, params: Record<string, string> = {}): Promise<T> {
+    const TMDB_ACCESS_TOKEN = process.env.TMDB_ACCESS_TOKEN;
+    if (!TMDB_ACCESS_TOKEN) {
+        throw new Error('Missing TMDB_ACCESS_TOKEN environment variable');
+    }
+
     const url = new URL(`${TMDB_BASE_URL}${endpoint}`);
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 
