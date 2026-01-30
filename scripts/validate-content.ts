@@ -44,15 +44,15 @@ async function validateContent(): Promise<ValidationResult> {
             overview,
             tagline,
             runtime,
-            episode_count,
-            season_count,
+            number_of_episodes,
+            number_of_seasons,
             status,
             release_date,
             first_air_date,
             vote_average,
             vote_count,
             popularity,
-            published
+            tmdb_status
         `)
         .order('popularity', { ascending: false });
 
@@ -117,13 +117,13 @@ async function validateContent(): Promise<ValidationResult> {
             result.issues_by_field['runtime'] = (result.issues_by_field['runtime'] || 0) + 1;
         }
         if (content.content_type === 'tv') {
-            if (!content.episode_count) {
-                missing.push('episode_count');
-                result.issues_by_field['episode_count'] = (result.issues_by_field['episode_count'] || 0) + 1;
+            if (!content.number_of_episodes) {
+                missing.push('number_of_episodes');
+                result.issues_by_field['number_of_episodes'] = (result.issues_by_field['number_of_episodes'] || 0) + 1;
             }
-            if (!content.season_count) {
-                missing.push('season_count');
-                result.issues_by_field['season_count'] = (result.issues_by_field['season_count'] || 0) + 1;
+            if (!content.number_of_seasons) {
+                missing.push('number_of_seasons');
+                result.issues_by_field['number_of_seasons'] = (result.issues_by_field['number_of_seasons'] || 0) + 1;
             }
         }
 
@@ -170,9 +170,10 @@ async function validateContent(): Promise<ValidationResult> {
         } else {
             result.with_issues++;
 
-            // Calculate priority score (published items get higher priority)
-            const priorityScore = (content.published ? 100 : 50) +
-                (content.popularity || 0) -
+            // Calculate priority score (published/active items get higher priority)
+            const isPublished = content.tmdb_status === 'published' || content.tmdb_status === 'active';
+            const priorityScore = (isPublished ? 100 : 50) +
+                Number(content.popularity || 0) -
                 (missing.length * 5);
 
             result.priority_list.push({
