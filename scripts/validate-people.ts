@@ -46,7 +46,7 @@ async function validatePeople(): Promise<PeopleValidationResult> {
             known_for_department,
             popularity
         `)
-        .order('popularity', { ascending: false, nullsLast: true });
+        .order('popularity', { ascending: false });
 
     if (error || !allPeople) {
         console.error('❌ Error fetching people:', error);
