@@ -2,7 +2,7 @@
 // Enhanced client with discover, person details, and configuration
 
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
-const TMDB_ACCESS_TOKEN = process.env.NEXT_PUBLIC_TMDB_ACCESS_TOKEN;
+const TMDB_ACCESS_TOKEN = process.env.TMDB_ACCESS_TOKEN;
 
 // ============================================
 // TYPES

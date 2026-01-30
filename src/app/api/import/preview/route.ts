@@ -31,11 +31,11 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const tmdbAccessToken = process.env.NEXT_PUBLIC_TMDB_ACCESS_TOKEN;
+        const tmdbAccessToken = process.env.TMDB_ACCESS_TOKEN;
         if (!tmdbAccessToken) {
-            console.error('[Preview] NEXT_PUBLIC_TMDB_ACCESS_TOKEN not configured');
+            console.error('[Preview] TMDB_ACCESS_TOKEN not configured');
             return NextResponse.json(
-                { error: 'TMDB access token not configured. Please set NEXT_PUBLIC_TMDB_ACCESS_TOKEN in environment variables.' },
+                { error: 'TMDB access token not configured. Please set TMDB_ACCESS_TOKEN in environment variables.' },
                 { status: 500 }
             );
         }
