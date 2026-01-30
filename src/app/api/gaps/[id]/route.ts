@@ -7,12 +7,12 @@ import { createClient } from '@/lib/supabase/server';
  */
 export async function PATCH(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const supabase = await createClient();
         const body = await request.json();
-        const { id } = params;
+        const { id } = await params;
 
         const updateData: any = {};
 
@@ -66,11 +66,11 @@ export async function PATCH(
  */
 export async function DELETE(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const supabase = await createClient();
-        const { id } = params;
+        const { id } = await params;
 
         const { error } = await supabase
             .from('gap_registry')

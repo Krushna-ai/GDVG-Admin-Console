@@ -205,6 +205,28 @@ function JobCard({
     const contentType = config.content_type === 'both' ? 'Movies & TV' : config.content_type === 'movie' ? 'Movies' : 'TV Series';
     const countries = config.origin_countries?.join(', ') || 'All';
 
+    // Status badge inline
+    const getStatusBadge = () => {
+        const badges = {
+            pending: { bg: 'bg-blue-900/20 border-blue-500/30', text: 'text-blue-400', icon: Clock },
+            processing: { bg: 'bg-purple-900/20 border-purple-500/30', text: 'text-purple-400', icon: Play },
+            completed: { bg: 'bg-green-900/20 border-green-500/30', text: 'text-green-400', icon: CheckCircle },
+            failed: { bg: 'bg-red-900/20 border-red-500/30', text: 'text-red-400', icon: XCircle },
+            paused: { bg: 'bg-yellow-900/20 border-yellow-500/30', text: 'text-yellow-400', icon: Pause },
+            cancelled: { bg: 'bg-zinc-900/20 border-zinc-500/30', text: 'text-zinc-400', icon: X },
+        };
+
+        const badge = badges[job.status];
+        const Icon = badge.icon;
+
+        return (
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-medium ${badge.bg} ${badge.text}`}>
+                <Icon className="w-3.5 h-3.5" />
+                {job.status.charAt(0).toUpperCase() + job.status.slice(1)}
+            </span>
+        );
+    };
+
     return (
         <div className="bg-zinc-800/50 border border-zinc-700/50 rounded-lg p-4">
             <div className="flex items-start justify-between mb-3">
@@ -213,7 +235,7 @@ function JobCard({
                         <h4 className="text-white font-medium">
                             Import Job #{job.id.slice(0, 8)}
                         </h4>
-                        {getStatusBadge(job.status)}
+                        {getStatusBadge()}
                     </div>
                     <p className="text-sm text-zinc-400">
                         {contentType} • {countries}

@@ -7,12 +7,12 @@ import { createClient } from '@/lib/supabase/server';
  */
 export async function PUT(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const supabase = await createClient();
         const body = await request.json();
-        const { id } = params;
+        const { id } = await params;
         const { name, description, configuration } = body;
 
         const updateData: any = {};
@@ -48,11 +48,11 @@ export async function PUT(
  */
 export async function DELETE(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const supabase = await createClient();
-        const { id } = params;
+        const { id } = await params;
 
         const { error } = await supabase
             .from('import_presets')
@@ -80,11 +80,11 @@ export async function DELETE(
  */
 export async function PATCH(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const supabase = await createClient();
-        const { id } = params;
+        const { id } = await params;
 
         // Get current use_count
         const { data: current } = await supabase
