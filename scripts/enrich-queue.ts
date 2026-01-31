@@ -141,7 +141,7 @@ async function main() {
                 overview: tmdbData.overview || content.overview,
                 tagline: tmdbData.tagline || content.tagline,
                 runtime: tmdbData.runtime || content.runtime,
-                status: tmdbData.status || content.status,
+                tmdb_status: tmdbData.status || content.tmdb_status, // TMDB production status (Released, Ended, etc.)
                 vote_average: tmdbData.vote_average || content.vote_average,
                 vote_count: tmdbData.vote_count || content.vote_count,
                 popularity: tmdbData.popularity || content.popularity,
