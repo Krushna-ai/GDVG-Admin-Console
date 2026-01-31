@@ -35,6 +35,36 @@ interface ImportJob {
 }
 
 /**
+ * Check if sync is paused in dashboard
+ * Exits gracefully if paused
+ */
+async function checkSyncPauseStatus() {
+    try {
+        const { data, error } = await supabase
+            .from('sync_settings')
+            .select('is_paused, paused_at')
+            .single();
+
+        if (error) {
+            console.warn('⚠️ Could not check pause status:', error.message);
+            console.warn('Proceeding with caution...');
+            return;
+        }
+
+        if (data?.is_paused) {
+            console.log('⏸️ Sync is paused. Exiting gracefully.');
+            console.log(`📅 Paused at: ${data.paused_at}`);
+            process.exit(0);
+        }
+
+        console.log('✅ Sync is active. Proceeding...');
+    } catch (err) {
+        console.warn('⚠️ Error checking pause status:', err);
+        console.warn('Proceeding with caution...');
+    }
+}
+
+/**
  * Process a single content import job
  */
 async function processJob(job: ImportJob) {
@@ -211,6 +241,10 @@ async function processJob(job: ImportJob) {
  */
 async function main() {
     console.log('🚀 Checking for pending import jobs...');
+
+    // Check if sync is paused - exit if paused
+    await checkSyncPauseStatus();
+
 
     try {
         // Fetch queued jobs

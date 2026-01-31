@@ -27,6 +27,36 @@ interface EnrichmentProgress {
 }
 
 /**
+ * Check if sync is paused in dashboard
+ * Exits gracefully if paused
+ */
+async function checkSyncPauseStatus() {
+    try {
+        const { data, error } = await supabase
+            .from('sync_settings')
+            .select('is_paused, paused_at')
+            .single();
+
+        if (error) {
+            console.warn('⚠️ Could not check pause status:', error.message);
+            console.warn('Proceeding with caution...');
+            return;
+        }
+
+        if (data?.is_paused) {
+            console.log('⏸️ Sync is paused. Exiting gracefully.');
+            console.log(`📅 Paused at: ${data.paused_at}`);
+            process.exit(0);
+        }
+
+        console.log('✅ Sync is active. Proceeding...');
+    } catch (err) {
+        console.warn('⚠️ Error checking pause status:', err);
+        console.warn('Proceeding with caution...');
+    }
+}
+
+/**
  * Fetch person details from TMDB
  */
 async function fetchPersonDetails(tmdbId: number): Promise<any | null> {
@@ -154,6 +184,10 @@ async function enrichPerson(personId: string, tmdbId: number, name: string): Pro
  */
 async function main() {
     console.log('🚀 Starting People Enrichment\n');
+
+    // Check if sync is paused - exit if paused
+    await checkSyncPauseStatus();
+
     console.log(`Batch Size: ${BATCH_SIZE}`);
     console.log(`Dry Run: ${DRY_RUN}\n`);
 

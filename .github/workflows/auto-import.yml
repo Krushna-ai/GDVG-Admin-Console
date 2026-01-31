@@ -22,7 +22,7 @@ env:
 jobs:
   auto-import:
     runs-on: ubuntu-latest
-    timeout-minutes: 120  # 2 hour timeout (should be plenty)
+    timeout-minutes: 240  # 4 hour timeout (allows 1000 items to complete safely)
 
     steps:
       - name: Checkout repository
