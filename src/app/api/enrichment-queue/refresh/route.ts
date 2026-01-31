@@ -1,0 +1,151 @@
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+/**
+ * POST /api/enrichment-queue/refresh
+ * Clear enrichment queue and rebuild by scanning DB for gaps
+ */
+export async function POST(request: Request) {
+    try {
+        console.log('🔄 Refreshing enrichment queue...');
+
+        // Step 1: Clear existing queue
+        const { error: clearError } = await supabase
+            .from('enrichment_queue')
+            .delete()
+            .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+
+        if (clearError) {
+            throw new Error(`Failed to clear queue: ${clearError.message}`);
+        }
+
+        console.log('✅ Queue cleared');
+
+        // Step 2: Scan content for gaps
+        const { data: allContent, error: contentError } = await supabase
+            .from('content')
+            .select(`
+                id,
+                tmdb_id,
+                title,
+                content_type,
+                poster_path,
+                backdrop_path,
+                overview,
+                tagline,
+                runtime,
+                number_of_episodes,
+                number_of_seasons,
+                status,
+                release_date,
+                first_air_date,
+                vote_average,
+                vote_count
+            `)
+            .order('popularity', { ascending: false });
+
+        if (contentError) {
+            throw new Error(`Failed to fetch content: ${contentError.message}`);
+        }
+
+        // Step 3: Check cast/crew counts
+        const { data: castData } = await supabase
+            .from('content_cast')
+            .select('content_id');
+
+        const { data: crewData } = await supabase
+            .from('content_crew')
+            .select('content_id');
+
+        const castCounts: Record<string, number> = {};
+        const crewCounts: Record<string, number> = {};
+
+        castData?.forEach(row => {
+            castCounts[row.content_id] = (castCounts[row.content_id] || 0) + 1;
+        });
+
+        crewData?.forEach(row => {
+            crewCounts[row.content_id] = (crewCounts[row.content_id] || 0) + 1;
+        });
+
+        // Step 4: Identify items with gaps and add to queue
+        const queueItems = [];
+        for (const content of allContent || []) {
+            const missing: string[] = [];
+
+            // Check for missing fields
+            if (!content.poster_path) missing.push('poster_path');
+            if (!content.backdrop_path) missing.push('backdrop_path');
+            if (!content.overview) missing.push('overview');
+            if (!content.tagline) missing.push('tagline');
+
+            if (content.content_type === 'movie' && !content.runtime) missing.push('runtime');
+            if (content.content_type === 'tv' && !content.number_of_episodes) missing.push('number_of_episodes');
+            if (content.content_type === 'tv' && !content.number_of_seasons) missing.push('number_of_seasons');
+
+            if (content.content_type === 'movie' && !content.release_date) missing.push('release_date');
+            if (content.content_type === 'tv' && !content.first_air_date) missing.push('first_air_date');
+
+            if (!content.status) missing.push('status');
+            if (!content.vote_average) missing.push('vote_average');
+            if (!content.vote_count) missing.push('vote_count');
+
+            const castCount = castCounts[content.id] || 0;
+            const crewCount = crewCounts[content.id] || 0;
+
+            if (castCount < 5) missing.push('cast');
+            if (crewCount < 1) missing.push('crew');
+
+            // If has missing fields, add to queue
+            if (missing.length > 0) {
+                queueItems.push({
+                    content_id: content.id,
+                    queue_type: 'content',
+                    priority: missing.length, // More missing = higher priority
+                    status: 'pending',
+                    metadata: {
+                        title: content.title,
+                        tmdb_id: content.tmdb_id,
+                        missing_fields: missing,
+                    },
+                    retry_count: 0,
+                    max_retries: 3,
+                });
+            }
+        }
+
+        // Step 5: Insert into queue
+        if (queueItems.length > 0) {
+            const { error: insertError } = await supabase
+                .from('enrichment_queue')
+                .insert(queueItems);
+
+            if (insertError) {
+                throw new Error(`Failed to insert queue items: ${insertError.message}`);
+            }
+        }
+
+        console.log(`✅ Added ${queueItems.length} items to queue`);
+
+        return NextResponse.json({
+            success: true,
+            message: `Queue refreshed with ${queueItems.length} items`,
+            stats: {
+                total: queueItems.length,
+                content: queueItems.filter(i => i.queue_type === 'content').length,
+                people: queueItems.filter(i => i.queue_type === 'people').length,
+            },
+        });
+    } catch (error) {
+        console.error('Error refreshing queue:', error);
+        return NextResponse.json(
+            { error: error instanceof Error ? error.message : 'Failed to refresh queue' },
+            { status: 500 }
+        );
+    }
+}

@@ -3,9 +3,10 @@
 import { Suspense, useState } from 'react';
 import { BarChart3, FileText, Database, Activity } from 'lucide-react';
 import QualityDashboard from './components/QualityDashboard';
-import ImportJobsTable from './components/ImportJobsTable';
+import EnrichmentQueueTable from './components/EnrichmentQueueTable';
 import EnrichmentLogsTable from './components/EnrichmentLogsTable';
 import WorkflowStatus from './components/WorkflowStatus';
+import EnrichmentQueueStatus from './components/EnrichmentQueueStatus';
 
 type Tab = 'overview' | 'import-queue' | 'enrichment-logs' | 'reports';
 
@@ -36,7 +37,7 @@ export default function GapEnrichmentPage() {
                             active={activeTab === 'import-queue'}
                             onClick={() => setActiveTab('import-queue')}
                             icon={<Database className="w-4 h-4" />}
-                            label="Import Queue"
+                            label="Enrichment Queue"
                         />
                         <TabButton
                             active={activeTab === 'enrichment-logs'}
@@ -61,6 +62,9 @@ export default function GapEnrichmentPage() {
                                 <WorkflowStatus />
                             </Suspense>
                             <Suspense fallback={<ContentSkeleton />}>
+                                <EnrichmentQueueStatus />
+                            </Suspense>
+                            <Suspense fallback={<ContentSkeleton />}>
                                 <QualityDashboard />
                             </Suspense>
                         </div>
@@ -68,7 +72,7 @@ export default function GapEnrichmentPage() {
 
                     {activeTab === 'import-queue' && (
                         <Suspense fallback={<ContentSkeleton />}>
-                            <ImportJobsTable />
+                            <EnrichmentQueueTable />
                         </Suspense>
                     )}
 
