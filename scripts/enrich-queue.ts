@@ -27,6 +27,23 @@ async function checkPauseStatus(): Promise<boolean> {
 }
 
 /**
+ * Map database content_type to TMDB API endpoint
+ * TMDB only has /movie/ and /tv/ endpoints
+ * Drama and anime are categorized as TV shows on TMDB
+ */
+function getTmdbEndpoint(contentType: string): string {
+    switch (contentType) {
+        case 'movie':
+            return 'movie';
+        case 'tv':
+        case 'drama':
+        case 'anime':
+        default:
+            return 'tv';
+    }
+}
+
+/**
  * Queue-based enrichment script
  * Processes items from enrichment_queue table
  */
@@ -90,8 +107,9 @@ async function main() {
                 throw new Error(`Content not found: ${queueItem.entity_id}`);
             }
 
-            console.log(`\\n[${processed + 1}/${queueItems.length}] Processing: ${content.title}`);
+            console.log(`\n[${processed + 1}/${queueItems.length}] Processing: ${content.title}`);
             console.log(`  TMDB ID: ${content.tmdb_id} | Type: ${content.content_type}`);
+            console.log(`  TMDB Endpoint: /${getTmdbEndpoint(content.content_type)}/${content.tmdb_id}`);
             console.log(`  Missing: ${queueItem.metadata.missing_fields?.join(', ') || 'unknown'}`);
 
             if (DRY_RUN) {
@@ -101,7 +119,8 @@ async function main() {
             }
 
             // Fetch from TMDB API
-            const tmdbUrl = `https://api.themoviedb.org/3/${content.content_type}/${content.tmdb_id}?append_to_response=credits,keywords`;
+            const tmdbEndpoint = getTmdbEndpoint(content.content_type);
+            const tmdbUrl = `https://api.themoviedb.org/3/${tmdbEndpoint}/${content.tmdb_id}?append_to_response=credits,keywords`;
             const tmdbResponse = await fetch(tmdbUrl, {
                 headers: {
                     'Authorization': `Bearer ${process.env.TMDB_API_READ_ACCESS_TOKEN}`,
@@ -110,7 +129,9 @@ async function main() {
             });
 
             if (!tmdbResponse.ok) {
-                throw new Error(`TMDB API error: ${tmdbResponse.status}`);
+                const errorBody = await tmdbResponse.text();
+                console.error(`  TMDB Error Response: ${errorBody}`);
+                throw new Error(`TMDB API error: ${tmdbResponse.status} - ${errorBody.substring(0, 100)}`);
             }
 
             const tmdbData = await tmdbResponse.json();
@@ -153,7 +174,15 @@ async function main() {
             enriched++;
 
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            // Handle all possible error types
+            let errorMessage: string;
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            } else if (typeof error === 'object' && error !== null) {
+                errorMessage = JSON.stringify(error);
+            } else {
+                errorMessage = String(error);
+            }
             console.error(`  ❌ Failed: ${errorMessage}`);
 
             // Mark as failed (will retry if under max_retries)
