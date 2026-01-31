@@ -104,7 +104,7 @@ export async function POST(request: Request) {
             // If has missing fields, add to queue
             if (missing.length > 0) {
                 queueItems.push({
-                    content_id: content.id,
+                    entity_id: content.id,
                     queue_type: 'content',
                     priority: missing.length, // More missing = higher priority
                     status: 'pending',
@@ -145,7 +145,7 @@ export async function POST(request: Request) {
 
                 if (missing.length > 0) {
                     queueItems.push({
-                        content_id: person.id,
+                        entity_id: person.id,
                         queue_type: 'people',
                         priority: missing.length,
                         status: 'pending',

@@ -69,11 +69,11 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { content_id, queue_type, priority, metadata } = body;
+        const { entity_id, queue_type, priority, metadata } = body;
 
-        if (!content_id || !queue_type) {
+        if (!entity_id || !queue_type) {
             return NextResponse.json(
-                { error: 'content_id and queue_type are required' },
+                { error: 'entity_id and queue_type are required' },
                 { status: 400 }
             );
         }
@@ -81,7 +81,7 @@ export async function POST(request: Request) {
         const { data, error } = await supabase
             .from('enrichment_queue')
             .upsert({
-                content_id,
+                entity_id,
                 queue_type,
                 priority: priority || 0,
                 status: 'pending',

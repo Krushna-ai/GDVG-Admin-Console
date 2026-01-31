@@ -5,7 +5,7 @@ import { RefreshCw, Clock, Loader2, CheckCircle, XCircle, Trash2, RotateCcw } fr
 
 interface QueueItem {
     id: string;
-    content_id: string;
+    entity_id: string;
     queue_type: 'content' | 'people' | 'quality';
     priority: number;
     status: 'pending' | 'processing' | 'completed' | 'failed';
