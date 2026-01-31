@@ -28,6 +28,8 @@ export default function EnrichmentQueueTable() {
     const [peopleQueue, setPeopleQueue] = useState<QueueItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [activeTab, setActiveTab] = useState<'content' | 'people'>('content');
+    const [triggering, setTriggering] = useState(false);
 
     useEffect(() => {
         fetchQueue();
@@ -36,13 +38,13 @@ export default function EnrichmentQueueTable() {
     async function fetchQueue() {
         setLoading(true);
         try {
-            // Fetch content queue
-            const contentRes = await fetch('/api/enrichment-queue?type=content&limit=50');
+            // Fetch content queue (all items)
+            const contentRes = await fetch('/api/enrichment-queue?type=content');
             const contentData = await contentRes.json();
             setContentQueue(contentData.data || []);
 
-            // Fetch people queue
-            const peopleRes = await fetch('/api/enrichment-queue?type=people&limit=50');
+            // Fetch people queue (all items)
+            const peopleRes = await fetch('/api/enrichment-queue?type=people');
             const peopleData = await peopleRes.json();
             setPeopleQueue(peopleData.data || []);
         } catch (error) {
@@ -85,55 +87,131 @@ export default function EnrichmentQueueTable() {
         }
     }
 
+    async function handleTriggerEnrichment() {
+        const workflowName = activeTab === 'content' ? 'enrich-content' : 'enrich-people';
+        const displayName = activeTab === 'content' ? 'Content Enrichment' : 'People Enrichment';
+
+        const confirmed = window.confirm(
+            `🚀 Trigger ${displayName}?\n\n` +
+            `This will start the GitHub Actions workflow to process all pending ${activeTab} items in the queue.\n\n` +
+            'Continue?'
+        );
+
+        if (!confirmed) return;
+
+        setTriggering(true);
+        try {
+            const res = await fetch('/api/workflows/trigger', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ workflow: workflowName }),
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                alert(`✅ ${displayName} workflow triggered!\n\nCheck the Actions tab on GitHub to monitor progress.`);
+            } else {
+                alert(`❌ Failed to trigger workflow:\n${data.error}`);
+            }
+        } catch (error) {
+            console.error('Error triggering workflow:', error);
+            alert('❌ Error triggering workflow');
+        } finally {
+            setTriggering(false);
+        }
+    }
+
     if (loading) {
         return <LoadingSkeleton />;
     }
 
+    const currentQueue = activeTab === 'content' ? contentQueue : peopleQueue;
+    const contentCount = contentQueue.length;
+    const peopleCount = peopleQueue.length;
+
     return (
-        <div className="space-y-6">
-            {/* Header with Refresh Button */}
+        <div className="space-y-4">
+            {/* Header with Actions */}
             <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold text-white">Enrichment Queue</h2>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={handleTriggerEnrichment}
+                        disabled={triggering || currentQueue.length === 0}
+                        className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-900 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                    >
+                        {triggering ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Triggering...
+                            </>
+                        ) : (
+                            <>
+                                <RefreshCw className="w-4 h-4" />
+                                Run {activeTab === 'content' ? 'Content' : 'People'} Enrichment
+                            </>
+                        )}
+                    </button>
+                    <button
+                        onClick={handleRefreshQueue}
+                        disabled={refreshing}
+                        className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-900 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                    >
+                        {refreshing ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Refreshing Queue...
+                            </>
+                        ) : (
+                            <>
+                                <RefreshCw className="w-4 h-4" />
+                                Refresh Queue
+                            </>
+                        )}
+                    </button>
+                </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex items-center gap-2 border-b border-zinc-800">
                 <button
-                    onClick={handleRefreshQueue}
-                    disabled={refreshing}
-                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-900 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                    onClick={() => setActiveTab('content')}
+                    className={`px-6 py-3 font-medium transition-colors border-b-2 ${activeTab === 'content'
+                        ? 'text-purple-400 border-purple-500'
+                        : 'text-zinc-400 border-transparent hover:text-white'
+                        }`}
                 >
-                    {refreshing ? (
-                        <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Refreshing Queue...
-                        </>
-                    ) : (
-                        <>
-                            <RefreshCw className="w-4 h-4" />
-                            Refresh Queue
-                        </>
-                    )}
+                    Content Queue
+                    <span className="ml-2 px-2 py-0.5 bg-zinc-800 rounded-full text-xs">
+                        {contentCount}
+                    </span>
+                </button>
+                <button
+                    onClick={() => setActiveTab('people')}
+                    className={`px-6 py-3 font-medium transition-colors border-b-2 ${activeTab === 'people'
+                        ? 'text-purple-400 border-purple-500'
+                        : 'text-zinc-400 border-transparent hover:text-white'
+                        }`}
+                >
+                    People Queue
+                    <span className="ml-2 px-2 py-0.5 bg-zinc-800 rounded-full text-xs">
+                        {peopleCount}
+                    </span>
                 </button>
             </div>
 
-            {/* Content Queue Section */}
+            {/* Queue Content */}
             <QueueSection
-                title="Content Enrichment Queue"
-                items={contentQueue}
-                emptyMessage="No content items in queue"
-                onRefresh={fetchQueue}
-            />
-
-            {/* People Queue Section */}
-            <QueueSection
-                title="People Enrichment Queue"
-                items={peopleQueue}
-                emptyMessage="No people items in queue"
+                items={currentQueue}
+                emptyMessage={`No ${activeTab} items in queue`}
                 onRefresh={fetchQueue}
             />
         </div>
     );
 }
 
-function QueueSection({ title, items, emptyMessage, onRefresh }: {
-    title: string;
+function QueueSection({ items, emptyMessage, onRefresh }: {
     items: QueueItem[];
     emptyMessage: string;
     onRefresh: () => void;
@@ -143,8 +221,7 @@ function QueueSection({ title, items, emptyMessage, onRefresh }: {
     return (
         <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-xl overflow-hidden">
             <div className="px-6 py-4 bg-zinc-800/50 border-b border-zinc-700">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-white">{title}</h3>
+                <div className="flex items-center justify-end">
                     <span className="text-sm text-zinc-400">
                         {pendingCount} pending / {items.length} total
                     </span>

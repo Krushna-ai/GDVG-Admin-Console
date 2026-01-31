@@ -170,13 +170,59 @@ async function main() {
     }
 
     // Summary
-    console.log('\\n═══════════════════════════════════════════════════════');
+    console.log('\n═══════════════════════════════════════════════════════');
     console.log('📊 ENRICHMENT SUMMARY');
     console.log('═══════════════════════════════════════════════════════');
     console.log(`Total Processed: ${processed}`);
     console.log(`✅ Enriched: ${enriched}`);
     console.log(`❌ Failed: ${failed}`);
-    console.log('═══════════════════════════════════════════════════════\\n');
+    console.log('═══════════════════════════════════════════════════════\n');
+
+    // Auto-continuation: Check if there are more pending items
+    const { data: pendingItems } = await supabase
+        .from('enrichment_queue')
+        .select('id', { count: 'exact', head: true })
+        .eq('queue_type', 'content')
+        .eq('status', 'pending');
+
+    const pendingCount = pendingItems?.length || 0;
+
+    if (pendingCount > 0) {
+        console.log(`📋 ${pendingCount} items still pending in queue`);
+        console.log('🔄 Auto-triggering next enrichment run...\n');
+
+        try {
+            // Trigger workflow via GitHub API
+            const response = await fetch(
+                `https://api.github.com/repos/${process.env.GITHUB_REPO_OWNER}/${process.env.GITHUB_REPO_NAME}/actions/workflows/enrich-content.yml/dispatches`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        ref: 'main',
+                        inputs: {
+                            batch_size: BATCH_SIZE.toString(),
+                            dry_run: DRY_RUN.toString(),
+                        },
+                    }),
+                }
+            );
+
+            if (response.status === 204) {
+                console.log('✅ Next enrichment workflow triggered successfully');
+            } else {
+                console.warn(`⚠️ Failed to trigger workflow: ${response.status}`);
+            }
+        } catch (error) {
+            console.error('❌ Error triggering next workflow:', error);
+        }
+    } else {
+        console.log('✨ Queue is empty - no auto-continuation needed');
+    }
 }
 
 main().catch(error => {

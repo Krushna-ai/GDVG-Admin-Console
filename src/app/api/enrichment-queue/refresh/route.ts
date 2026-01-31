@@ -119,7 +119,49 @@ export async function POST(request: Request) {
             }
         }
 
-        // Step 5: Insert into queue
+        // Step 6: Scan people for gaps
+        const { data: allPeople, error: peopleError } = await supabase
+            .from('people')
+            .select(`
+                id,
+                tmdb_id,
+                name,
+                profile_path,
+                biography,
+                birthday,
+                deathday,
+                known_for_department
+            `)
+            .order('popularity', { ascending: false });
+
+        if (!peopleError && allPeople) {
+            for (const person of allPeople) {
+                const missing: string[] = [];
+
+                if (!person.profile_path) missing.push('profile_path');
+                if (!person.biography) missing.push('biography');
+                if (!person.birthday) missing.push('birthday');
+                if (!person.known_for_department) missing.push('known_for_department');
+
+                if (missing.length > 0) {
+                    queueItems.push({
+                        content_id: person.id,
+                        queue_type: 'people',
+                        priority: missing.length,
+                        status: 'pending',
+                        metadata: {
+                            name: person.name,
+                            tmdb_id: person.tmdb_id,
+                            missing_fields: missing,
+                        },
+                        retry_count: 0,
+                        max_retries: 3,
+                    });
+                }
+            }
+        }
+
+        // Step 7: Insert into queue
         if (queueItems.length > 0) {
             const { error: insertError } = await supabase
                 .from('enrichment_queue')
