@@ -1,7 +1,7 @@
 import { supabase } from './lib/supabase';
 import { getNextQueueItems, markQueueItemProcessing, markQueueItemCompleted, markQueueItemFailed } from './lib/queue';
 
-const BATCH_SIZE = parseInt(process.env.BATCH_SIZE || '50');
+const BATCH_SIZE = parseInt(process.env.BATCH_SIZE || '10000'); // No practical limit - auto-continuation handles large queues
 const DRY_RUN = process.env.DRY_RUN === 'true';
 const MAX_RUNTIME_MS = 5 * 60 * 60 * 1000; // 5 hours
 const SAFETY_BUFFER_MS = 5 * 60 * 1000; // 5 minute safety buffer
@@ -179,16 +179,16 @@ async function main() {
     console.log('═══════════════════════════════════════════════════════\n');
 
     // Auto-continuation: Check if there are more pending items
-    const { data: pendingItems } = await supabase
+    const { count: pendingCount } = await supabase
         .from('enrichment_queue')
-        .select('id', { count: 'exact', head: true })
+        .select('*', { count: 'exact', head: true })
         .eq('queue_type', 'content')
         .eq('status', 'pending');
 
-    const pendingCount = pendingItems?.length || 0;
+    const actualPendingCount = pendingCount || 0;
 
-    if (pendingCount > 0) {
-        console.log(`📋 ${pendingCount} items still pending in queue`);
+    if (actualPendingCount > 0) {
+        console.log(`📋 ${actualPendingCount} items still pending in queue`);
         console.log('🔄 Auto-triggering next enrichment run...\n');
 
         try {

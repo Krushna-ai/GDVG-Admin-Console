@@ -5,9 +5,9 @@ on:
   workflow_dispatch:
     inputs:
       batch_size:
-        description: 'Number of items to process per batch (default: 50)'
+        description: 'Number of items to process per batch (default: 10000 = effectively unlimited)'
         required: false
-        default: '50'
+        default: '10000'
       dry_run:
         description: 'Dry run mode (no database updates)'
         required: false
@@ -56,8 +56,11 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           TMDB_API_READ_ACCESS_TOKEN: ${{ secrets.TMDB_ACCESS_TOKEN }}
-          BATCH_SIZE: ${{ github.event.inputs.batch_size }}
+          BATCH_SIZE: ${{ github.event.inputs.batch_size || '10000' }}
           DRY_RUN: ${{ github.event.inputs.dry_run }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO_OWNER: ${{ github.repository_owner }}
+          GITHUB_REPO_NAME: ${{ github.event.repository.name }}
         run: npx tsx scripts/enrich-queue.ts
 
       - name: Summary

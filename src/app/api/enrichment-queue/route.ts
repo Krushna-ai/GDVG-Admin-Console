@@ -15,7 +15,7 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url);
         const queueType = searchParams.get('type'); // 'content' or 'people'
         const status = searchParams.get('status'); // 'pending', 'processing', etc.
-        const limit = parseInt(searchParams.get('limit') || '1000'); // Increased from 100
+        const limit = parseInt(searchParams.get('limit') || '100000'); // Effectively unlimited
 
         let query = supabase
             .from('enrichment_queue')

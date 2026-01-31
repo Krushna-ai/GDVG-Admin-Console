@@ -59,7 +59,7 @@ export async function addToEnrichmentQueue(
  */
 export async function getNextQueueItems(
     queueType: 'content' | 'people' | 'quality',
-    limit: number = 50
+    limit: number = 10000 // Effectively unlimited - auto-continuation handles batching
 ) {
     const { data, error } = await supabase
         .from('enrichment_queue')
