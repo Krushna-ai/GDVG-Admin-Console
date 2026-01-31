@@ -250,7 +250,7 @@ export async function upsertContent(data: Partial<Content>): Promise<Content> {
         production_companies: data.production_companies,
         networks: data.networks,
         tmdb_status: data.tmdb_status,
-        status: data.status || 'published',
+        status: data.status || 'draft', // Fallback to draft if not specified
         content_rating: data.content_rating,
         keywords: data.keywords,
         alternative_titles: data.alternative_titles,

@@ -93,7 +93,7 @@ function mapTmdbToContent(details: any, contentType: 'movie' | 'tv'): any {
         production_companies: details.production_companies || [],
         networks: !isMovie ? details.networks : null,
         tmdb_status: details.status || null,
-        status: 'published',
+        status: 'draft', // All imports start as draft
         // Extended fields
         content_rating: extractContentRating(details, contentType),
         keywords: details.keywords?.keywords || details.keywords?.results || null,
