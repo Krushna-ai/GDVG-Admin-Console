@@ -1,17 +1,25 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ExternalLink, GitBranch, Clock, Zap } from 'lucide-react';
+import { ExternalLink, GitBranch, Clock, Zap, Play, Pause } from 'lucide-react';
 import { getLatestEnrichmentRun, EnrichmentLog } from '@/lib/api/enrichment-logs';
 
 const GITHUB_ACTIONS_URL = 'https://github.com/Krushna-ai/GDVG-Admin-Console/actions';
 
+interface SyncStatus {
+    is_paused: boolean;
+    paused_at: string | null;
+}
+
 export default function WorkflowStatus() {
     const [lastRun, setLastRun] = useState<EnrichmentLog | null>(null);
     const [loading, setLoading] = useState(true);
+    const [actionLoading, setActionLoading] = useState(false);
+    const [isPaused, setIsPaused] = useState(false);
 
     useEffect(() => {
         fetchLastRun();
+        fetchPauseStatus();
     }, []);
 
     async function fetchLastRun() {
@@ -19,6 +27,84 @@ export default function WorkflowStatus() {
         const data = await getLatestEnrichmentRun();
         setLastRun(data);
         setLoading(false);
+    }
+
+    async function fetchPauseStatus() {
+        try {
+            const res = await fetch('/api/sync/status');
+            const data = await res.json();
+            setIsPaused(data.is_paused || false);
+        } catch (error) {
+            console.error('Error fetching pause status:', error);
+        }
+    }
+
+    async function handlePause() {
+        setActionLoading(true);
+        try {
+            const res = await fetch('/api/enrichment/pause', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                setIsPaused(true);
+            } else {
+                alert(`❌ Failed to pause: ${data.error}`);
+            }
+        } catch (error) {
+            console.error('Error pausing enrichment:', error);
+            alert('❌ Error pausing enrichment');
+        } finally {
+            setActionLoading(false);
+        }
+    }
+
+    async function handleResume() {
+        setActionLoading(true);
+        try {
+            const res = await fetch('/api/enrichment/resume', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                setIsPaused(false);
+            } else {
+                alert(`❌ Failed to resume: ${data.error}`);
+            }
+        } catch (error) {
+            console.error('Error resuming enrichment:', error);
+            alert('❌ Error resuming enrichment');
+        } finally {
+            setActionLoading(false);
+        }
+    }
+
+    async function handleRunWorkflow(workflow: string, name: string) {
+        const confirmed = window.confirm(
+            `🚀 Run ${name} Now?\n\n` +
+            `This will trigger the workflow immediately.\n\n` +
+            'Continue?'
+        );
+
+        if (!confirmed) return;
+
+        setActionLoading(true);
+        try {
+            const res = await fetch('/api/workflows/trigger', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ workflow }),
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                alert(`✅ ${name} triggered successfully!\n\nCheck GitHub Actions for progress.`);
+                await fetchLastRun(); // Refresh to show new run
+            } else {
+                alert(`❌ Failed to trigger workflow:\n${data.error}`);
+            }
+        } catch (error) {
+            console.error('Error triggering workflow:', error);
+            alert('❌ Error triggering workflow');
+        } finally {
+            setActionLoading(false);
+        }
     }
 
     if (loading) {
@@ -32,6 +118,11 @@ export default function WorkflowStatus() {
                     <div className="flex items-center gap-2 mb-2">
                         <Zap className="w-5 h-5 text-purple-400" />
                         <h3 className="text-lg font-semibold text-white">GitHub Actions Workflows</h3>
+                        {isPaused && (
+                            <span className="px-2 py-1 text-xs bg-yellow-500/20 text-yellow-400 rounded-md border border-yellow-500/30">
+                                ⏸️ Paused
+                            </span>
+                        )}
                     </div>
 
                     <p className="text-sm text-zinc-300 mb-4">
@@ -61,49 +152,96 @@ export default function WorkflowStatus() {
                     )}
                 </div>
 
-                <a
-                    href={GITHUB_ACTIONS_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
-                >
-                    <span>View Workflows</span>
-                    <ExternalLink className="w-4 h-4" />
-                </a>
+                <div className="flex gap-2">
+                    {isPaused ? (
+                        <button
+                            onClick={handleResume}
+                            disabled={actionLoading}
+                            className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-800 text-white rounded-lg transition-colors"
+                        >
+                            <Play className="w-4 h-4" />
+                            Resume
+                        </button>
+                    ) : (
+                        <button
+                            onClick={handlePause}
+                            disabled={actionLoading}
+                            className="flex items-center gap-2 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-yellow-800 text-white rounded-lg transition-colors"
+                        >
+                            <Pause className="w-4 h-4" />
+                            Pause
+                        </button>
+                    )}
+
+                    <a
+                        href={GITHUB_ACTIONS_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+                    >
+                        <span>View Workflows</span>
+                        <ExternalLink className="w-4 h-4" />
+                    </a>
+                </div>
             </div>
 
-            {/* Workflow Info Cards */}
+            {/* Workflow Cards with Run Buttons */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 pt-6 border-t border-purple-500/20">
                 <WorkflowCard
                     name="Data Quality"
                     schedule="Daily @ 2:00 AM UTC"
                     description="Validates all content and people data"
+                    workflowId="data-quality"
+                    onRun={() => handleRunWorkflow('data-quality', 'Data Quality')}
+                    isPaused={isPaused}
+                    actionLoading={actionLoading}
                 />
                 <WorkflowCard
                     name="Content Enrichment"
                     schedule="Manual Trigger"
                     description="Fetches comprehensive TMDB data"
+                    workflowId="enrich-content"
+                    onRun={() => handleRunWorkflow('enrich-content', 'Content Enrichment')}
+                    isPaused={isPaused}
+                    actionLoading={actionLoading}
                 />
                 <WorkflowCard
-                    name="Import Processor"
-                    schedule="Every 15 minutes"
-                    description="Processes pending import jobs"
+                    name="People Enrichment"
+                    schedule="Manual Trigger"
+                    description="Enriches people/cast profiles"
+                    workflowId="enrich-people"
+                    onRun={() => handleRunWorkflow('enrich-people', 'People Enrichment')}
+                    isPaused={isPaused}
+                    actionLoading={actionLoading}
                 />
             </div>
         </div>
     );
 }
 
-function WorkflowCard({ name, schedule, description }: {
+function WorkflowCard({ name, schedule, description, workflowId, onRun, isPaused, actionLoading }: {
     name: string;
     schedule: string;
     description: string;
+    workflowId: string;
+    onRun: () => void;
+    isPaused: boolean;
+    actionLoading: boolean;
 }) {
     return (
         <div className="bg-zinc-900/50 rounded-lg p-4 border border-zinc-800">
             <h4 className="text-sm font-semibold text-white mb-1">{name}</h4>
             <p className="text-xs text-purple-400 mb-2">{schedule}</p>
-            <p className="text-xs text-zinc-400">{description}</p>
+            <p className="text-xs text-zinc-400 mb-3">{description}</p>
+            <button
+                onClick={onRun}
+                disabled={isPaused || actionLoading}
+                className="w-full flex items-center justify-center gap-2 px-3 py-1.5 text-xs bg-purple-600 hover:bg-purple-700 disabled:bg-purple-900 disabled:cursor-not-allowed text-white rounded-md transition-colors"
+                title={isPaused ? 'Resume to run manually' : 'Trigger now'}
+            >
+                <Play className="w-3 h-3" />
+                Run Now
+            </button>
         </div>
     );
 }

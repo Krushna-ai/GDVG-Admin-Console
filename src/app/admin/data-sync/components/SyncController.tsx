@@ -79,6 +79,39 @@ export default function SyncController() {
         }
     };
 
+    const handleRunNow = async () => {
+        // Confirmation dialog
+        const confirmed = window.confirm(
+            '🚀 Run Auto-Import Now?\n\n' +
+            'This will trigger the daily auto-import workflow immediately.\n' +
+            'It will discover and import new content from TMDB.\n\n' +
+            'Continue?'
+        );
+
+        if (!confirmed) return;
+
+        setActionLoading(true);
+        try {
+            const res = await fetch('/api/workflows/trigger', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ workflow: 'auto-import' }),
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                alert('✅ Auto-import workflow triggered successfully!\n\nCheck GitHub Actions for progress.');
+            } else {
+                alert(`❌ Failed to trigger workflow:\n${data.error}`);
+            }
+        } catch (error) {
+            console.error('Error triggering workflow:', error);
+            alert('❌ Error triggering workflow. Check console for details.');
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-xl p-6">
@@ -123,6 +156,16 @@ export default function SyncController() {
                             Pause
                         </button>
                     )}
+
+                    <button
+                        onClick={handleRunNow}
+                        disabled={actionLoading || isPaused}
+                        className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-900 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                        title={isPaused ? 'Resume sync to run manually' : 'Trigger auto-import now'}
+                    >
+                        <Play className="w-4 h-4" />
+                        Run Now
+                    </button>
 
                     <button
                         onClick={fetchStatus}

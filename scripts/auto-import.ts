@@ -51,7 +51,8 @@ async function checkSyncPauseStatus() {
     try {
         const { data, error } = await supabase
             .from('sync_settings')
-            .select('is_paused, paused_at')
+            .select('setting_value')
+            .eq('setting_key', 'cron_status')
             .single();
 
         if (error) {
@@ -60,9 +61,10 @@ async function checkSyncPauseStatus() {
             return;
         }
 
-        if (data?.is_paused) {
+        const cronStatus = data?.setting_value as any;
+        if (cronStatus?.is_paused) {
             console.log('⏸️ Sync is paused. Exiting gracefully.');
-            console.log(`📅 Paused at: ${data.paused_at}`);
+            console.log(`📅 Paused at: ${cronStatus.paused_at}`);
             process.exit(0);
         }
 
