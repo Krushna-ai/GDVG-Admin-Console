@@ -83,11 +83,11 @@ async function main() {
             const { data: content, error } = await supabase
                 .from('content')
                 .select('*')
-                .eq('id', queueItem.content_id)
+                .eq('id', queueItem.entity_id)
                 .single();
 
             if (error || !content) {
-                throw new Error(`Content not found: ${queueItem.content_id}`);
+                throw new Error(`Content not found: ${queueItem.entity_id}`);
             }
 
             console.log(`\\n[${processed + 1}/${queueItems.length}] Processing: ${content.title}`);

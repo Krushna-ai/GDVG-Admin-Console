@@ -19,9 +19,11 @@ const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 // Map workflow names to their file names
 const WORKFLOW_FILES: Record<string, string> = {
     'auto-import': 'auto-import.yml',
+    'process-imports': 'process-imports.yml',
     'enrich-content': 'enrich-content.yml',
     'enrich-people': 'enrich-people.yml',
-    'data-quality': 'data-quality.yml',
+    'validate-content': 'validate-content.yml',
+    'refresh-queue': 'refresh-queue.yml',
 };
 
 export async function POST(request: NextRequest) {

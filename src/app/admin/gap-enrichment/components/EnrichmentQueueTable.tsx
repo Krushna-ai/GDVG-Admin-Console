@@ -57,10 +57,11 @@ export default function EnrichmentQueueTable() {
     async function handleRefreshQueue() {
         const confirmed = window.confirm(
             '🔄 Refresh Enrichment Queue?\n\n' +
-            'This will:\n' +
+            'This will trigger a GitHub Actions workflow to:\n' +
             '• Clear the current queue\n' +
-            '• Re-scan the entire database for gaps\n' +
+            '• Re-scan the ENTIRE database for gaps\n' +
             '• Rebuild queue with fresh priority\n\n' +
+            'This runs in the background and may take a few minutes.\n\n' +
             'Continue?'
         );
 
@@ -68,20 +69,22 @@ export default function EnrichmentQueueTable() {
 
         setRefreshing(true);
         try {
-            const res = await fetch('/api/enrichment-queue/refresh', {
+            const res = await fetch('/api/workflows/trigger', {
                 method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ workflow: 'refresh-queue' }),
             });
+
             const data = await res.json();
 
             if (data.success) {
-                alert(`✅ Queue refreshed!\n\n${data.message}`);
-                await fetchQueue();
+                alert('✅ Queue refresh triggered!\n\nThe workflow is running in the background.\nRefresh this page in 1-2 minutes to see updated queue.');
             } else {
-                alert(`❌ Failed to refresh queue:\n${data.error}`);
+                alert(`❌ Failed to trigger refresh:\n${data.error}`);
             }
         } catch (error) {
-            console.error('Error refreshing queue:', error);
-            alert('❌ Error refreshing queue');
+            console.error('Error triggering refresh:', error);
+            alert('❌ Error triggering queue refresh');
         } finally {
             setRefreshing(false);
         }

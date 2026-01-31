@@ -272,9 +272,9 @@ async function autoQueueItems(result: ValidationResult) {
             }
         );
 
-        if (result.success && !result.skipped) {
+        if (result) {
             queued++;
-        } else if (result.skipped) {
+        } else {
             skipped++;
         }
     }

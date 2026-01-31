@@ -21,7 +21,7 @@ export async function GET(request: Request) {
             .from('enrichment_queue')
             .select(`
                 id,
-                content_id,
+                entity_id,
                 queue_type,
                 priority,
                 status,

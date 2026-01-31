@@ -2,59 +2,53 @@ import { supabase } from './supabase';
 
 /**
  * Add content to enrichment queue
- * @param contentId - UUID of content to enrich
+ * @param entityId - UUID of entity to enrich
  * @param queueType - Type of enrichment (content, people, quality)
- * @param issueCount - Number of missing fields (used for priority)
+ * @param priority - Number of missing fields (used for priority)
  * @param metadata - Optional metadata in JSON format
  */
 export async function addToEnrichmentQueue(
-    contentId: string,
+    entityId: string,
     queueType: 'content' | 'people' | 'quality',
-    issueCount: number,
+    priority: number = 1,
     metadata: Record<string, any> = {}
-) {
-    // Priority: More issues = higher priority (lowest details first)
-    const priority = issueCount;
-
+): Promise<boolean> {
     try {
-        // Check if item already queued
+        // Check if already in queue (pending or processing)
         const { data: existing } = await supabase
             .from('enrichment_queue')
-            .select('id, status')
-            .eq('content_id', contentId)
+            .select('id')
+            .eq('entity_id', entityId)
             .eq('queue_type', queueType)
+            .in('status', ['pending', 'processing'])
             .single();
 
-        // Skip if already processing or completed
-        if (existing && (existing.status === 'processing' || existing.status === 'completed')) {
-            return { success: true, skipped: true };
+        if (existing) {
+            console.log(`⏭️  Already in queue: ${entityId}`);
+            return false;
         }
 
-        // Upsert queue item
-        const { data, error } = await supabase
+        const { error } = await supabase
             .from('enrichment_queue')
-            .upsert({
-                content_id: contentId,
+            .insert({
+                entity_id: entityId,
                 queue_type: queueType,
                 priority,
                 status: 'pending',
                 metadata,
                 retry_count: 0,
-            }, {
-                onConflict: 'content_id,queue_type'
-            })
-            .select()
-            .single();
+                max_retries: 3,
+            });
 
         if (error) {
-            console.error(`Error adding to queue:`, error);
-            return { success: false, error };
+            console.error('Error adding to queue:', error);
+            return false;
         }
 
-        return { success: true, data };
-    } catch (err) {
-        console.error('Queue error:', err);
-        return { success: false, error: err };
+        return true;
+    } catch (error) {
+        console.error('Exception adding to queue:', error);
+        return false;
     }
 }
 
@@ -71,7 +65,7 @@ export async function getNextQueueItems(
         .from('enrichment_queue')
         .select(`
             id,
-            content_id,
+            entity_id,
             queue_type,
             priority,
             retry_count,
@@ -80,7 +74,6 @@ export async function getNextQueueItems(
         `)
         .eq('queue_type', queueType)
         .eq('status', 'pending')
-        .lte('retry_count', supabase.rpc('max_retries'))
         .order('priority', { ascending: false }) // Higher priority first
         .order('created_at', { ascending: true }) // Older items first
         .limit(limit);
