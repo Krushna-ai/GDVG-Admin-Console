@@ -5,13 +5,9 @@ on:
   workflow_dispatch:
     inputs:
       batch_size:
-        description: 'Number of items to process (default: 100)'
+        description: 'Number of items to process per batch (default: 50)'
         required: false
-        default: '100'
-      start_from_id:
-        description: 'Optional: Start from specific content ID'
-        required: false
-        default: ''
+        default: '50'
       dry_run:
         description: 'Dry run mode (no database updates)'
         required: false
@@ -21,6 +17,7 @@ on:
 jobs:
   enrich-content:
     runs-on: ubuntu-latest
+    timeout-minutes: 300  # 5 hours max runtime
     
     steps:
       - name: Checkout code
@@ -35,26 +32,44 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run Content Enrichment
+      - name: Check Pause Status
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          TMDB_ACCESS_TOKEN: ${{ secrets.TMDB_ACCESS_TOKEN }}
+        run: |
+          echo "Checking if enrichment is paused..."
+          npx tsx -e "
+          import { createClient } from '@supabase/supabase-js';
+          const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+          const { data } = await supabase.from('sync_settings').select('setting_value').eq('setting_key', 'cron_status').single();
+          if (data?.setting_value?.is_paused) {
+            console.log('⏸️ Enrichment is paused. Exiting.');
+            process.exit(0);
+          }
+          console.log('✅ Enrichment is active. Proceeding...');
+          "
+
+      - name: Run Queue-Based Enrichment
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TMDB_API_READ_ACCESS_TOKEN: ${{ secrets.TMDB_ACCESS_TOKEN }}
           BATCH_SIZE: ${{ github.event.inputs.batch_size }}
-          START_FROM_ID: ${{ github.event.inputs.start_from_id }}
           DRY_RUN: ${{ github.event.inputs.dry_run }}
-        run: npx tsx scripts/enrich-content.ts
+        run: npx tsx scripts/enrich-queue.ts
 
       - name: Summary
         if: always()
         run: |
-          echo "## 📊 Content Enrichment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Queue-Based Enrichment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Batch Size**: ${{ github.event.inputs.batch_size || 100 }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Batch Size**: ${{ github.event.inputs.batch_size || 50 }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Dry Run**: ${{ github.event.inputs.dry_run || false }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Max Runtime**: 300 minutes (5 hours)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Check logs above for detailed results." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
-          echo "- Run this workflow again to process the next batch" >> $GITHUB_STEP_SUMMARY
-          echo "- The script automatically resumes from where it left off" >> $GITHUB_STEP_SUMMARY
+          echo "- Queue automatically resumes from pending items" >> $GITHUB_STEP_SUMMARY
+          echo "- Failed items will retry up to 3 times" >> $GITHUB_STEP_SUMMARY
+          echo "- Run validate-content.ts to add more items to queue" >> $GITHUB_STEP_SUMMARY

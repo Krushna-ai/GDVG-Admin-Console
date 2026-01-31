@@ -1,4 +1,5 @@
 import { supabase } from './lib/supabase';
+import { addToEnrichmentQueue } from './lib/queue';
 
 interface ValidationIssue {
     id: string;
@@ -248,12 +249,47 @@ async function saveResults(result: ValidationResult) {
     }
 }
 
+/**
+ * Auto-queue items with missing data
+ * Priority: Items with most issues get queued first
+ */
+async function autoQueueItems(result: ValidationResult) {
+    console.log('🔄 Auto-queueing items with missing data...\\n');
+
+    let queued = 0;
+    let skipped = 0;
+
+    // Queue top priority items (items with most issues = highest priority)
+    for (const item of result.priority_list) {
+        const result = await addToEnrichmentQueue(
+            item.id,
+            'content',
+            item.missing.length, // More missing = higher priority
+            {
+                title: item.title,
+                tmdb_id: item.tmdb_id,
+                missing_fields: item.missing,
+            }
+        );
+
+        if (result.success && !result.skipped) {
+            queued++;
+        } else if (result.skipped) {
+            skipped++;
+        }
+    }
+
+    console.log(`✅ Queued ${queued} items for enrichment`);
+    console.log(`⏭️  Skipped ${skipped} items (already queued/processing)\\n`);
+}
+
 // Main execution
 async function main() {
     try {
         const result = await validateContent();
         displayResults(result);
         await saveResults(result);
+        await autoQueueItems(result);
     } catch (error) {
         console.error('❌ Validation failed:', error);
         process.exit(1);
