@@ -1,5 +1,6 @@
 import { supabase } from './lib/supabase';
 import { delay } from './lib/tmdb';
+import { getPersonBioMultiVariant } from './lib/wikipedia';
 
 /**
  * Batch Enrichment Script for People
@@ -147,12 +148,35 @@ async function enrichPerson(personId: string, tmdbId: number, name: string): Pro
             return true;
         }
 
+        // Enrich biography with Wikipedia-first strategy
+        console.log(`  🌐 Enriching biography for ${name}...`);
+        let biography = details.biography;
+        let bio_source = 'tmdb';
+        let wikipedia_url: string | undefined;
+
+        try {
+            const wikiSummary = await getPersonBioMultiVariant(name, 'en');
+            if (wikiSummary && wikiSummary.extract) {
+                biography = wikiSummary.extract;
+                bio_source = 'wikipedia';
+                wikipedia_url = wikiSummary.page_url;
+                console.log(`    ✅ Wikipedia bio (${wikiSummary.extract.length} chars)`);
+            } else if (details.biography) {
+                console.log(`    ↩️  Using TMDB bio`);
+            } else {
+                bio_source = 'none';
+                console.log(`    ℹ️  No biography available`);
+            }
+        } catch (error) {
+            console.log(`    ⚠️  Wikipedia fetch failed, using TMDB`);
+        }
+
         // Update people table with ALL fields
         const { error } = await supabase
             .from('people')
             .update({
                 name: details.name,
-                biography: details.biography,
+                biography: biography,
                 birthday: details.birthday,
                 deathday: details.deathday,
                 place_of_birth: details.place_of_birth,
@@ -164,6 +188,8 @@ async function enrichPerson(personId: string, tmdbId: number, name: string): Pro
                 imdb_id: details.external_ids?.imdb_id,
                 also_known_as: details.also_known_as,
                 adult: details.adult,
+                wikipedia_url: wikipedia_url,
+                bio_source: bio_source,
                 updated_at: new Date().toISOString(),
             })
             .eq('id', personId);

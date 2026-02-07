@@ -25,6 +25,8 @@ export interface Person {
     also_known_as?: string[];
     homepage?: string | null;
     adult?: boolean;
+    wikipedia_url?: string | null;
+    bio_source?: 'wikipedia' | 'tmdb' | 'none';
 }
 
 export interface Content {
@@ -63,6 +65,8 @@ export interface Content {
     wikidata_id?: string;
     tvdb_id?: number;
     imdb_id?: string;
+    wikipedia_url?: string | null;
+    overview_source?: 'wikipedia' | 'tmdb' | 'none';
 }
 
 // ============================================

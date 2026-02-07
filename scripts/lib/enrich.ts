@@ -13,6 +13,8 @@ import {
     deleteContentCrew,
     checkContentExists,
 } from './database';
+import { getWikidataByTmdbId, getWikidataById } from './wikidata';
+import { getContentSummary, getPersonBioMultiVariant } from './wikipedia';
 
 // ============================================
 // CONSTANTS
@@ -138,7 +140,11 @@ function getRoleType(order: number): 'main' | 'support' | 'guest' {
 
 /**
  * Retry wrapper for TMDB API calls
- * Handles rate limiting (429) and transient errors
+ * Handles rate limiting (429), transient errors, socket errors, and Cloudflare errors
+ * 
+ * Phase 6 enhancements:
+ * - Exponential backoff for socket/network errors
+ * - Cloudflare HTML error detection
  */
 async function withRetry<T>(
     operation: () => Promise<T>,
@@ -149,7 +155,15 @@ async function withRetry<T>(
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-            return await operation();
+            const result = await operation();
+
+            // Phase 6.2: Detect Cloudflare HTML errors
+            // Sometimes APIs return HTML error pages instead of JSON
+            if (typeof result === 'string' && result.trim().startsWith('<')) {
+                throw new Error('Cloudflare HTML error page returned');
+            }
+
+            return result;
         } catch (error: any) {
             lastError = error;
 
@@ -158,19 +172,36 @@ async function withRetry<T>(
                 break;
             }
 
-            // Check if it's a rate limit error (429)
+            // Detect error types
             const isRateLimit = error?.status === 429 || error?.message?.includes('429');
+            const isSocketError = error?.code === 'ECONNRESET' ||
+                error?.code === 'ETIMEDOUT' ||
+                error?.code === 'ENOTFOUND' ||
+                error?.message?.includes('socket') ||
+                error?.message?.includes('network') ||
+                error?.message?.includes('timeout');
+            const isCloudflareError = error?.message?.includes('Cloudflare') ||
+                error?.message?.includes('HTML error');
+
+            // Calculate wait time
+            let waitTime: number;
 
             if (isRateLimit) {
-                const waitTime = 5000 * attempt; // 5s, 10s, 15s
+                // Rate limit: Linear backoff (5s, 10s, 15s)
+                waitTime = 5000 * attempt;
                 console.log(`  ⏳ Rate limited on ${operationName}, waiting ${waitTime}ms (attempt ${attempt}/${maxRetries})`);
-                await delay(waitTime);
+            } else if (isSocketError || isCloudflareError) {
+                // Phase 6.1: Socket/network errors: Exponential backoff (2s, 4s, 8s)
+                waitTime = 1000 * Math.pow(2, attempt);
+                const errorType = isCloudflareError ? 'Cloudflare' : 'socket/network';
+                console.log(`  🔌 ${errorType} error on ${operationName}, exponential backoff ${waitTime}ms (attempt ${attempt}/${maxRetries})`);
             } else {
-                // For other errors, use shorter delay
-                const waitTime = 1000 * attempt; // 1s, 2s, 3s
+                // Other errors: Short linear backoff (1s, 2s, 3s)
+                waitTime = 1000 * attempt;
                 console.log(`  ⚠️  Error on ${operationName}, retrying in ${waitTime}ms (attempt ${attempt}/${maxRetries})`);
-                await delay(waitTime);
             }
+
+            await delay(waitTime);
         }
     }
 
@@ -178,6 +209,306 @@ async function withRetry<T>(
     console.error(`  ❌ ${operationName} failed after ${maxRetries} attempts:`, lastError);
     throw lastError;
 }
+
+// ============================================
+// GENRE & TAG MERGING UTILITIES
+// ============================================
+
+/**
+ * Normalize genre/tag names for deduplication
+ * - Lowercase
+ * - Trim whitespace
+ * - Handle common variations (e.g., "Sci-Fi" -> "Science Fiction")
+ */
+function normalizeGenre(genre: string): string {
+    const normalized = genre.trim().toLowerCase();
+
+    // Handle common variations
+    const variations: Record<string, string> = {
+        'sci-fi': 'science fiction',
+        'scifi': 'science fiction',
+        'k-drama': 'korean drama',
+        'kdrama': 'korean drama',
+        'romcom': 'romantic comedy',
+        'rom-com': 'romantic comedy',
+    };
+
+    return variations[normalized] || normalized;
+}
+
+/**
+ * Merge and deduplicate genres from multiple sources
+ * Priority: Wikidata + TMDB (both used, merged, deduplicated)
+ * 
+ * @param wikidataGenres Genres from Wikidata P136
+ * @param tmdbGenres Genres from TMDB
+ * @returns Merged and deduplicated genre list
+ */
+function mergeGenres(
+    wikidataGenres: string[] = [],
+    tmdbGenres: Array<{ id: number; name: string }> = []
+): Array<{ id?: number; name: string }> {
+    const seenNormalized = new Set<string>();
+    const merged: Array<{ id?: number; name: string }> = [];
+
+    // Add Wikidata genres first (no IDs)
+    for (const genre of wikidataGenres) {
+        const normalized = normalizeGenre(genre);
+        if (!seenNormalized.has(normalized)) {
+            seenNormalized.add(normalized);
+            merged.push({ name: genre });
+        }
+    }
+
+    // Add TMDB genres (with IDs), skip duplicates
+    for (const genre of tmdbGenres) {
+        const normalized = normalizeGenre(genre.name);
+        if (!seenNormalized.has(normalized)) {
+            seenNormalized.add(normalized);
+            merged.push({ id: genre.id, name: genre.name });
+        }
+    }
+
+    return merged;
+}
+
+/**
+ * Merge and deduplicate keywords/tags from multiple sources
+ * Currently: TMDB keywords only (Wikipedia categories placeholder for future)
+ * 
+ * @param tmdbKeywords Keywords from TMDB
+ * @param wikipediaCategories Categories from Wikipedia (future)
+ * @returns Merged and deduplicated keyword list
+ */
+function mergeKeywords(
+    tmdbKeywords: Array<{ id: number; name: string }> = [],
+    wikipediaCategories: string[] = []
+): Array<{ id?: number; name: string }> {
+    const seenNormalized = new Set<string>();
+    const merged: Array<{ id?: number; name: string }> = [];
+
+    // Add TMDB keywords first (with IDs)
+    for (const keyword of tmdbKeywords) {
+        const normalized = normalizeGenre(keyword.name); // Reuse normalization
+        if (!seenNormalized.has(normalized)) {
+            seenNormalized.add(normalized);
+            merged.push({ id: keyword.id, name: keyword.name });
+        }
+    }
+
+    // Add Wikipedia categories (future feature)
+    for (const category of wikipediaCategories) {
+        const normalized = normalizeGenre(category);
+        if (!seenNormalized.has(normalized)) {
+            seenNormalized.add(normalized);
+            merged.push({ name: category });
+        }
+    }
+
+    return merged;
+}
+
+
+
+// ============================================
+// WIKIPEDIA-FIRST ENRICHMENT
+// ============================================
+
+/**
+ * Enrich content overview with Wikipedia-first strategy
+ * Tries Wikipedia first, falls back to TMDB if not available
+ * 
+ * @param tmdbDetails TMDB details object
+ * @param contentType Type of content
+ * @returns Enriched overview and metadata
+ */
+async function enrichOverviewFromWikipedia(
+    tmdbDetails: any,
+    contentType: 'movie' | 'tv'
+): Promise<{ overview: string | null; overview_source: string; wikipedia_url?: string }> {
+    const tmdbOverview = tmdbDetails.overview || null;
+
+    try {
+        // Step 1: Get Wikipedia title from Wikidata or TMDB
+        const wikidataId = tmdbDetails.external_ids?.wikidata_id;
+        let wikipediaTitle: string | undefined;
+        let wikipediaUrl: string | undefined;
+
+        if (wikidataId) {
+            // Use existing Wikidata ID from TMDB
+            console.log(`  🔍 Using Wikidata ID from TMDB: ${wikidataId}`);
+            const wikidataResult = await getWikidataById(wikidataId);
+            wikipediaTitle = wikidataResult?.wikipedia_title;
+            wikipediaUrl = wikidataResult?.wikipedia_url;
+        } else {
+            // Query Wikidata by TMDB ID
+            const wikidataResult = await getWikidataByTmdbId(tmdbDetails.id, contentType);
+            wikipediaTitle = wikidataResult?.wikipedia_title;
+            wikipediaUrl = wikidataResult?.wikipedia_url;
+        }
+
+        // Step 2: Try to fetch Wikipedia summary if we have a title
+        if (wikipediaTitle) {
+            const wikiSummary = await getContentSummary(wikipediaTitle, 'en');
+
+            if (wikiSummary && wikiSummary.extract) {
+                console.log(`  ✅ Using Wikipedia overview (${wikiSummary.extract.length} chars)`);
+                return {
+                    overview: wikiSummary.extract,
+                    overview_source: 'wikipedia',
+                    wikipedia_url: wikiSummary.page_url || wikipediaUrl,
+                };
+            }
+        }
+
+        // Step 3: Fallback to TMDB
+        if (tmdbOverview) {
+            console.log(`  ℹ️  Wikipedia not available, using TMDB overview`);
+            return {
+                overview: tmdbOverview,
+                overview_source: 'tmdb',
+            };
+        }
+
+        console.log(`  ⚠️  No overview available from Wikipedia or TMDB`);
+        return {
+            overview: null,
+            overview_source: 'none',
+        };
+
+    } catch (error) {
+        console.error(`  ❌ Error enriching overview: ${error instanceof Error ? error.message : String(error)}`);
+        console.log(`  ↩️  Falling back to TMDB overview`);
+        return {
+            overview: tmdbOverview,
+            overview_source: 'tmdb',
+        };
+    }
+}
+
+/**
+ * Enrich network and screenwriter data from Wikidata
+ * Queries Wikidata for P449 (network) and P58 (screenwriter)
+ * 
+ * @param tmdbDetails TMDB details object
+ * @param contentType Type of content
+ * @returns Enriched network and screenwriter data
+ */
+async function enrichFromWikidata(
+    tmdbDetails: any,
+    contentType: 'movie' | 'tv'
+): Promise<{
+    original_network?: string;
+    screenwriters?: string[];
+    genres?: string[];
+}> {
+    try {
+        // Query Wikidata for both TV and movies (genres apply to both)
+        const wikidataId = tmdbDetails.external_ids?.wikidata_id;
+        let wikidataResult;
+
+        if (wikidataId) {
+            console.log(`  🔍 Querying Wikidata ID ${wikidataId} for network/screenwriter/genres`);
+            wikidataResult = await getWikidataById(wikidataId);
+        } else {
+            console.log(`  🔍 Querying Wikidata by TMDB ID for network/screenwriter/genres`);
+            wikidataResult = await getWikidataByTmdbId(tmdbDetails.id, contentType);
+        }
+
+        if (!wikidataResult) {
+            console.log(`  ℹ️  No Wikidata result found`);
+            return {};
+        }
+
+        const enriched: {
+            original_network?: string;
+            screenwriters?: string[];
+            genres?: string[];
+        } = {};
+
+        // Network from Wikidata (P449) - TV only
+        if (contentType === 'tv' && wikidataResult.original_network) {
+            enriched.original_network = wikidataResult.original_network;
+            console.log(`  ✅ Wikidata network: ${wikidataResult.original_network}`);
+        }
+
+        // Screenwriters from Wikidata (P58)
+        if (wikidataResult.screenwriters && wikidataResult.screenwriters.length > 0) {
+            enriched.screenwriters = wikidataResult.screenwriters;
+            console.log(`  ✅ Wikidata screenwriters: ${wikidataResult.screenwriters.join(', ')}`);
+        }
+
+        // Genres from Wikidata (P136)
+        if (wikidataResult.genres && wikidataResult.genres.length > 0) {
+            enriched.genres = wikidataResult.genres;
+            console.log(`  ✅ Wikidata genres: ${wikidataResult.genres.join(', ')}`);
+        }
+
+        return enriched;
+
+    } catch (error) {
+        console.error(`  ❌ Error enriching from Wikidata: ${error instanceof Error ? error.message : String(error)}`);
+        return {};
+    }
+}
+
+/**
+ * Enrich person biography with Wikipedia-first strategy
+ * Tries Wikipedia first, falls back to TMDB biography
+ * 
+ * @param personName Person's name
+ * @param tmdbBio Biography from TMDB (fallback)
+ * @returns Enriched biography and metadata
+ */
+async function enrichPersonBio(
+    personName: string,
+    tmdbBio: string | null = null
+): Promise<{
+    biography: string | null;
+    bio_source: string;
+    wikipedia_url?: string;
+}> {
+    try {
+        // Try Wikipedia first with name variants
+        const wikiSummary = await getPersonBioMultiVariant(personName, 'en');
+
+        if (wikiSummary && wikiSummary.extract) {
+            console.log(`    ✅ Wikipedia bio for ${personName} (${wikiSummary.extract.length} chars)`);
+            return {
+                biography: wikiSummary.extract,
+                bio_source: 'wikipedia',
+                wikipedia_url: wikiSummary.page_url,
+            };
+        }
+
+        // Fallback to TMDB
+        if (tmdbBio) {
+            console.log(`    ↩️  Using TMDB bio for ${personName}`);
+            return {
+                biography: tmdbBio,
+                bio_source: 'tmdb',
+            };
+        }
+
+        return {
+            biography: null,
+            bio_source: 'none',
+        };
+
+    } catch (error) {
+        console.error(`    ❌ Error enriching bio for ${personName}:`, error);
+        return {
+            biography: tmdbBio,
+            bio_source: tmdbBio ? 'tmdb' : 'none',
+        };
+    }
+}
+
+
+
+// ============================================
+// MAIN ENRICHMENT FUNCTION
+// ============================================
 
 
 // ============================================
@@ -207,10 +538,58 @@ export async function enrichAndSaveContent(
             return { success: false, error: 'Failed to fetch from TMDB' };
         }
 
-        // 2. Map TMDB data to our content format
+        // 2. Enrich overview with Wikipedia (Wikipedia-first strategy)
+        console.log(`\n🌐 Enriching overview with Wikipedia...`);
+        const overviewEnrichment = await enrichOverviewFromWikipedia(details, contentType);
+
+        // 2b. Enrich network, screenwriter, and genres from Wikidata
+        console.log(`\n📊 Enriching from Wikidata...`);
+        const wikidataEnrichment = await enrichFromWikidata(details, contentType);
+
+        // 3. Map TMDB data to our content format (with Wikipedia-enriched overview)
         const contentData = mapTmdbToContent(details, contentType);
 
-        // 3. Insert/update content
+        // Override overview with Wikipedia-enriched data
+        contentData.overview = overviewEnrichment.overview;
+        if (overviewEnrichment.wikipedia_url) {
+            contentData.wikipedia_url = overviewEnrichment.wikipedia_url;
+        }
+
+        // Merge Wikidata network (Wikidata first, TMDB fallback)
+        if (wikidataEnrichment.original_network) {
+            contentData.original_network = wikidataEnrichment.original_network;
+        } else if (contentData.networks && contentData.networks.length > 0) {
+            contentData.original_network = contentData.networks[0].name;
+            console.log(`  ↩️  Using TMDB network: ${contentData.original_network}`);
+        }
+
+        // Merge genres from Wikidata + TMDB (with deduplication)
+        console.log(`\n🏷️  Merging genres and keywords...`);
+        const tmdbGenres = contentData.genres || [];
+        const wikidataGenres = wikidataEnrichment.genres || [];
+        const mergedGenres = mergeGenres(wikidataGenres, tmdbGenres);
+        contentData.genres = mergedGenres;
+
+        if (wikidataGenres.length > 0) {
+            console.log(`  ✅ Merged ${mergedGenres.length} genres (${wikidataGenres.length} from Wikidata, ${tmdbGenres.length} from TMDB)`);
+        } else {
+            console.log(`  ℹ️  Using ${tmdbGenres.length} TMDB genres`);
+        }
+
+        // Merge keywords from TMDB (Wikipedia categories future)
+        const tmdbKeywords = contentData.keywords || [];
+        const mergedKeywords = mergeKeywords(tmdbKeywords, []);
+        contentData.keywords = mergedKeywords;
+        console.log(`  ✅ ${mergedKeywords.length} keywords processed`);
+
+        // Log screenwriters for crew processing
+        if (wikidataEnrichment.screenwriters && wikidataEnrichment.screenwriters.length > 0) {
+            console.log(`  📝 Screenwriters from Wikidata: ${wikidataEnrichment.screenwriters.join(', ')}`);
+        }
+
+        // Note: overview_source will be added to database schema in Phase 6
+
+        // 4. Insert/update content
         const content = await upsertContent(contentData);
 
         if (!content.id) {

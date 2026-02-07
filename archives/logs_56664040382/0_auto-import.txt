@@ -1,0 +1,812 @@
+﻿2026-02-06T21:51:18.2311833Z Current runner version: '2.331.0'
+2026-02-06T21:51:18.2335483Z ##[group]Runner Image Provisioner
+2026-02-06T21:51:18.2336368Z Hosted Compute Agent
+2026-02-06T21:51:18.2337045Z Version: 20260123.484
+2026-02-06T21:51:18.2337643Z Commit: 6bd6555ca37d84114959e1c76d2c01448ff61c5d
+2026-02-06T21:51:18.2338356Z Build Date: 2026-01-23T19:41:17Z
+2026-02-06T21:51:18.2339106Z Worker ID: {abb92472-cbaa-4190-a10f-967215da9af3}
+2026-02-06T21:51:18.2339836Z Azure Region: northcentralus
+2026-02-06T21:51:18.2340417Z ##[endgroup]
+2026-02-06T21:51:18.2341964Z ##[group]Operating System
+2026-02-06T21:51:18.2342545Z Ubuntu
+2026-02-06T21:51:18.2343027Z 24.04.3
+2026-02-06T21:51:18.2343679Z LTS
+2026-02-06T21:51:18.2344172Z ##[endgroup]
+2026-02-06T21:51:18.2344997Z ##[group]Runner Image
+2026-02-06T21:51:18.2345688Z Image: ubuntu-24.04
+2026-02-06T21:51:18.2346221Z Version: 20260126.10.1
+2026-02-06T21:51:18.2347569Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260126.10/images/ubuntu/Ubuntu2404-Readme.md
+2026-02-06T21:51:18.2349068Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260126.10
+2026-02-06T21:51:18.2350135Z ##[endgroup]
+2026-02-06T21:51:18.2352919Z ##[group]GITHUB_TOKEN Permissions
+2026-02-06T21:51:18.2355262Z Actions: write
+2026-02-06T21:51:18.2355880Z ArtifactMetadata: write
+2026-02-06T21:51:18.2356450Z Attestations: write
+2026-02-06T21:51:18.2357138Z Checks: write
+2026-02-06T21:51:18.2357707Z Contents: write
+2026-02-06T21:51:18.2358272Z Deployments: write
+2026-02-06T21:51:18.2358884Z Discussions: write
+2026-02-06T21:51:18.2359432Z Issues: write
+2026-02-06T21:51:18.2359984Z Metadata: read
+2026-02-06T21:51:18.2360543Z Models: read
+2026-02-06T21:51:18.2361094Z Packages: write
+2026-02-06T21:51:18.2361619Z Pages: write
+2026-02-06T21:51:18.2362268Z PullRequests: write
+2026-02-06T21:51:18.2362868Z RepositoryProjects: write
+2026-02-06T21:51:18.2363555Z SecurityEvents: write
+2026-02-06T21:51:18.2364103Z Statuses: write
+2026-02-06T21:51:18.2364814Z ##[endgroup]
+2026-02-06T21:51:18.2367091Z Secret source: Actions
+2026-02-06T21:51:18.2367786Z Prepare workflow directory
+2026-02-06T21:51:18.3108206Z Prepare all required actions
+2026-02-06T21:51:18.3165124Z Getting action download info
+2026-02-06T21:51:18.6395824Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+2026-02-06T21:51:19.5782020Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+2026-02-06T21:51:19.8358621Z Complete job name: auto-import
+2026-02-06T21:51:19.9142051Z ##[group]Run actions/checkout@v4
+2026-02-06T21:51:19.9143408Z with:
+2026-02-06T21:51:19.9144272Z   repository: Krushna-ai/GDVG-Admin-Console
+2026-02-06T21:51:19.9145862Z   token: ***
+2026-02-06T21:51:19.9146663Z   ssh-strict: true
+2026-02-06T21:51:19.9147544Z   ssh-user: git
+2026-02-06T21:51:19.9148403Z   persist-credentials: true
+2026-02-06T21:51:19.9149355Z   clean: true
+2026-02-06T21:51:19.9150208Z   sparse-checkout-cone-mode: true
+2026-02-06T21:51:19.9151265Z   fetch-depth: 1
+2026-02-06T21:51:19.9152152Z   fetch-tags: false
+2026-02-06T21:51:19.9153042Z   show-progress: true
+2026-02-06T21:51:19.9153944Z   lfs: false
+2026-02-06T21:51:19.9154918Z   submodules: false
+2026-02-06T21:51:19.9155815Z   set-safe-directory: true
+2026-02-06T21:51:19.9157051Z env:
+2026-02-06T21:51:19.9157845Z   NODE_VERSION: 20
+2026-02-06T21:51:19.9159026Z   SUPABASE_URL: ***
+2026-02-06T21:51:19.9164394Z   SUPABASE_SERVICE_ROLE_KEY: ***
+2026-02-06T21:51:19.9170368Z   TMDB_ACCESS_TOKEN: ***
+2026-02-06T21:51:19.9171324Z ##[endgroup]
+2026-02-06T21:51:20.0289965Z Syncing repository: Krushna-ai/GDVG-Admin-Console
+2026-02-06T21:51:20.0292756Z ##[group]Getting Git version info
+2026-02-06T21:51:20.0294368Z Working directory is '/home/runner/work/GDVG-Admin-Console/GDVG-Admin-Console'
+2026-02-06T21:51:20.0297039Z [command]/usr/bin/git version
+2026-02-06T21:51:20.1691833Z git version 2.52.0
+2026-02-06T21:51:20.1720846Z ##[endgroup]
+2026-02-06T21:51:20.1735843Z Temporarily overriding HOME='/home/runner/work/_temp/754fff00-32eb-440c-9f7e-16633b2304ec' before making global git config changes
+2026-02-06T21:51:20.1739063Z Adding repository directory to the temporary git global config as a safe directory
+2026-02-06T21:51:20.1743280Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/GDVG-Admin-Console/GDVG-Admin-Console
+2026-02-06T21:51:20.1846334Z Deleting the contents of '/home/runner/work/GDVG-Admin-Console/GDVG-Admin-Console'
+2026-02-06T21:51:20.1849826Z ##[group]Initializing the repository
+2026-02-06T21:51:20.1854329Z [command]/usr/bin/git init /home/runner/work/GDVG-Admin-Console/GDVG-Admin-Console
+2026-02-06T21:51:20.2615777Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-02-06T21:51:20.2619398Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-02-06T21:51:20.2622899Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-02-06T21:51:20.2625949Z hint: call:
+2026-02-06T21:51:20.2627476Z hint:
+2026-02-06T21:51:20.2629286Z hint: 	git config --global init.defaultBranch <name>
+2026-02-06T21:51:20.2631599Z hint:
+2026-02-06T21:51:20.2633679Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-02-06T21:51:20.2637295Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-02-06T21:51:20.2639970Z hint:
+2026-02-06T21:51:20.2641509Z hint: 	git branch -m <name>
+2026-02-06T21:51:20.2643250Z hint:
+2026-02-06T21:51:20.2645777Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-02-06T21:51:20.2669530Z Initialized empty Git repository in /home/runner/work/GDVG-Admin-Console/GDVG-Admin-Console/.git/
+2026-02-06T21:51:20.2685024Z [command]/usr/bin/git remote add origin https://github.com/Krushna-ai/GDVG-Admin-Console
+2026-02-06T21:51:20.2773666Z ##[endgroup]
+2026-02-06T21:51:20.2776718Z ##[group]Disabling automatic garbage collection
+2026-02-06T21:51:20.2779366Z [command]/usr/bin/git config --local gc.auto 0
+2026-02-06T21:51:20.2813145Z ##[endgroup]
+2026-02-06T21:51:20.2815972Z ##[group]Setting up auth
+2026-02-06T21:51:20.2821469Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-02-06T21:51:20.2858651Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-02-06T21:51:20.5386739Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-02-06T21:51:20.5422961Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-02-06T21:51:20.5655420Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-02-06T21:51:20.5689854Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-02-06T21:51:20.5930810Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-02-06T21:51:20.5967788Z ##[endgroup]
+2026-02-06T21:51:20.5969355Z ##[group]Fetching the repository
+2026-02-06T21:51:20.5977055Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +e9737b61cd99de6acdc96b7cd1467278db12d92d:refs/remotes/origin/main
+2026-02-06T21:51:21.0969415Z From https://github.com/Krushna-ai/GDVG-Admin-Console
+2026-02-06T21:51:21.0970748Z  * [new ref]         e9737b61cd99de6acdc96b7cd1467278db12d92d -> origin/main
+2026-02-06T21:51:21.1058881Z ##[endgroup]
+2026-02-06T21:51:21.1059548Z ##[group]Determining the checkout info
+2026-02-06T21:51:21.1061519Z ##[endgroup]
+2026-02-06T21:51:21.1067293Z [command]/usr/bin/git sparse-checkout disable
+2026-02-06T21:51:21.1169958Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-02-06T21:51:21.1197846Z ##[group]Checking out the ref
+2026-02-06T21:51:21.1202196Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-02-06T21:51:21.1627899Z Switched to a new branch 'main'
+2026-02-06T21:51:21.1629274Z branch 'main' set up to track 'origin/main'.
+2026-02-06T21:51:21.1673316Z ##[endgroup]
+2026-02-06T21:51:21.1676914Z [command]/usr/bin/git log -1 --format=%H
+2026-02-06T21:51:21.1700988Z e9737b61cd99de6acdc96b7cd1467278db12d92d
+2026-02-06T21:51:21.1901690Z ##[group]Run RESPONSE=$(curl -s "***/api/sync/status" || echo '{"success":false}')
+2026-02-06T21:51:21.1902551Z [36;1mRESPONSE=$(curl -s "***/api/sync/status" || echo '{"success":false}')[0m
+2026-02-06T21:51:21.1903096Z [36;1mIS_PAUSED=$(echo $RESPONSE | jq -r '.is_paused // false')[0m
+2026-02-06T21:51:21.1903484Z [36;1m[0m
+2026-02-06T21:51:21.1903739Z [36;1mif [ "$IS_PAUSED" = "true" ]; then[0m
+2026-02-06T21:51:21.1904230Z [36;1m  echo "⏸️ Sync is currently paused. Skipping workflow." >> $GITHUB_STEP_SUMMARY[0m
+2026-02-06T21:51:21.1905301Z [36;1m  echo "Paused at: $(echo $RESPONSE | jq -r '.paused_at // "unknown"')" >> $GITHUB_STEP_SUMMARY[0m
+2026-02-06T21:51:21.1905858Z [36;1m  exit 0[0m
+2026-02-06T21:51:21.1906126Z [36;1mfi[0m
+2026-02-06T21:51:21.1906344Z [36;1m[0m
+2026-02-06T21:51:21.1906702Z [36;1mecho "✅ Sync is active. Proceeding with auto-import." >> $GITHUB_STEP_SUMMARY[0m
+2026-02-06T21:51:21.1942695Z shell: /usr/bin/bash -e {0}
+2026-02-06T21:51:21.1943058Z env:
+2026-02-06T21:51:21.1943286Z   NODE_VERSION: 20
+2026-02-06T21:51:21.1943680Z   SUPABASE_URL: ***
+2026-02-06T21:51:21.1945601Z   SUPABASE_SERVICE_ROLE_KEY: ***
+2026-02-06T21:51:21.1947258Z   TMDB_ACCESS_TOKEN: ***
+2026-02-06T21:51:21.1947517Z ##[endgroup]
+2026-02-06T21:51:25.8965789Z ##[group]Run actions/setup-node@v4
+2026-02-06T21:51:25.8966108Z with:
+2026-02-06T21:51:25.8966301Z   node-version: 20
+2026-02-06T21:51:25.8966510Z   cache: npm
+2026-02-06T21:51:25.8966758Z   always-auth: false
+2026-02-06T21:51:25.8966973Z   check-latest: false
+2026-02-06T21:51:25.8967314Z   token: ***
+2026-02-06T21:51:25.8967502Z env:
+2026-02-06T21:51:25.8967684Z   NODE_VERSION: 20
+2026-02-06T21:51:25.8967979Z   SUPABASE_URL: ***
+2026-02-06T21:51:25.8969345Z   SUPABASE_SERVICE_ROLE_KEY: ***
+2026-02-06T21:51:25.8970857Z   TMDB_ACCESS_TOKEN: ***
+2026-02-06T21:51:25.8971084Z ##[endgroup]
+2026-02-06T21:51:26.1163389Z Found in cache @ /opt/hostedtoolcache/node/20.20.0/x64
+2026-02-06T21:51:26.1171121Z ##[group]Environment details
+2026-02-06T21:51:30.6059612Z node: v20.20.0
+2026-02-06T21:51:30.6060020Z npm: 10.8.2
+2026-02-06T21:51:30.6060297Z yarn: 1.22.22
+2026-02-06T21:51:30.6063411Z ##[endgroup]
+2026-02-06T21:51:30.6083072Z [command]/opt/hostedtoolcache/node/20.20.0/x64/bin/npm config get cache
+2026-02-06T21:51:31.1766498Z /home/runner/.npm
+2026-02-06T21:51:31.3479310Z Cache hit for: node-cache-Linux-x64-npm-6e2cbf0d9c32f318f1b915911c9a881069cc746069b4f466a9a1a96c81922acd
+2026-02-06T21:51:32.5499714Z Received 134217728 of 172644571 (77.7%), 117.4 MBs/sec
+2026-02-06T21:51:32.7795203Z Received 172644571 of 172644571 (100.0%), 124.7 MBs/sec
+2026-02-06T21:51:32.7797242Z Cache Size: ~165 MB (172644571 B)
+2026-02-06T21:51:32.7921572Z [command]/usr/bin/tar -xf /home/runner/work/_temp/78d1ad5f-c30f-40e9-9337-97d21344bde3/cache.tzst -P -C /home/runner/work/GDVG-Admin-Console/GDVG-Admin-Console --use-compress-program unzstd
+2026-02-06T21:51:33.1273698Z Cache restored successfully
+2026-02-06T21:51:33.1615837Z Cache restored from key: node-cache-Linux-x64-npm-6e2cbf0d9c32f318f1b915911c9a881069cc746069b4f466a9a1a96c81922acd
+2026-02-06T21:51:33.1740099Z ##[group]Run npm ci
+2026-02-06T21:51:33.1740400Z [36;1mnpm ci[0m
+2026-02-06T21:51:33.1779666Z shell: /usr/bin/bash -e {0}
+2026-02-06T21:51:33.1779933Z env:
+2026-02-06T21:51:33.1780132Z   NODE_VERSION: 20
+2026-02-06T21:51:33.1780542Z   SUPABASE_URL: ***
+2026-02-06T21:51:33.1782003Z   SUPABASE_SERVICE_ROLE_KEY: ***
+2026-02-06T21:51:33.1783634Z   TMDB_ACCESS_TOKEN: ***
+2026-02-06T21:51:33.1783873Z ##[endgroup]
+2026-02-06T21:51:45.0020453Z 
+2026-02-06T21:51:45.0029043Z added 419 packages, and audited 420 packages in 12s
+2026-02-06T21:51:45.0029372Z 
+2026-02-06T21:51:45.0029565Z 150 packages are looking for funding
+2026-02-06T21:51:45.0029907Z   run `npm fund` for details
+2026-02-06T21:51:45.0555774Z 
+2026-02-06T21:51:45.0556579Z 1 high severity vulnerability
+2026-02-06T21:51:45.0558045Z 
+2026-02-06T21:51:45.0558364Z To address all issues, run:
+2026-02-06T21:51:45.0558898Z   npm audit fix --force
+2026-02-06T21:51:45.0559185Z 
+2026-02-06T21:51:45.0559437Z Run `npm audit` for details.
+2026-02-06T21:51:45.1259065Z ##[group]Run npx tsx scripts/auto-import.ts
+2026-02-06T21:51:45.1259530Z [36;1mnpx tsx scripts/auto-import.ts[0m
+2026-02-06T21:51:45.1291047Z shell: /usr/bin/bash -e {0}
+2026-02-06T21:51:45.1291298Z env:
+2026-02-06T21:51:45.1291489Z   NODE_VERSION: 20
+2026-02-06T21:51:45.1291868Z   SUPABASE_URL: ***
+2026-02-06T21:51:45.1293320Z   SUPABASE_SERVICE_ROLE_KEY: ***
+2026-02-06T21:51:45.1295103Z   TMDB_ACCESS_TOKEN: ***
+2026-02-06T21:51:45.1295344Z   DRY_RUN: false
+2026-02-06T21:51:45.1295564Z ##[endgroup]
+2026-02-06T21:51:45.9510678Z 🚀 Starting Auto-Import...
+2026-02-06T21:51:46.8520183Z ✅ Sync is active. Proceeding...
+2026-02-06T21:51:46.8522756Z 📅 Date: 2026-02-06T21:51:46.851Z
+2026-02-06T21:51:46.8523764Z 🧪 Dry Run: false
+2026-02-06T21:51:46.8526776Z 📊 Daily Quota: 1000
+2026-02-06T21:51:47.1524991Z 📋 Created job: 6ae87a84-ed22-4257-b492-a62b8603b365
+2026-02-06T21:51:47.1525609Z 
+2026-02-06T21:51:47.1526156Z 📡 Starting adaptive discovery and import...
+2026-02-06T21:51:47.1526672Z 
+2026-02-06T21:51:47.1526716Z 
+2026-02-06T21:51:47.1527004Z 🌍 Region: KR
+2026-02-06T21:51:47.1527423Z   TV (KR):
+2026-02-06T21:52:08.8768404Z     Page 4: all duplicates, continuing...
+2026-02-06T21:52:14.2723509Z     Page 5: all duplicates, continuing...
+2026-02-06T21:52:20.7879226Z     Page 6: all duplicates, continuing...
+2026-02-06T21:52:26.9053497Z     Page 7: all duplicates, continuing...
+2026-02-06T21:52:32.4423802Z     Page 8: all duplicates, continuing...
+2026-02-06T21:52:38.0671066Z     Page 9: all duplicates, continuing...
+2026-02-06T21:52:43.5965091Z     Page 10: all duplicates, continuing...
+2026-02-06T21:52:49.3067543Z     Page 11: all duplicates, continuing...
+2026-02-06T21:52:54.7000710Z     Page 12: all duplicates, continuing...
+2026-02-06T21:53:00.1058705Z     Page 13: all duplicates, continuing...
+2026-02-06T21:53:05.8925729Z     Page 14: all duplicates, continuing...
+2026-02-06T21:53:11.2352017Z     Page 15: all duplicates, continuing...
+2026-02-06T21:53:16.5992599Z     Page 16: all duplicates, continuing...
+2026-02-06T21:53:21.8403149Z     Page 17: all duplicates, continuing...
+2026-02-06T21:53:27.1770552Z     Page 18: all duplicates, continuing...
+2026-02-06T21:53:32.5969664Z     Page 19: all duplicates, continuing...
+2026-02-06T21:53:46.4233090Z     Page 21: all duplicates, continuing...
+2026-02-06T21:53:51.7384395Z     Page 22: all duplicates, continuing...
+2026-02-06T21:53:57.1238865Z     Page 23: all duplicates, continuing...
+2026-02-06T21:54:02.5702499Z     Page 24: all duplicates, continuing...
+2026-02-06T21:54:08.0570312Z     Page 25: all duplicates, continuing...
+2026-02-06T21:54:13.6408567Z     Page 26: all duplicates, continuing...
+2026-02-06T21:54:19.0237022Z     Page 27: all duplicates, continuing...
+2026-02-06T21:54:24.3828528Z     Page 28: all duplicates, continuing...
+2026-02-06T21:54:29.7151884Z     Page 29: all duplicates, continuing...
+2026-02-06T21:54:35.1089991Z     Page 30: all duplicates, continuing...
+2026-02-06T21:54:40.5102065Z     Page 31: all duplicates, continuing...
+2026-02-06T21:54:45.7995137Z     Page 32: all duplicates, continuing...
+2026-02-06T21:54:51.0215477Z     Page 33: all duplicates, continuing...
+2026-02-06T21:55:22.7213926Z     Page 36: all duplicates, continuing...
+2026-02-06T21:55:28.0303886Z     Page 37: all duplicates, continuing...
+2026-02-06T21:55:45.7505886Z     Page 39: all duplicates, continuing...
+2026-02-06T21:55:49.8196425Z Error checking content existence: {
+2026-02-06T21:55:49.8199636Z   message: 'TypeError: fetch failed',
+2026-02-06T21:55:49.8200726Z   details: 'TypeError: fetch failed\n' +
+2026-02-06T21:55:49.8201119Z     '\n' +
+2026-02-06T21:55:49.8201729Z     'Caused by: SocketError: other side closed (UND_ERR_SOCKET)\n' +
+2026-02-06T21:55:49.8202401Z     'SocketError: other side closed\n' +
+2026-02-06T21:55:49.8202938Z     '    at TLSSocket.<anonymous> (node:internal/deps/undici/undici:6408:28)\n' +
+2026-02-06T21:55:49.8203461Z     '    at TLSSocket.emit (node:events:536:35)\n' +
+2026-02-06T21:55:49.8204186Z     '    at endReadableNT (node:internal/streams/readable:1698:12)\n' +
+2026-02-06T21:55:49.8205054Z     '    at process.processTicksAndRejections (node:internal/process/task_queues:82:21)',
+2026-02-06T21:55:49.8205494Z   hint: '',
+2026-02-06T21:55:49.8205682Z   code: ''
+2026-02-06T21:55:49.8205899Z }
+2026-02-06T21:55:49.8206110Z     Error on page 40: {
+2026-02-06T21:55:49.8206409Z   message: 'TypeError: fetch failed',
+2026-02-06T21:55:49.8206711Z   details: 'TypeError: fetch failed\n' +
+2026-02-06T21:55:49.8206982Z     '\n' +
+2026-02-06T21:55:49.8207296Z     'Caused by: SocketError: other side closed (UND_ERR_SOCKET)\n' +
+2026-02-06T21:55:49.8207771Z     'SocketError: other side closed\n' +
+2026-02-06T21:55:49.8208186Z     '    at TLSSocket.<anonymous> (node:internal/deps/undici/undici:6408:28)\n' +
+2026-02-06T21:55:49.8208626Z     '    at TLSSocket.emit (node:events:536:35)\n' +
+2026-02-06T21:55:49.8209027Z     '    at endReadableNT (node:internal/streams/readable:1698:12)\n' +
+2026-02-06T21:55:49.8209571Z     '    at process.processTicksAndRejections (node:internal/process/task_queues:82:21)',
+2026-02-06T21:55:49.8210010Z   hint: '',
+2026-02-06T21:55:49.8210195Z   code: ''
+2026-02-06T21:55:49.8210378Z }
+2026-02-06T21:55:55.0224513Z     Page 41: all duplicates, continuing...
+2026-02-06T21:56:45.8150999Z     ✓ 10/1000 (868 skipped, 98 people)
+2026-02-06T21:56:55.9800334Z     Page 46: all duplicates, continuing...
+2026-02-06T21:58:30.4483949Z     ✓ 20/1000 (952 skipped, 233 people)
+2026-02-06T21:59:08.9891636Z     ✅ tv: 23 imported, 969 skipped, 293 people
+2026-02-06T21:59:08.9892173Z   MOVIE (KR):
+2026-02-06T21:59:34.1313672Z     ✅ movie: 3 imported, 37 skipped, 24 people
+2026-02-06T21:59:34.1314192Z 
+2026-02-06T21:59:34.1314487Z 🌍 Region: CN
+2026-02-06T21:59:34.1315201Z   TV (CN):
+2026-02-06T21:59:55.4178927Z     Page 4: all duplicates, continuing...
+2026-02-06T22:00:00.8268442Z     Page 5: all duplicates, continuing...
+2026-02-06T22:00:06.5079240Z     Page 6: all duplicates, continuing...
+2026-02-06T22:00:13.0789180Z     Page 7: all duplicates, continuing...
+2026-02-06T22:00:19.1965243Z     Page 8: all duplicates, continuing...
+2026-02-06T22:00:24.8112652Z     Page 9: all duplicates, continuing...
+2026-02-06T22:00:30.4110208Z     Page 10: all duplicates, continuing...
+2026-02-06T22:00:35.8020454Z     Page 11: all duplicates, continuing...
+2026-02-06T22:00:43.4722020Z     Page 12: all duplicates, continuing...
+2026-02-06T22:01:00.2810566Z     Page 14: all duplicates, continuing...
+2026-02-06T22:01:05.6368690Z     Page 15: all duplicates, continuing...
+2026-02-06T22:01:11.0569012Z     Page 16: all duplicates, continuing...
+2026-02-06T22:01:16.4459755Z     Page 17: all duplicates, continuing...
+2026-02-06T22:01:21.7315157Z     Page 18: all duplicates, continuing...
+2026-02-06T22:01:27.0267486Z     Page 19: all duplicates, continuing...
+2026-02-06T22:01:32.3704605Z     Page 20: all duplicates, continuing...
+2026-02-06T22:01:37.8103171Z     Page 21: all duplicates, continuing...
+2026-02-06T22:01:43.2210910Z     Page 22: all duplicates, continuing...
+2026-02-06T22:01:48.4230175Z     Page 23: all duplicates, continuing...
+2026-02-06T22:01:53.6695467Z     Page 24: all duplicates, continuing...
+2026-02-06T22:01:58.9350739Z     Page 25: all duplicates, continuing...
+2026-02-06T22:02:04.4002015Z     Page 26: all duplicates, continuing...
+2026-02-06T22:02:27.7627440Z     Page 28: all duplicates, continuing...
+2026-02-06T22:02:33.4504194Z     Page 29: all duplicates, continuing...
+2026-02-06T22:02:38.9366698Z     Page 30: all duplicates, continuing...
+2026-02-06T22:02:44.3224362Z     Page 31: all duplicates, continuing...
+2026-02-06T22:02:49.7089503Z     Page 32: all duplicates, continuing...
+2026-02-06T22:03:11.7821755Z     Page 34: all duplicates, continuing...
+2026-02-06T22:03:25.5789316Z     Page 36: all duplicates, continuing...
+2026-02-06T22:03:31.1995405Z     Page 37: all duplicates, continuing...
+2026-02-06T22:03:36.9237867Z     Page 38: all duplicates, continuing...
+2026-02-06T22:04:04.0364546Z     ✓ 10/974 (782 skipped, 82 people)
+2026-02-06T22:04:34.0202128Z     Page 43: all duplicates, continuing...
+2026-02-06T22:05:45.6832380Z     ✓ 20/974 (895 skipped, 199 people)
+2026-02-06T22:07:13.7959102Z     ✓ 30/974 (931 skipped, 333 people)
+2026-02-06T22:08:19.3975105Z     ✅ tv: 36 imported, 964 skipped, 430 people
+2026-02-06T22:08:19.3975655Z   MOVIE (CN):
+2026-02-06T22:09:14.2323923Z     ✅ movie: 6 imported, 34 skipped, 78 people
+2026-02-06T22:09:14.2325112Z   TV (TW):
+2026-02-06T22:09:35.5619569Z     Page 4: all duplicates, continuing...
+2026-02-06T22:09:40.8962172Z     Page 5: all duplicates, continuing...
+2026-02-06T22:09:46.2433338Z     Page 6: all duplicates, continuing...
+2026-02-06T22:09:51.5328068Z     Page 7: all duplicates, continuing...
+2026-02-06T22:09:56.9740405Z     Page 8: all duplicates, continuing...
+2026-02-06T22:10:02.4151439Z     Page 9: all duplicates, continuing...
+2026-02-06T22:10:08.2036528Z     Page 10: all duplicates, continuing...
+2026-02-06T22:10:13.6701597Z     Page 11: all duplicates, continuing...
+2026-02-06T22:10:18.9829780Z     Page 12: all duplicates, continuing...
+2026-02-06T22:10:24.2714149Z     Page 13: all duplicates, continuing...
+2026-02-06T22:10:29.5733811Z     Page 14: all duplicates, continuing...
+2026-02-06T22:10:35.5472648Z     Page 15: all duplicates, continuing...
+2026-02-06T22:10:41.0085793Z     Page 16: all duplicates, continuing...
+2026-02-06T22:10:46.3430935Z     Page 17: all duplicates, continuing...
+2026-02-06T22:10:51.9062130Z     Page 18: all duplicates, continuing...
+2026-02-06T22:10:57.3086064Z     Page 19: all duplicates, continuing...
+2026-02-06T22:11:02.9202928Z     Page 20: all duplicates, continuing...
+2026-02-06T22:11:08.6353245Z     Page 21: all duplicates, continuing...
+2026-02-06T22:11:14.1469255Z     Page 22: all duplicates, continuing...
+2026-02-06T22:11:19.6131762Z     Page 23: all duplicates, continuing...
+2026-02-06T22:11:25.0789970Z     Page 24: all duplicates, continuing...
+2026-02-06T22:11:30.4566903Z     Page 25: all duplicates, continuing...
+2026-02-06T22:11:36.1268037Z     Page 26: all duplicates, continuing...
+2026-02-06T22:11:41.5904133Z     Page 27: all duplicates, continuing...
+2026-02-06T22:11:46.9998690Z     Page 28: all duplicates, continuing...
+2026-02-06T22:11:52.4160859Z     Page 29: all duplicates, continuing...
+2026-02-06T22:11:57.8671155Z     Page 30: all duplicates, continuing...
+2026-02-06T22:12:03.4102643Z     Page 31: all duplicates, continuing...
+2026-02-06T22:12:08.7387571Z     Page 32: all duplicates, continuing...
+2026-02-06T22:12:14.0352400Z     Page 33: all duplicates, continuing...
+2026-02-06T22:12:19.4374897Z     Page 34: all duplicates, continuing...
+2026-02-06T22:12:24.7280544Z     Page 35: all duplicates, continuing...
+2026-02-06T22:12:30.0731827Z     Page 36: all duplicates, continuing...
+2026-02-06T22:12:35.3896268Z     Page 37: all duplicates, continuing...
+2026-02-06T22:12:40.8533791Z     Page 38: all duplicates, continuing...
+2026-02-06T22:12:53.4170700Z     Page 40: all duplicates, continuing...
+2026-02-06T22:12:58.9881516Z     Page 41: all duplicates, continuing...
+2026-02-06T22:13:04.6488764Z     Page 42: all duplicates, continuing...
+2026-02-06T22:13:10.7663456Z     Page 43: all duplicates, continuing...
+2026-02-06T22:13:22.6848809Z     Page 45: all duplicates, continuing...
+2026-02-06T22:13:28.2041098Z     Page 46: all duplicates, continuing...
+2026-02-06T22:13:33.7033986Z     Page 47: all duplicates, continuing...
+2026-02-06T22:13:57.6839953Z     ✓ 10/932 (989 skipped, 8 people)
+2026-02-06T22:13:58.3504374Z     ✅ tv: 10 imported, 990 skipped, 8 people
+2026-02-06T22:13:58.3505824Z   MOVIE (TW):
+2026-02-06T22:14:35.4597000Z     ✅ movie: 7 imported, 33 skipped, 42 people
+2026-02-06T22:14:35.4597582Z   TV (HK):
+2026-02-06T22:14:57.2720836Z     Page 4: all duplicates, continuing...
+2026-02-06T22:15:02.8873261Z     Page 5: all duplicates, continuing...
+2026-02-06T22:15:08.4664053Z     Page 6: all duplicates, continuing...
+2026-02-06T22:15:13.9539761Z     Page 7: all duplicates, continuing...
+2026-02-06T22:15:19.3219956Z     Page 8: all duplicates, continuing...
+2026-02-06T22:15:24.7006677Z     Page 9: all duplicates, continuing...
+2026-02-06T22:15:30.2100750Z     Page 10: all duplicates, continuing...
+2026-02-06T22:15:35.5985673Z     Page 11: all duplicates, continuing...
+2026-02-06T22:15:41.0429596Z     Page 12: all duplicates, continuing...
+2026-02-06T22:15:46.5966752Z     Page 13: all duplicates, continuing...
+2026-02-06T22:15:51.9805556Z     Page 14: all duplicates, continuing...
+2026-02-06T22:15:57.5036815Z     Page 15: all duplicates, continuing...
+2026-02-06T22:16:03.2070641Z     Page 16: all duplicates, continuing...
+2026-02-06T22:16:08.8849890Z     Page 17: all duplicates, continuing...
+2026-02-06T22:16:14.4786837Z     Page 18: all duplicates, continuing...
+2026-02-06T22:16:19.9829879Z     Page 19: all duplicates, continuing...
+2026-02-06T22:16:25.4061693Z     Page 20: all duplicates, continuing...
+2026-02-06T22:16:30.8681085Z     Page 21: all duplicates, continuing...
+2026-02-06T22:16:36.3054303Z     Page 22: all duplicates, continuing...
+2026-02-06T22:16:41.7387823Z     Page 23: all duplicates, continuing...
+2026-02-06T22:16:47.1856346Z     Page 24: all duplicates, continuing...
+2026-02-06T22:17:02.2811770Z     Page 26: all duplicates, continuing...
+2026-02-06T22:17:07.7100046Z     Page 27: all duplicates, continuing...
+2026-02-06T22:17:21.7919989Z     Page 29: all duplicates, continuing...
+2026-02-06T22:17:27.0387338Z     Page 30: all duplicates, continuing...
+2026-02-06T22:17:32.3015032Z     Page 31: all duplicates, continuing...
+2026-02-06T22:17:37.6911961Z     Page 32: all duplicates, continuing...
+2026-02-06T22:17:53.3478107Z     Page 34: all duplicates, continuing...
+2026-02-06T22:17:58.7596957Z     Page 35: all duplicates, continuing...
+2026-02-06T22:18:04.3665691Z     Page 36: all duplicates, continuing...
+2026-02-06T22:18:09.9093165Z     Page 37: all duplicates, continuing...
+2026-02-06T22:18:15.4489765Z     Page 38: all duplicates, continuing...
+2026-02-06T22:18:48.6335091Z     Page 41: all duplicates, continuing...
+2026-02-06T22:19:25.4208356Z     ✓ 10/915 (843 skipped, 98 people)
+2026-02-06T22:19:32.7805525Z     Page 44: all duplicates, continuing...
+2026-02-06T22:20:52.5554918Z     ✓ 20/915 (914 skipped, 209 people)
+2026-02-06T22:22:20.0969414Z     ✓ 30/915 (938 skipped, 345 people)
+2026-02-06T22:23:34.9325712Z     ✅ tv: 38 imported, 962 skipped, 462 people
+2026-02-06T22:23:34.9326184Z   MOVIE (HK):
+2026-02-06T22:25:16.7557451Z     ✓ 10/877 (30 skipped, 162 people)
+2026-02-06T22:25:17.1567998Z     ✅ movie: 10 imported, 30 skipped, 162 people
+2026-02-06T22:25:17.1568605Z 
+2026-02-06T22:25:17.1568919Z 🌍 Region: TH
+2026-02-06T22:25:17.1569391Z   TV (TH):
+2026-02-06T22:25:38.3424894Z     Page 4: all duplicates, continuing...
+2026-02-06T22:25:43.5910256Z     Page 5: all duplicates, continuing...
+2026-02-06T22:25:48.9100650Z     Page 6: all duplicates, continuing...
+2026-02-06T22:25:54.1500306Z     Page 7: all duplicates, continuing...
+2026-02-06T22:25:59.3980139Z     Page 8: all duplicates, continuing...
+2026-02-06T22:26:04.7046625Z     Page 9: all duplicates, continuing...
+2026-02-06T22:26:10.0428375Z     Page 10: all duplicates, continuing...
+2026-02-06T22:26:15.3343498Z     Page 11: all duplicates, continuing...
+2026-02-06T22:26:20.6566685Z     Page 12: all duplicates, continuing...
+2026-02-06T22:26:26.0937930Z     Page 13: all duplicates, continuing...
+2026-02-06T22:26:31.4574128Z     Page 14: all duplicates, continuing...
+2026-02-06T22:26:37.1555570Z     Page 15: all duplicates, continuing...
+2026-02-06T22:26:42.5393927Z     Page 16: all duplicates, continuing...
+2026-02-06T22:26:47.8590489Z     Page 17: all duplicates, continuing...
+2026-02-06T22:26:53.2322194Z     Page 18: all duplicates, continuing...
+2026-02-06T22:27:06.7708906Z     Page 20: all duplicates, continuing...
+2026-02-06T22:27:12.0912967Z     Page 21: all duplicates, continuing...
+2026-02-06T22:27:17.3365067Z     Page 22: all duplicates, continuing...
+2026-02-06T22:27:28.3809517Z     Page 24: all duplicates, continuing...
+2026-02-06T22:27:33.6406693Z     Page 25: all duplicates, continuing...
+2026-02-06T22:27:38.9627743Z     Page 26: all duplicates, continuing...
+2026-02-06T22:27:44.2888212Z     Page 27: all duplicates, continuing...
+2026-02-06T22:27:49.5200062Z     Page 28: all duplicates, continuing...
+2026-02-06T22:27:54.7127830Z     Page 29: all duplicates, continuing...
+2026-02-06T22:28:00.2452527Z     Page 30: all duplicates, continuing...
+2026-02-06T22:28:05.7508579Z     Page 31: all duplicates, continuing...
+2026-02-06T22:28:11.2076098Z     Page 32: all duplicates, continuing...
+2026-02-06T22:28:16.5247703Z     Page 33: all duplicates, continuing...
+2026-02-06T22:28:21.9194970Z     Page 34: all duplicates, continuing...
+2026-02-06T22:28:27.1965055Z     Page 35: all duplicates, continuing...
+2026-02-06T22:29:27.7793884Z     Page 39: all duplicates, continuing...
+2026-02-06T22:29:34.9882972Z     ✓ 10/867 (773 skipped, 82 people)
+2026-02-06T22:31:06.5519969Z     ✓ 20/867 (833 skipped, 208 people)
+2026-02-06T22:32:30.4834309Z     ✓ 30/867 (881 skipped, 324 people)
+2026-02-06T22:33:53.4621271Z     ✓ 40/867 (909 skipped, 450 people)
+2026-02-06T22:35:25.7538751Z     ✓ 50/867 (920 skipped, 606 people)
+2026-02-06T22:36:38.1183721Z     ✓ 60/867 (939 skipped, 719 people)
+2026-02-06T22:36:38.7709212Z     ✅ tv: 60 imported, 940 skipped, 719 people
+2026-02-06T22:36:38.7709900Z   MOVIE (TH):
+2026-02-06T22:37:37.1429908Z     ✅ movie: 7 imported, 33 skipped, 82 people
+2026-02-06T22:37:37.1430589Z 
+2026-02-06T22:37:37.1430948Z 🌍 Region: TR
+2026-02-06T22:37:37.1431527Z   TV (TR):
+2026-02-06T22:38:12.2923534Z     Page 5: all duplicates, continuing...
+2026-02-06T22:39:52.7590170Z     ✓ 10/800 (106 skipped, 189 people)
+2026-02-06T22:41:36.1892755Z     ✓ 20/800 (106 skipped, 368 people)
+2026-02-06T22:43:02.8840964Z Error linking cast: {
+2026-02-06T22:43:02.8841649Z   message: '<!DOCTYPE html>\n' +
+2026-02-06T22:43:02.8842586Z     '<!--[if lt IE 7]> <html class="no-js ie6 oldie" lang="en-US"> <![endif]-->\n' +
+2026-02-06T22:43:02.8843716Z     '<!--[if IE 7]>    <html class="no-js ie7 oldie" lang="en-US"> <![endif]-->\n' +
+2026-02-06T22:43:02.8845040Z     '<!--[if IE 8]>    <html class="no-js ie8 oldie" lang="en-US"> <![endif]-->\n' +
+2026-02-06T22:43:02.8846084Z     '<!--[if gt IE 8]><!--> <html class="no-js" lang="en-US"> <!--<![endif]-->\n' +
+2026-02-06T22:43:02.8846658Z     '<head>\n' +
+2026-02-06T22:43:02.8846992Z     '\n' +
+2026-02-06T22:43:02.8847499Z     '<title> | 500: Internal server error</title>\n' +
+2026-02-06T22:43:02.8848058Z     '<meta charset="UTF-8" />\n' +
+2026-02-06T22:43:02.8848834Z     '<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />\n' +
+2026-02-06T22:43:02.8849736Z     '<meta http-equiv="X-UA-Compatible" content="IE=Edge" />\n' +
+2026-02-06T22:43:02.8850503Z     '<meta name="robots" content="noindex, nofollow" />\n' +
+2026-02-06T22:43:02.8851295Z     '<meta name="viewport" content="width=device-width,initial-scale=1" />\n' +
+2026-02-06T22:43:02.8852240Z     '<link rel="stylesheet" id="cf_styles-css" href="/cdn-cgi/styles/main.css" />\n' +
+2026-02-06T22:43:02.8852882Z     '</head>\n' +
+2026-02-06T22:43:02.8853239Z     '<body>\n' +
+2026-02-06T22:43:02.8853851Z     '<div id="cf-wrapper">\n' +
+2026-02-06T22:43:02.8854408Z     '    <div id="cf-error-details" class="p-0">\n' +
+2026-02-06T22:43:02.8855169Z     '        <header class="mx-auto pt-10 lg:pt-6 lg:px-8 w-240 lg:w-full mb-8">\n' +
+2026-02-06T22:43:02.8855889Z     '            <h1 class="inline-block sm:block sm:mb-2 font-light text-60 lg:text-4xl text-black-dark leading-tight mr-2">\n' +
+2026-02-06T22:43:02.8856964Z     '                <span class="inline-block">Internal server error</span>\n' +
+2026-02-06T22:43:02.8857420Z     '                <span class="code-label">Error code 500</span>\n' +
+2026-02-06T22:43:02.8857746Z     '            </h1>\n' +
+2026-02-06T22:43:02.8857978Z     '            <div>\n' +
+2026-02-06T22:43:02.8859190Z     '                Visit <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_500&utm_campaign=hwbsjlzdutlmktklmqun.supabase.co" target="_blank" rel="noopener noreferrer">cloudflare.com</a> for more information.\n' +
+2026-02-06T22:43:02.8860114Z     '            </div>\n' +
+2026-02-06T22:43:02.8860462Z     '            <div class="mt-3">2026-02-06 22:43:02 UTC</div>\n' +
+2026-02-06T22:43:02.8860788Z     '        </header>\n' +
+2026-02-06T22:43:02.8861083Z     '        <div class="my-8 bg-gradient-gray">\n' +
+2026-02-06T22:43:02.8861462Z     '            <div class="w-240 lg:w-full mx-auto">\n' +
+2026-02-06T22:43:02.8861827Z     '                <div class="clearfix md:px-8">\n' +
+2026-02-06T22:43:02.8862801Z     '                    <div id="cf-browser-status" class=" relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">\n' +
+2026-02-06T22:43:02.8863714Z     '  <div class="relative mb-10 md:m-0">\n' +
+2026-02-06T22:43:02.8864059Z     '    \n' +
+2026-02-06T22:43:02.8864476Z     '    <span class="cf-icon-browser block md:hidden h-20 bg-center bg-no-repeat"></span>\n' +
+2026-02-06T22:43:02.8865406Z     '    <span class="cf-icon-ok w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>\n' +
+2026-02-06T22:43:02.8865902Z     '    \n' +
+2026-02-06T22:43:02.8866099Z     '  </div>\n' +
+2026-02-06T22:43:02.8866406Z     '  <span class="md:block w-full truncate">You</span>\n' +
+2026-02-06T22:43:02.8866962Z     '  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">\n' +
+2026-02-06T22:43:02.8867393Z     '  \n' +
+2026-02-06T22:43:02.8867591Z     '    Browser\n' +
+2026-02-06T22:43:02.8867798Z     '  \n' +
+2026-02-06T22:43:02.8867984Z     '  </h3>\n' +
+2026-02-06T22:43:02.8868187Z     '  \n' +
+2026-02-06T22:43:02.8868537Z     '  <span class="leading-1.3 text-2xl text-green-success">Working</span>\n' +
+2026-02-06T22:43:02.8868910Z     '  \n' +
+2026-02-06T22:43:02.8869115Z     '</div>\n' +
+2026-02-06T22:43:02.8870094Z     '                    <div id="cf-cloudflare-status" class="cf-error-source relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">\n' +
+2026-02-06T22:43:02.8871056Z     '  <div class="relative mb-10 md:m-0">\n' +
+2026-02-06T22:43:02.8871993Z     '    <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_500&#38;utm_campaign=hwbsjlzdutlmktklmqun.supabase.co" target="_blank" rel="noopener noreferrer">\n' +
+2026-02-06T22:43:02.8872936Z     '    <span class="cf-icon-cloud block md:hidden h-20 bg-center bg-no-repeat"></span>\n' +
+2026-02-06T22:43:02.8873664Z     '    <span class="cf-icon-error w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>\n' +
+2026-02-06T22:43:02.8874173Z     '    </a>\n' +
+2026-02-06T22:43:02.8874399Z     '  </div>\n' +
+2026-02-06T22:43:02.8874934Z     '  <span class="md:block w-full truncate">Chicago</span>\n' +
+2026-02-06T22:43:02.8875492Z     '  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">\n' +
+2026-02-06T22:43:02.8876469Z     '  <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_500&utm_campaign=hwbsjlzdutlmktklmqun.supabase.co" target="_blank" rel="noopener noreferrer">\n' +
+2026-02-06T22:43:02.8877489Z     '    Cloudflare\n' +
+2026-02-06T22:43:02.8877724Z     '  </a>\n' +
+2026-02-06T22:43:02.8877938Z     '  </h3>\n' +
+2026-02-06T22:43:02.8878136Z     '  \n' +
+2026-02-06T22:43:02.8878471Z     '  <span class="leading-1.3 text-2xl text-red-error">Error</span>\n' +
+2026-02-06T22:43:02.8879216Z     '  \n' +
+2026-02-06T22:43:02.8879566Z     '</div>\n' +
+2026-02-06T22:43:02.8880821Z     '                    <div id="cf-host-status" class=" relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">\n' +
+2026-02-06T22:43:02.8881802Z     '  <div class="relative mb-10 md:m-0">\n' +
+2026-02-06T22:43:02.8882188Z     '    \n' +
+2026-02-06T22:43:02.8882791Z     '    <span class="cf-icon-server block md:hidden h-20 bg-center bg-no-repeat"></span>\n' +
+2026-02-06T22:43:02.8883525Z     '    <span class="cf-icon-ok w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>\n' +
+2026-02-06T22:43:02.8884013Z     '    \n' +
+2026-02-06T22:43:02.8884205Z     '  </div>\n' +
+2026-02-06T22:43:02.8884654Z     '  <span class="md:block w-full truncate">hwbsjlzdutlmktklmqun.supabase.co</span>\n' +
+2026-02-06T22:43:02.8885411Z     '  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">\n' +
+2026-02-06T22:43:02.8885826Z     '  \n' +
+2026-02-06T22:43:02.8886069Z     '    Host\n' +
+2026-02-06T22:43:02.8886304Z     '  \n' +
+2026-02-06T22:43:02.8886512Z     '  </h3>\n' +
+2026-02-06T22:43:02.8886712Z     '  \n' +
+2026-02-06T22:43:02.8887077Z     '  <span class="leading-1.3 text-2xl text-green-success">Working</span>\n' +
+2026-02-06T22:43:02.8887448Z     '  \n' +
+2026-02-06T22:43:02.8887642Z     '</div>\n' +
+2026-02-06T22:43:02.8887879Z     '                </div>\n' +
+2026-02-06T22:43:02.8888122Z     '            </div>\n' +
+2026-02-06T22:43:02.8888354Z     '        </div>\n' +
+2026-02-06T22:43:02.8888569Z     '\n' +
+2026-02-06T22:43:02.8888854Z     '        <div class="w-240 lg:w-full mx-auto mb-8 lg:px-8">\n' +
+2026-02-06T22:43:02.8889209Z     '            <div class="clearfix">\n' +
+2026-02-06T22:43:02.8889696Z     '                <div class="w-1/2 md:w-full float-left pr-6 md:pb-10 md:pr-0 leading-relaxed">\n' +
+2026-02-06T22:43:02.8890301Z     '                    <h2 class="text-3xl font-normal leading-1.3 mb-4">What happened?</h2>\n' +
+2026-02-06T22:43:02.8890892Z     "                    <p>There is an internal server error on Cloudflare's network.</p>\n" +
+2026-02-06T22:43:02.8891317Z     '                </div>\n' +
+2026-02-06T22:43:02.8891719Z     '                <div class="w-1/2 md:w-full float-left leading-relaxed">\n' +
+2026-02-06T22:43:02.8892274Z     '                    <h2 class="text-3xl font-normal leading-1.3 mb-4">What can I do?</h2>\n' +
+2026-02-06T22:43:02.8892786Z     '                    <p class="mb-6">Please try again in a few minutes.</p>\n' +
+2026-02-06T22:43:02.8893165Z     '                </div>\n' +
+2026-02-06T22:43:02.8893418Z     '            </div>\n' +
+2026-02-06T22:43:02.8893658Z     '        </div>\n' +
+2026-02-06T22:43:02.8893870Z     '\n' +
+2026-02-06T22:43:02.8894550Z     '        <div class="cf-error-footer cf-wrapper w-240 lg:w-full py-10 sm:py-4 sm:px-8 mx-auto text-center sm:text-left border-solid border-0 border-t border-gray-300">\n' +
+2026-02-06T22:43:02.8895377Z     '    <p class="text-13">\n' +
+2026-02-06T22:43:02.8895997Z     '      <span class="cf-footer-item sm:block sm:mb-1">Cloudflare Ray ID: <strong class="font-semibold">9c9e2a06481790cb</strong></span>\n' +
+2026-02-06T22:43:02.8896684Z     '      <span class="cf-footer-separator sm:hidden">&bull;</span>\n' +
+2026-02-06T22:43:02.8897268Z     '      <span id="cf-footer-item-ip" class="cf-footer-item hidden sm:block sm:mb-1">\n' +
+2026-02-06T22:43:02.8897693Z     '        Your IP:\n' +
+2026-02-06T22:43:02.8898267Z     '        <button type="button" id="cf-footer-ip-reveal" class="cf-footer-ip-reveal-btn">Click to reveal</button>\n' +
+2026-02-06T22:43:02.8898881Z     '        <span class="hidden" id="cf-footer-ip">135.232.201.248</span>\n' +
+2026-02-06T22:43:02.8899482Z     '        <span class="cf-footer-separator sm:hidden">&bull;</span>\n' +
+2026-02-06T22:43:02.8899836Z     '      </span>\n' +
+2026-02-06T22:43:02.8901264Z     '      <span class="cf-footer-item sm:block sm:mb-1"><span>Performance &amp; security by</span> <a rel="noopener noreferrer" href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_500&#38;utm_campaign=hwbsjlzdutlmktklmqun.supabase.co" id="brand_link" target="_blank">Cloudflare</a></span>\n' +
+2026-02-06T22:43:02.8902492Z     '      \n' +
+2026-02-06T22:43:02.8902715Z     '    </p>\n' +
+2026-02-06T22:43:02.8904426Z     '    <script>(function(){function d(){var b=a.getElementById("cf-footer-item-ip"),c=a.getElementById("cf-footer-ip-reveal");b&&"classList"in b&&(b.classList.remove("hidden"),c.addEventListener("click",function(){c.classList.add("hidden");a.getElementById("cf-footer-ip").classList.remove("hidden")}))}var a=document;document.addEventListener&&a.addEventListener("DOMContentLoaded",d)})();</script>\n' +
+2026-02-06T22:43:02.8906066Z     '  </div><!-- /.error-footer -->\n' +
+2026-02-06T22:43:02.8906350Z     '\n' +
+2026-02-06T22:43:02.8906548Z     '    </div>\n' +
+2026-02-06T22:43:02.8906756Z     '</div>\n' +
+2026-02-06T22:43:02.8906951Z     '</body>\n' +
+2026-02-06T22:43:02.8907148Z     '</html>'
+2026-02-06T22:43:02.8907385Z }
+2026-02-06T22:43:02.8907687Z   Failed to process cast member 3554397: {
+2026-02-06T22:43:02.8907997Z   message: '<!DOCTYPE html>\n' +
+2026-02-06T22:43:02.8908413Z     '<!--[if lt IE 7]> <html class="no-js ie6 oldie" lang="en-US"> <![endif]-->\n' +
+2026-02-06T22:43:02.8908914Z     '<!--[if IE 7]>    <html class="no-js ie7 oldie" lang="en-US"> <![endif]-->\n' +
+2026-02-06T22:43:02.8909391Z     '<!--[if IE 8]>    <html class="no-js ie8 oldie" lang="en-US"> <![endif]-->\n' +
+2026-02-06T22:43:02.8909902Z     '<!--[if gt IE 8]><!--> <html class="no-js" lang="en-US"> <!--<![endif]-->\n' +
+2026-02-06T22:43:02.8910247Z     '<head>\n' +
+2026-02-06T22:43:02.8910443Z     '\n' +
+2026-02-06T22:43:02.8910703Z     '<title> | 500: Internal server error</title>\n' +
+2026-02-06T22:43:02.8911026Z     '<meta charset="UTF-8" />\n' +
+2026-02-06T22:43:02.8911437Z     '<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />\n' +
+2026-02-06T22:43:02.8911926Z     '<meta http-equiv="X-UA-Compatible" content="IE=Edge" />\n' +
+2026-02-06T22:43:02.8912351Z     '<meta name="robots" content="noindex, nofollow" />\n' +
+2026-02-06T22:43:02.8912818Z     '<meta name="viewport" content="width=device-width,initial-scale=1" />\n' +
+2026-02-06T22:43:02.8913399Z     '<link rel="stylesheet" id="cf_styles-css" href="/cdn-cgi/styles/main.css" />\n' +
+2026-02-06T22:43:02.8913794Z     '</head>\n' +
+2026-02-06T22:43:02.8914001Z     '<body>\n' +
+2026-02-06T22:43:02.8914226Z     '<div id="cf-wrapper">\n' +
+2026-02-06T22:43:02.8914556Z     '    <div id="cf-error-details" class="p-0">\n' +
+2026-02-06T22:43:02.8915172Z     '        <header class="mx-auto pt-10 lg:pt-6 lg:px-8 w-240 lg:w-full mb-8">\n' +
+2026-02-06T22:43:02.8915903Z     '            <h1 class="inline-block sm:block sm:mb-2 font-light text-60 lg:text-4xl text-black-dark leading-tight mr-2">\n' +
+2026-02-06T22:43:02.8916565Z     '                <span class="inline-block">Internal server error</span>\n' +
+2026-02-06T22:43:02.8917022Z     '                <span class="code-label">Error code 500</span>\n' +
+2026-02-06T22:43:02.8917342Z     '            </h1>\n' +
+2026-02-06T22:43:02.8917570Z     '            <div>\n' +
+2026-02-06T22:43:02.8918559Z     '                Visit <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_500&utm_campaign=hwbsjlzdutlmktklmqun.supabase.co" target="_blank" rel="noopener noreferrer">cloudflare.com</a> for more information.\n' +
+2026-02-06T22:43:02.8919469Z     '            </div>\n' +
+2026-02-06T22:43:02.8919808Z     '            <div class="mt-3">2026-02-06 22:43:02 UTC</div>\n' +
+2026-02-06T22:43:02.8920131Z     '        </header>\n' +
+2026-02-06T22:43:02.8920474Z     '        <div class="my-8 bg-gradient-gray">\n' +
+2026-02-06T22:43:02.8920872Z     '            <div class="w-240 lg:w-full mx-auto">\n' +
+2026-02-06T22:43:02.8921231Z     '                <div class="clearfix md:px-8">\n' +
+2026-02-06T22:43:02.8922366Z     '                    <div id="cf-browser-status" class=" relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">\n' +
+2026-02-06T22:43:02.8923243Z     '  <div class="relative mb-10 md:m-0">\n' +
+2026-02-06T22:43:02.8923554Z     '    \n' +
+2026-02-06T22:43:02.8924069Z     '    <span class="cf-icon-browser block md:hidden h-20 bg-center bg-no-repeat"></span>\n' +
+2026-02-06T22:43:02.8924895Z     '    <span class="cf-icon-ok w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>\n' +
+2026-02-06T22:43:02.8925387Z     '    \n' +
+2026-02-06T22:43:02.8925580Z     '  </div>\n' +
+2026-02-06T22:43:02.8925916Z     '  <span class="md:block w-full truncate">You</span>\n' +
+2026-02-06T22:43:02.8926444Z     '  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">\n' +
+2026-02-06T22:43:02.8926896Z     '  \n' +
+2026-02-06T22:43:02.8927093Z     '    Browser\n' +
+2026-02-06T22:43:02.8927305Z     '  \n' +
+2026-02-06T22:43:02.8927492Z     '  </h3>\n' +
+2026-02-06T22:43:02.8927691Z     '  \n' +
+2026-02-06T22:43:02.8928042Z     '  <span class="leading-1.3 text-2xl text-green-success">Working</span>\n' +
+2026-02-06T22:43:02.8928414Z     '  \n' +
+2026-02-06T22:43:02.8928601Z     '</div>\n' +
+2026-02-06T22:43:02.8929577Z     '                    <div id="cf-cloudflare-status" class="cf-error-source relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">\n' +
+2026-02-06T22:43:02.8930539Z     '  <div class="relative mb-10 md:m-0">\n' +
+2026-02-06T22:43:02.8931410Z     '    <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_500&#38;utm_campaign=hwbsjlzdutlmktklmqun.supabase.co" target="_blank" rel="noopener noreferrer">\n' +
+2026-02-06T22:43:02.8932342Z     '    <span class="cf-icon-cloud block md:hidden h-20 bg-center bg-no-repeat"></span>\n' +
+2026-02-06T22:43:02.8933098Z     '    <span class="cf-icon-error w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>\n' +
+2026-02-06T22:43:02.8933603Z     '    </a>\n' +
+2026-02-06T22:43:02.8933804Z     '  </div>\n' +
+2026-02-06T22:43:02.8934111Z     '  <span class="md:block w-full truncate">Chicago</span>\n' +
+2026-02-06T22:43:02.8934649Z     '  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">\n' +
+2026-02-06T22:43:02.8935764Z     '  <a href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_500&utm_campaign=hwbsjlzdutlmktklmqun.supabase.co" target="_blank" rel="noopener noreferrer">\n' +
+2026-02-06T22:43:02.8936492Z     '    Cloudflare\n' +
+2026-02-06T22:43:02.8936748Z     '  </a>\n' +
+2026-02-06T22:43:02.8936942Z     '  </h3>\n' +
+2026-02-06T22:43:02.8937139Z     '  \n' +
+2026-02-06T22:43:02.8937465Z     '  <span class="leading-1.3 text-2xl text-red-error">Error</span>\n' +
+2026-02-06T22:43:02.8937876Z     '  \n' +
+2026-02-06T22:43:02.8938097Z     '</div>\n' +
+2026-02-06T22:43:02.8938960Z     '                    <div id="cf-host-status" class=" relative w-1/3 md:w-full py-15 md:p-0 md:py-8 md:text-left md:border-solid md:border-0 md:border-b md:border-gray-400 overflow-hidden float-left md:float-none text-center">\n' +
+2026-02-06T22:43:02.8939833Z     '  <div class="relative mb-10 md:m-0">\n' +
+2026-02-06T22:43:02.8940104Z     '    \n' +
+2026-02-06T22:43:02.8940503Z     '    <span class="cf-icon-server block md:hidden h-20 bg-center bg-no-repeat"></span>\n' +
+2026-02-06T22:43:02.8941209Z     '    <span class="cf-icon-ok w-12 h-12 absolute left-1/2 md:left-auto md:right-0 md:top-0 -ml-6 -bottom-4"></span>\n' +
+2026-02-06T22:43:02.8941695Z     '    \n' +
+2026-02-06T22:43:02.8941934Z     '  </div>\n' +
+2026-02-06T22:43:02.8942336Z     '  <span class="md:block w-full truncate">hwbsjlzdutlmktklmqun.supabase.co</span>\n' +
+2026-02-06T22:43:02.8943138Z     '  <h3 class="md:inline-block mt-3 md:mt-0 text-2xl text-gray-600 font-light leading-1.3">\n' +
+2026-02-06T22:43:02.8943554Z     '  \n' +
+2026-02-06T22:43:02.8943771Z     '    Host\n' +
+2026-02-06T22:43:02.8943991Z     '  \n' +
+2026-02-06T22:43:02.8944177Z     '  </h3>\n' +
+2026-02-06T22:43:02.8944373Z     '  \n' +
+2026-02-06T22:43:02.8944846Z     '  <span class="leading-1.3 text-2xl text-green-success">Working</span>\n' +
+2026-02-06T22:43:02.8945232Z     '  \n' +
+2026-02-06T22:43:02.8945550Z     '</div>\n' +
+2026-02-06T22:43:02.8945810Z     '                </div>\n' +
+2026-02-06T22:43:02.8946066Z     '            </div>\n' +
+2026-02-06T22:43:02.8946293Z     '        </div>\n' +
+2026-02-06T22:43:02.8946505Z     '\n' +
+2026-02-06T22:43:02.8946794Z     '        <div class="w-240 lg:w-full mx-auto mb-8 lg:px-8">\n' +
+2026-02-06T22:43:02.8947156Z     '            <div class="clearfix">\n' +
+2026-02-06T22:43:02.8947635Z     '                <div class="w-1/2 md:w-full float-left pr-6 md:pb-10 md:pr-0 leading-relaxed">\n' +
+2026-02-06T22:43:02.8948243Z     '                    <h2 class="text-3xl font-normal leading-1.3 mb-4">What happened?</h2>\n' +
+2026-02-06T22:43:02.8948823Z     "                    <p>There is an internal server error on Cloudflare's network.</p>\n" +
+2026-02-06T22:43:02.8949219Z     '                </div>\n' +
+2026-02-06T22:43:02.8949586Z     '                <div class="w-1/2 md:w-full float-left leading-relaxed">\n' +
+2026-02-06T22:43:02.8950113Z     '                    <h2 class="text-3xl font-normal leading-1.3 mb-4">What can I do?</h2>\n' +
+2026-02-06T22:43:02.8950630Z     '                    <p class="mb-6">Please try again in a few minutes.</p>\n' +
+2026-02-06T22:43:02.8951010Z     '                </div>\n' +
+2026-02-06T22:43:02.8951254Z     '            </div>\n' +
+2026-02-06T22:43:02.8951485Z     '        </div>\n' +
+2026-02-06T22:43:02.8951695Z     '\n' +
+2026-02-06T22:43:02.8952422Z     '        <div class="cf-error-footer cf-wrapper w-240 lg:w-full py-10 sm:py-4 sm:px-8 mx-auto text-center sm:text-left border-solid border-0 border-t border-gray-300">\n' +
+2026-02-06T22:43:02.8953113Z     '    <p class="text-13">\n' +
+2026-02-06T22:43:02.8953745Z     '      <span class="cf-footer-item sm:block sm:mb-1">Cloudflare Ray ID: <strong class="font-semibold">9c9e2a06481790cb</strong></span>\n' +
+2026-02-06T22:43:02.8954435Z     '      <span class="cf-footer-separator sm:hidden">&bull;</span>\n' +
+2026-02-06T22:43:02.8955082Z     '      <span id="cf-footer-item-ip" class="cf-footer-item hidden sm:block sm:mb-1">\n' +
+2026-02-06T22:43:02.8955491Z     '        Your IP:\n' +
+2026-02-06T22:43:02.8956012Z     '        <button type="button" id="cf-footer-ip-reveal" class="cf-footer-ip-reveal-btn">Click to reveal</button>\n' +
+2026-02-06T22:43:02.8956637Z     '        <span class="hidden" id="cf-footer-ip">135.232.201.248</span>\n' +
+2026-02-06T22:43:02.8957114Z     '        <span class="cf-footer-separator sm:hidden">&bull;</span>\n' +
+2026-02-06T22:43:02.8957462Z     '      </span>\n' +
+2026-02-06T22:43:02.8958721Z     '      <span class="cf-footer-item sm:block sm:mb-1"><span>Performance &amp; security by</span> <a rel="noopener noreferrer" href="https://www.cloudflare.com/5xx-error-landing?utm_source=errorcode_500&#38;utm_campaign=hwbsjlzdutlmktklmqun.supabase.co" id="brand_link" target="_blank">Cloudflare</a></span>\n' +
+2026-02-06T22:43:02.8959843Z     '      \n' +
+2026-02-06T22:43:02.8960040Z     '    </p>\n' +
+2026-02-06T22:43:02.8961652Z     '    <script>(function(){function d(){var b=a.getElementById("cf-footer-item-ip"),c=a.getElementById("cf-footer-ip-reveal");b&&"classList"in b&&(b.classList.remove("hidden"),c.addEventListener("click",function(){c.classList.add("hidden");a.getElementById("cf-footer-ip").classList.remove("hidden")}))}var a=document;document.addEventListener&&a.addEventListener("DOMContentLoaded",d)})();</script>\n' +
+2026-02-06T22:43:02.8963116Z     '  </div><!-- /.error-footer -->\n' +
+2026-02-06T22:43:02.8963378Z     '\n' +
+2026-02-06T22:43:02.8963737Z     '    </div>\n' +
+2026-02-06T22:43:02.8963941Z     '</div>\n' +
+2026-02-06T22:43:02.8964146Z     '</body>\n' +
+2026-02-06T22:43:02.8964341Z     '</html>'
+2026-02-06T22:43:02.8964527Z }
+2026-02-06T22:43:14.2989103Z     ✓ 30/800 (106 skipped, 537 people)
+2026-02-06T22:44:45.2505267Z     ✓ 40/800 (106 skipped, 689 people)
+2026-02-06T22:46:10.2401410Z     ✓ 50/800 (106 skipped, 834 people)
+2026-02-06T22:47:55.1610280Z     ✓ 60/800 (106 skipped, 1008 people)
+2026-02-06T22:49:46.3167166Z     ✓ 70/800 (106 skipped, 1205 people)
+2026-02-06T22:51:40.7196436Z     ✓ 80/800 (107 skipped, 1407 people)
+2026-02-06T22:53:06.7078665Z     ✓ 90/800 (107 skipped, 1554 people)
+2026-02-06T22:54:49.3231620Z     ✓ 100/800 (107 skipped, 1733 people)
+2026-02-06T22:56:29.5666489Z     ✓ 110/800 (108 skipped, 1907 people)
+2026-02-06T22:58:19.5813985Z     ✓ 120/800 (108 skipped, 2101 people)
+2026-02-06T22:59:41.5217654Z     ✓ 130/800 (108 skipped, 2240 people)
+2026-02-06T23:01:03.1504274Z     ✓ 140/800 (108 skipped, 2378 people)
+2026-02-06T23:02:48.4435945Z     ✓ 150/800 (108 skipped, 2562 people)
+2026-02-06T23:03:59.8391305Z     ✓ 160/800 (108 skipped, 2681 people)
+2026-02-06T23:05:13.5620085Z     ✓ 170/800 (108 skipped, 2804 people)
+2026-02-06T23:06:52.8874314Z     ✓ 180/800 (108 skipped, 2976 people)
+2026-02-06T23:08:04.2119759Z     ✓ 190/800 (108 skipped, 3094 people)
+2026-02-06T23:09:31.0185154Z     ✓ 200/800 (108 skipped, 3244 people)
+2026-02-06T23:11:00.9701077Z     ✓ 210/800 (108 skipped, 3399 people)
+2026-02-06T23:12:31.5054410Z     ✓ 220/800 (108 skipped, 3552 people)
+2026-02-06T23:13:55.3079574Z     ✓ 230/800 (108 skipped, 3694 people)
+2026-02-06T23:15:27.9092523Z     ✓ 240/800 (108 skipped, 3853 people)
+2026-02-06T23:16:52.2259613Z     ✓ 250/800 (108 skipped, 3998 people)
+2026-02-06T23:18:34.1358579Z     ✓ 260/800 (108 skipped, 4177 people)
+2026-02-06T23:20:11.2727864Z     ✓ 270/800 (108 skipped, 4347 people)
+2026-02-06T23:21:26.6107921Z     ✓ 280/800 (108 skipped, 4474 people)
+2026-02-06T23:23:05.7721694Z     ✓ 290/800 (108 skipped, 4648 people)
+2026-02-06T23:24:22.4835588Z     ✓ 300/800 (108 skipped, 4776 people)
+2026-02-06T23:25:44.6339025Z     ✓ 310/800 (108 skipped, 4918 people)
+2026-02-06T23:27:38.2837906Z     ✓ 320/800 (108 skipped, 5120 people)
+2026-02-06T23:29:21.7161878Z     ✓ 330/800 (108 skipped, 5303 people)
+2026-02-06T23:30:56.2293040Z     ✓ 340/800 (108 skipped, 5466 people)
+2026-02-06T23:32:19.3452537Z     ✓ 350/800 (108 skipped, 5609 people)
+2026-02-06T23:33:58.4040541Z     ✓ 360/800 (108 skipped, 5783 people)
+2026-02-06T23:35:51.9253495Z     ✓ 370/800 (108 skipped, 5986 people)
+2026-02-06T23:37:13.1812020Z     ✓ 380/800 (108 skipped, 6127 people)
+2026-02-06T23:38:46.4102568Z     ✓ 390/800 (108 skipped, 6293 people)
+2026-02-06T23:40:06.7333919Z     ✓ 400/800 (108 skipped, 6433 people)
+2026-02-06T23:41:40.3464905Z     ✓ 410/800 (108 skipped, 6600 people)
+2026-02-06T23:42:45.9376114Z     ✓ 420/800 (108 skipped, 6710 people)
+2026-02-06T23:44:17.7365304Z     ✓ 430/800 (108 skipped, 6871 people)
+2026-02-06T23:45:42.0671712Z     ✓ 440/800 (108 skipped, 7018 people)
+2026-02-06T23:47:26.0892172Z     ✓ 450/800 (108 skipped, 7202 people)
+2026-02-06T23:49:17.2067266Z     ✓ 460/800 (108 skipped, 7401 people)
+2026-02-06T23:50:54.4798696Z     ✓ 470/800 (108 skipped, 7575 people)
+2026-02-06T23:52:09.6177690Z     ✓ 480/800 (108 skipped, 7704 people)
+2026-02-06T23:53:20.1395366Z     ✓ 490/800 (108 skipped, 7822 people)
+2026-02-06T23:55:00.1501097Z     ✓ 500/800 (108 skipped, 7997 people)
+2026-02-06T23:56:55.9023178Z     ✓ 510/800 (108 skipped, 8204 people)
+2026-02-06T23:58:17.7939591Z     ✓ 520/800 (108 skipped, 8346 people)
+2026-02-06T23:59:31.8502224Z     ✓ 530/800 (108 skipped, 8473 people)
+2026-02-07T00:01:11.5342596Z     ✓ 540/800 (108 skipped, 8649 people)
+2026-02-07T00:02:51.5485201Z     ✓ 550/800 (108 skipped, 8826 people)
+2026-02-07T00:04:36.8202391Z     ✓ 560/800 (108 skipped, 9011 people)
+2026-02-07T00:06:04.8322210Z     ✓ 570/800 (108 skipped, 9163 people)
+2026-02-07T00:07:39.6378616Z     ✓ 580/800 (108 skipped, 9327 people)
+2026-02-07T00:09:14.1141191Z     ✓ 590/800 (108 skipped, 9489 people)
+2026-02-07T00:10:42.0860055Z     ✓ 600/800 (108 skipped, 9638 people)
+2026-02-07T00:12:28.5186991Z     ✓ 610/800 (108 skipped, 9820 people)
+2026-02-07T00:14:13.8556481Z     ✓ 620/800 (108 skipped, 9999 people)
+2026-02-07T00:15:49.6410332Z     ✓ 630/800 (108 skipped, 10162 people)
+2026-02-07T00:17:28.5024172Z     ✓ 640/800 (108 skipped, 10336 people)
+2026-02-07T00:18:57.3791726Z     ✓ 650/800 (108 skipped, 10492 people)
+2026-02-07T00:20:31.7880676Z     ✓ 660/800 (108 skipped, 10658 people)
+2026-02-07T00:22:00.7890028Z     ✓ 670/800 (108 skipped, 10813 people)
+2026-02-07T00:23:11.8635429Z     ✓ 680/800 (108 skipped, 10935 people)
+2026-02-07T00:24:18.8895712Z     ✓ 690/800 (108 skipped, 11049 people)
+2026-02-07T00:25:56.5848527Z     ✓ 700/800 (108 skipped, 11222 people)
+2026-02-07T00:27:24.9095851Z     ✓ 710/800 (108 skipped, 11378 people)
+2026-02-07T00:28:56.6376607Z     ✓ 720/800 (108 skipped, 11539 people)
+2026-02-07T00:30:44.5035852Z     ✓ 730/800 (108 skipped, 11734 people)
+2026-02-07T00:32:09.8540511Z     ✓ 740/800 (108 skipped, 11881 people)
+2026-02-07T00:33:38.9964600Z     ✓ 750/800 (108 skipped, 12039 people)
+2026-02-07T00:34:57.2745892Z     ✓ 760/800 (108 skipped, 12176 people)
+2026-02-07T00:36:26.8438507Z     ✓ 770/800 (108 skipped, 12336 people)
+2026-02-07T00:37:54.8033657Z     ✓ 780/800 (108 skipped, 12493 people)
+2026-02-07T00:39:04.5140161Z     ✓ 790/800 (108 skipped, 12614 people)
+2026-02-07T00:40:45.1149093Z     ✓ 800/800 (108 skipped, 12795 people)
+2026-02-07T00:40:45.5147725Z     ✅ tv: 800 imported, 108 skipped, 12795 people
+2026-02-07T00:40:45.7600973Z 
+2026-02-07T00:40:45.7600989Z 
+2026-02-07T00:40:45.7601630Z 🎉 Auto-Import completed successfully!
+2026-02-07T00:40:45.7602439Z 📊 Final Stats:
+2026-02-07T00:40:45.7603019Z   ✅ Imported: 1000 content
+2026-02-07T00:40:45.7603588Z   👥 People: 15095
+2026-02-07T00:40:45.7604178Z   ⏭️  Skipped: 5100 (duplicates)
+2026-02-07T00:40:45.7605058Z   ❌ Failed: 0
+2026-02-07T00:40:45.7605715Z   📡 Discovered: 6120 total items
+2026-02-07T00:40:45.7859062Z ##[group]Run echo "## Auto-Import Results" >> $GITHUB_STEP_SUMMARY
+2026-02-07T00:40:45.7859556Z [36;1mecho "## Auto-Import Results" >> $GITHUB_STEP_SUMMARY[0m
+2026-02-07T00:40:45.7859968Z [36;1mecho "Run completed at $(date -u)" >> $GITHUB_STEP_SUMMARY[0m
+2026-02-07T00:40:45.7893146Z shell: /usr/bin/bash -e {0}
+2026-02-07T00:40:45.7893391Z env:
+2026-02-07T00:40:45.7893577Z   NODE_VERSION: 20
+2026-02-07T00:40:45.7893977Z   SUPABASE_URL: ***
+2026-02-07T00:40:45.7895712Z   SUPABASE_SERVICE_ROLE_KEY: ***
+2026-02-07T00:40:45.7897247Z   TMDB_ACCESS_TOKEN: ***
+2026-02-07T00:40:45.7897549Z ##[endgroup]
+2026-02-07T00:40:45.8031346Z Post job cleanup.
+2026-02-07T00:40:45.9606849Z Cache hit occurred on the primary key node-cache-Linux-x64-npm-6e2cbf0d9c32f318f1b915911c9a881069cc746069b4f466a9a1a96c81922acd, not saving cache.
+2026-02-07T00:40:45.9749378Z Post job cleanup.
+2026-02-07T00:40:46.0730461Z [command]/usr/bin/git version
+2026-02-07T00:40:46.0770774Z git version 2.52.0
+2026-02-07T00:40:46.0816464Z Temporarily overriding HOME='/home/runner/work/_temp/3d86a602-ee8a-4f8a-a32c-63d6ef67a0c5' before making global git config changes
+2026-02-07T00:40:46.0818135Z Adding repository directory to the temporary git global config as a safe directory
+2026-02-07T00:40:46.0824375Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/GDVG-Admin-Console/GDVG-Admin-Console
+2026-02-07T00:40:46.0865726Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-02-07T00:40:46.0900461Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-02-07T00:40:46.1491258Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-02-07T00:40:46.1511763Z http.https://github.com/.extraheader
+2026-02-07T00:40:46.1526092Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-02-07T00:40:46.1557316Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-02-07T00:40:46.1789132Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-02-07T00:40:46.1824575Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-02-07T00:40:46.2167105Z Cleaning up orphan processes

@@ -1,0 +1,8 @@
+2026-02-05T21:52:34.5810000Z Evaluating auto-import.if
+2026-02-05T21:52:34.5810000Z Evaluating: success()
+2026-02-05T21:52:34.5810000Z Result: true
+2026-02-05T21:52:34.9050000Z Job is waiting for a hosted runner to come online.
+2026-02-05T21:52:34.8980000Z Requested labels: ubuntu-latest
+2026-02-05T21:52:34.8980000Z Job defined at: Krushna-ai/GDVG-Admin-Console/.github/workflows/auto-import.yml@refs/heads/main
+2026-02-05T21:52:34.8980000Z Waiting for a runner to pick up this job...
+2026-02-05T21:52:34.9050000Z Job is about to start running on the hosted runner: GitHub Actions 1000001619

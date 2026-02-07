@@ -1,0 +1,507 @@
+﻿2026-02-05T21:52:37.1362724Z Current runner version: '2.331.0'
+2026-02-05T21:52:37.1397066Z ##[group]Runner Image Provisioner
+2026-02-05T21:52:37.1398391Z Hosted Compute Agent
+2026-02-05T21:52:37.1399431Z Version: 20260123.484
+2026-02-05T21:52:37.1400433Z Commit: 6bd6555ca37d84114959e1c76d2c01448ff61c5d
+2026-02-05T21:52:37.1401964Z Build Date: 2026-01-23T19:41:17Z
+2026-02-05T21:52:37.1403014Z Worker ID: {617ea6b7-08a3-4646-850b-8a868d87f4c2}
+2026-02-05T21:52:37.1404250Z Azure Region: eastus2
+2026-02-05T21:52:37.1405204Z ##[endgroup]
+2026-02-05T21:52:37.1407515Z ##[group]Operating System
+2026-02-05T21:52:37.1408631Z Ubuntu
+2026-02-05T21:52:37.1409438Z 24.04.3
+2026-02-05T21:52:37.1410271Z LTS
+2026-02-05T21:52:37.1411617Z ##[endgroup]
+2026-02-05T21:52:37.1412632Z ##[group]Runner Image
+2026-02-05T21:52:37.1413689Z Image: ubuntu-24.04
+2026-02-05T21:52:37.1414775Z Version: 20260126.10.1
+2026-02-05T21:52:37.1416750Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260126.10/images/ubuntu/Ubuntu2404-Readme.md
+2026-02-05T21:52:37.1419449Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260126.10
+2026-02-05T21:52:37.1421256Z ##[endgroup]
+2026-02-05T21:52:37.1426004Z ##[group]GITHUB_TOKEN Permissions
+2026-02-05T21:52:37.1429153Z Actions: write
+2026-02-05T21:52:37.1430234Z ArtifactMetadata: write
+2026-02-05T21:52:37.1431365Z Attestations: write
+2026-02-05T21:52:37.1432320Z Checks: write
+2026-02-05T21:52:37.1433230Z Contents: write
+2026-02-05T21:52:37.1434127Z Deployments: write
+2026-02-05T21:52:37.1435062Z Discussions: write
+2026-02-05T21:52:37.1435958Z Issues: write
+2026-02-05T21:52:37.1436861Z Metadata: read
+2026-02-05T21:52:37.1437643Z Models: read
+2026-02-05T21:52:37.1438441Z Packages: write
+2026-02-05T21:52:37.1439439Z Pages: write
+2026-02-05T21:52:37.1440429Z PullRequests: write
+2026-02-05T21:52:37.1441533Z RepositoryProjects: write
+2026-02-05T21:52:37.1443179Z SecurityEvents: write
+2026-02-05T21:52:37.1444082Z Statuses: write
+2026-02-05T21:52:37.1444937Z ##[endgroup]
+2026-02-05T21:52:37.1448240Z Secret source: Actions
+2026-02-05T21:52:37.1450331Z Prepare workflow directory
+2026-02-05T21:52:37.2150826Z Prepare all required actions
+2026-02-05T21:52:37.2188467Z Getting action download info
+2026-02-05T21:52:37.4609051Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+2026-02-05T21:52:37.5541834Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+2026-02-05T21:52:37.7446279Z Complete job name: auto-import
+2026-02-05T21:52:37.8073372Z ##[group]Run actions/checkout@v4
+2026-02-05T21:52:37.8074246Z with:
+2026-02-05T21:52:37.8074713Z   repository: Krushna-ai/GDVG-Admin-Console
+2026-02-05T21:52:37.8075460Z   token: ***
+2026-02-05T21:52:37.8075869Z   ssh-strict: true
+2026-02-05T21:52:37.8076279Z   ssh-user: git
+2026-02-05T21:52:37.8076706Z   persist-credentials: true
+2026-02-05T21:52:37.8077196Z   clean: true
+2026-02-05T21:52:37.8077632Z   sparse-checkout-cone-mode: true
+2026-02-05T21:52:37.8078128Z   fetch-depth: 1
+2026-02-05T21:52:37.8078566Z   fetch-tags: false
+2026-02-05T21:52:37.8078985Z   show-progress: true
+2026-02-05T21:52:37.8079422Z   lfs: false
+2026-02-05T21:52:37.8079824Z   submodules: false
+2026-02-05T21:52:37.8080272Z   set-safe-directory: true
+2026-02-05T21:52:37.8081215Z env:
+2026-02-05T21:52:37.8081607Z   NODE_VERSION: 20
+2026-02-05T21:52:37.8082196Z   SUPABASE_URL: ***
+2026-02-05T21:52:37.8084396Z   SUPABASE_SERVICE_ROLE_KEY: ***
+2026-02-05T21:52:37.8086771Z   TMDB_ACCESS_TOKEN: ***
+2026-02-05T21:52:37.8087256Z ##[endgroup]
+2026-02-05T21:52:37.9192058Z Syncing repository: Krushna-ai/GDVG-Admin-Console
+2026-02-05T21:52:37.9194135Z ##[group]Getting Git version info
+2026-02-05T21:52:37.9194957Z Working directory is '/home/runner/work/GDVG-Admin-Console/GDVG-Admin-Console'
+2026-02-05T21:52:37.9196059Z [command]/usr/bin/git version
+2026-02-05T21:52:37.9275086Z git version 2.52.0
+2026-02-05T21:52:37.9301598Z ##[endgroup]
+2026-02-05T21:52:37.9316353Z Temporarily overriding HOME='/home/runner/work/_temp/885f5eef-763d-40aa-a3c3-cae10b52c211' before making global git config changes
+2026-02-05T21:52:37.9330753Z Adding repository directory to the temporary git global config as a safe directory
+2026-02-05T21:52:37.9332241Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/GDVG-Admin-Console/GDVG-Admin-Console
+2026-02-05T21:52:37.9369021Z Deleting the contents of '/home/runner/work/GDVG-Admin-Console/GDVG-Admin-Console'
+2026-02-05T21:52:37.9372658Z ##[group]Initializing the repository
+2026-02-05T21:52:37.9376743Z [command]/usr/bin/git init /home/runner/work/GDVG-Admin-Console/GDVG-Admin-Console
+2026-02-05T21:52:37.9476639Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-02-05T21:52:37.9477970Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-02-05T21:52:37.9479177Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-02-05T21:52:37.9480862Z hint: call:
+2026-02-05T21:52:37.9481421Z hint:
+2026-02-05T21:52:37.9482076Z hint: 	git config --global init.defaultBranch <name>
+2026-02-05T21:52:37.9482865Z hint:
+2026-02-05T21:52:37.9483597Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-02-05T21:52:37.9484837Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-02-05T21:52:37.9486338Z hint:
+2026-02-05T21:52:37.9486906Z hint: 	git branch -m <name>
+2026-02-05T21:52:37.9487506Z hint:
+2026-02-05T21:52:37.9488261Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-02-05T21:52:37.9489416Z Initialized empty Git repository in /home/runner/work/GDVG-Admin-Console/GDVG-Admin-Console/.git/
+2026-02-05T21:52:37.9491940Z [command]/usr/bin/git remote add origin https://github.com/Krushna-ai/GDVG-Admin-Console
+2026-02-05T21:52:37.9524423Z ##[endgroup]
+2026-02-05T21:52:37.9525182Z ##[group]Disabling automatic garbage collection
+2026-02-05T21:52:37.9528510Z [command]/usr/bin/git config --local gc.auto 0
+2026-02-05T21:52:37.9556147Z ##[endgroup]
+2026-02-05T21:52:37.9556861Z ##[group]Setting up auth
+2026-02-05T21:52:37.9563178Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-02-05T21:52:37.9592679Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-02-05T21:52:37.9918314Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-02-05T21:52:37.9947223Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-02-05T21:52:38.0164104Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-02-05T21:52:38.0195998Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-02-05T21:52:38.0430094Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-02-05T21:52:38.0465026Z ##[endgroup]
+2026-02-05T21:52:38.0466328Z ##[group]Fetching the repository
+2026-02-05T21:52:38.0475210Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +e9737b61cd99de6acdc96b7cd1467278db12d92d:refs/remotes/origin/main
+2026-02-05T21:52:38.3212930Z From https://github.com/Krushna-ai/GDVG-Admin-Console
+2026-02-05T21:52:38.3214139Z  * [new ref]         e9737b61cd99de6acdc96b7cd1467278db12d92d -> origin/main
+2026-02-05T21:52:38.3244703Z ##[endgroup]
+2026-02-05T21:52:38.3245569Z ##[group]Determining the checkout info
+2026-02-05T21:52:38.3247287Z ##[endgroup]
+2026-02-05T21:52:38.3252888Z [command]/usr/bin/git sparse-checkout disable
+2026-02-05T21:52:38.3295439Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-02-05T21:52:38.3322426Z ##[group]Checking out the ref
+2026-02-05T21:52:38.3327133Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-02-05T21:52:38.3693038Z Switched to a new branch 'main'
+2026-02-05T21:52:38.3694473Z branch 'main' set up to track 'origin/main'.
+2026-02-05T21:52:38.3704638Z ##[endgroup]
+2026-02-05T21:52:38.3744842Z [command]/usr/bin/git log -1 --format=%H
+2026-02-05T21:52:38.3766695Z e9737b61cd99de6acdc96b7cd1467278db12d92d
+2026-02-05T21:52:38.3969567Z ##[group]Run RESPONSE=$(curl -s "***/api/sync/status" || echo '{"success":false}')
+2026-02-05T21:52:38.3971081Z [36;1mRESPONSE=$(curl -s "***/api/sync/status" || echo '{"success":false}')[0m
+2026-02-05T21:52:38.3971989Z [36;1mIS_PAUSED=$(echo $RESPONSE | jq -r '.is_paused // false')[0m
+2026-02-05T21:52:38.3972655Z [36;1m[0m
+2026-02-05T21:52:38.3973080Z [36;1mif [ "$IS_PAUSED" = "true" ]; then[0m
+2026-02-05T21:52:38.3973890Z [36;1m  echo "⏸️ Sync is currently paused. Skipping workflow." >> $GITHUB_STEP_SUMMARY[0m
+2026-02-05T21:52:38.3975013Z [36;1m  echo "Paused at: $(echo $RESPONSE | jq -r '.paused_at // "unknown"')" >> $GITHUB_STEP_SUMMARY[0m
+2026-02-05T21:52:38.3975808Z [36;1m  exit 0[0m
+2026-02-05T21:52:38.3976217Z [36;1mfi[0m
+2026-02-05T21:52:38.3976591Z [36;1m[0m
+2026-02-05T21:52:38.3977202Z [36;1mecho "✅ Sync is active. Proceeding with auto-import." >> $GITHUB_STEP_SUMMARY[0m
+2026-02-05T21:52:38.4012539Z shell: /usr/bin/bash -e {0}
+2026-02-05T21:52:38.4013115Z env:
+2026-02-05T21:52:38.4013493Z   NODE_VERSION: 20
+2026-02-05T21:52:38.4014109Z   SUPABASE_URL: ***
+2026-02-05T21:52:38.4016387Z   SUPABASE_SERVICE_ROLE_KEY: ***
+2026-02-05T21:52:38.4018895Z   TMDB_ACCESS_TOKEN: ***
+2026-02-05T21:52:38.4019346Z ##[endgroup]
+2026-02-05T21:52:42.6223618Z ##[group]Run actions/setup-node@v4
+2026-02-05T21:52:42.6223975Z with:
+2026-02-05T21:52:42.6224201Z   node-version: 20
+2026-02-05T21:52:42.6224437Z   cache: npm
+2026-02-05T21:52:42.6224662Z   always-auth: false
+2026-02-05T21:52:42.6224908Z   check-latest: false
+2026-02-05T21:52:42.6225316Z   token: ***
+2026-02-05T21:52:42.6225531Z env:
+2026-02-05T21:52:42.6225741Z   NODE_VERSION: 20
+2026-02-05T21:52:42.6226086Z   SUPABASE_URL: ***
+2026-02-05T21:52:42.6227441Z   SUPABASE_SERVICE_ROLE_KEY: ***
+2026-02-05T21:52:42.6228913Z   TMDB_ACCESS_TOKEN: ***
+2026-02-05T21:52:42.6229174Z ##[endgroup]
+2026-02-05T21:52:42.7966721Z Found in cache @ /opt/hostedtoolcache/node/20.20.0/x64
+2026-02-05T21:52:42.7973105Z ##[group]Environment details
+2026-02-05T21:52:43.1502103Z node: v20.20.0
+2026-02-05T21:52:43.1502523Z npm: 10.8.2
+2026-02-05T21:52:43.1502768Z yarn: 1.22.22
+2026-02-05T21:52:43.1503621Z ##[endgroup]
+2026-02-05T21:52:43.1523090Z [command]/opt/hostedtoolcache/node/20.20.0/x64/bin/npm config get cache
+2026-02-05T21:52:43.2686112Z /home/runner/.npm
+2026-02-05T21:52:43.4013128Z Cache hit for: node-cache-Linux-x64-npm-6e2cbf0d9c32f318f1b915911c9a881069cc746069b4f466a9a1a96c81922acd
+2026-02-05T21:52:44.2463059Z Received 172644571 of 172644571 (100.0%), 202.5 MBs/sec
+2026-02-05T21:52:44.2464172Z Cache Size: ~165 MB (172644571 B)
+2026-02-05T21:52:44.2528808Z [command]/usr/bin/tar -xf /home/runner/work/_temp/e0e8165c-674f-49d8-8913-a6310f652c0b/cache.tzst -P -C /home/runner/work/GDVG-Admin-Console/GDVG-Admin-Console --use-compress-program unzstd
+2026-02-05T21:52:44.5564709Z Cache restored successfully
+2026-02-05T21:52:44.5907798Z Cache restored from key: node-cache-Linux-x64-npm-6e2cbf0d9c32f318f1b915911c9a881069cc746069b4f466a9a1a96c81922acd
+2026-02-05T21:52:44.6058372Z ##[group]Run npm ci
+2026-02-05T21:52:44.6058653Z [36;1mnpm ci[0m
+2026-02-05T21:52:44.6099655Z shell: /usr/bin/bash -e {0}
+2026-02-05T21:52:44.6099941Z env:
+2026-02-05T21:52:44.6100127Z   NODE_VERSION: 20
+2026-02-05T21:52:44.6100683Z   SUPABASE_URL: ***
+2026-02-05T21:52:44.6102143Z   SUPABASE_SERVICE_ROLE_KEY: ***
+2026-02-05T21:52:44.6103596Z   TMDB_ACCESS_TOKEN: ***
+2026-02-05T21:52:44.6103834Z ##[endgroup]
+2026-02-05T21:52:54.4138640Z 
+2026-02-05T21:52:54.4146825Z added 419 packages, and audited 420 packages in 10s
+2026-02-05T21:52:54.4147700Z 
+2026-02-05T21:52:54.4147990Z 150 packages are looking for funding
+2026-02-05T21:52:54.4148482Z   run `npm fund` for details
+2026-02-05T21:52:54.4762442Z 
+2026-02-05T21:52:54.4763982Z 1 high severity vulnerability
+2026-02-05T21:52:54.4765135Z 
+2026-02-05T21:52:54.4765390Z To address all issues, run:
+2026-02-05T21:52:54.4765838Z   npm audit fix --force
+2026-02-05T21:52:54.4766086Z 
+2026-02-05T21:52:54.4766293Z Run `npm audit` for details.
+2026-02-05T21:52:54.5458092Z ##[group]Run npx tsx scripts/auto-import.ts
+2026-02-05T21:52:54.5458483Z [36;1mnpx tsx scripts/auto-import.ts[0m
+2026-02-05T21:52:54.5498285Z shell: /usr/bin/bash -e {0}
+2026-02-05T21:52:54.5498554Z env:
+2026-02-05T21:52:54.5498745Z   NODE_VERSION: 20
+2026-02-05T21:52:54.5499130Z   SUPABASE_URL: ***
+2026-02-05T21:52:54.5500687Z   SUPABASE_SERVICE_ROLE_KEY: ***
+2026-02-05T21:52:54.5502214Z   TMDB_ACCESS_TOKEN: ***
+2026-02-05T21:52:54.5502436Z   DRY_RUN: false
+2026-02-05T21:52:54.5502628Z ##[endgroup]
+2026-02-05T21:52:55.2954410Z 🚀 Starting Auto-Import...
+2026-02-05T21:52:56.1824217Z ✅ Sync is active. Proceeding...
+2026-02-05T21:52:56.1831597Z 📅 Date: 2026-02-05T21:52:56.182Z
+2026-02-05T21:52:56.1832191Z 🧪 Dry Run: false
+2026-02-05T21:52:56.1834461Z 📊 Daily Quota: 1000
+2026-02-05T21:52:56.8439066Z 📋 Created job: a40e8cdf-39d8-4cea-b53a-4db30f303b9c
+2026-02-05T21:52:56.8439619Z 
+2026-02-05T21:52:56.8440225Z 📡 Starting adaptive discovery and import...
+2026-02-05T21:52:56.8440986Z 
+2026-02-05T21:52:56.8441031Z 
+2026-02-05T21:52:56.8441336Z 🌍 Region: KR
+2026-02-05T21:52:56.8441849Z   TV (KR):
+2026-02-05T21:53:21.8951437Z     Page 4: all duplicates, continuing...
+2026-02-05T21:53:27.0032014Z     Page 5: all duplicates, continuing...
+2026-02-05T21:53:31.9059306Z     Page 6: all duplicates, continuing...
+2026-02-05T21:53:36.9618806Z     Page 7: all duplicates, continuing...
+2026-02-05T21:53:41.9842387Z     Page 8: all duplicates, continuing...
+2026-02-05T21:53:46.7168661Z     Page 9: all duplicates, continuing...
+2026-02-05T21:53:51.6435748Z     Page 10: all duplicates, continuing...
+2026-02-05T21:53:56.8773320Z     Page 11: all duplicates, continuing...
+2026-02-05T21:54:02.0019995Z     Page 12: all duplicates, continuing...
+2026-02-05T21:54:07.6111585Z     Page 13: all duplicates, continuing...
+2026-02-05T21:54:12.7288861Z     Page 14: all duplicates, continuing...
+2026-02-05T21:54:17.9142883Z     Page 15: all duplicates, continuing...
+2026-02-05T21:54:22.7584708Z     Page 16: all duplicates, continuing...
+2026-02-05T21:54:27.8945175Z     Page 17: all duplicates, continuing...
+2026-02-05T21:54:43.0852432Z     Page 19: all duplicates, continuing...
+2026-02-05T21:54:48.1457181Z     Page 20: all duplicates, continuing...
+2026-02-05T21:54:53.5093295Z     Page 21: all duplicates, continuing...
+2026-02-05T21:54:58.5127493Z     Page 22: all duplicates, continuing...
+2026-02-05T21:55:03.6589648Z     Page 23: all duplicates, continuing...
+2026-02-05T21:55:08.9428611Z     Page 24: all duplicates, continuing...
+2026-02-05T21:55:14.1375022Z     Page 25: all duplicates, continuing...
+2026-02-05T21:55:19.1969344Z     Page 26: all duplicates, continuing...
+2026-02-05T21:55:24.0836090Z     Page 27: all duplicates, continuing...
+2026-02-05T21:55:29.1472401Z     Page 28: all duplicates, continuing...
+2026-02-05T21:55:34.1984422Z     Page 29: all duplicates, continuing...
+2026-02-05T21:55:39.3555231Z     Page 30: all duplicates, continuing...
+2026-02-05T21:55:44.3396570Z     Page 31: all duplicates, continuing...
+2026-02-05T21:55:49.2485749Z     Page 32: all duplicates, continuing...
+2026-02-05T21:55:59.8353301Z     Page 34: all duplicates, continuing...
+2026-02-05T21:56:05.1248344Z     Page 35: all duplicates, continuing...
+2026-02-05T21:56:10.3709814Z     Page 36: all duplicates, continuing...
+2026-02-05T21:56:15.4766596Z     Page 37: all duplicates, continuing...
+2026-02-05T21:56:20.4787635Z     Page 38: all duplicates, continuing...
+2026-02-05T21:56:25.4800920Z     Page 39: all duplicates, continuing...
+2026-02-05T21:57:03.1823727Z     Page 42: all duplicates, continuing...
+2026-02-05T21:57:22.3537503Z     ✓ 10/1000 (848 skipped, 80 people)
+2026-02-05T21:57:52.9029918Z     Page 45: all duplicates, continuing...
+2026-02-05T21:57:57.8712402Z     Page 46: all duplicates, continuing...
+2026-02-05T21:58:51.5065877Z     ✓ 20/1000 (931 skipped, 202 people)
+2026-02-05T22:00:15.2309681Z     ✓ 30/1000 (958 skipped, 338 people)
+2026-02-05T22:00:41.5864012Z     ✅ tv: 33 imported, 967 skipped, 377 people
+2026-02-05T22:00:41.5865045Z   MOVIE (KR):
+2026-02-05T22:01:21.8729698Z     ✅ movie: 3 imported, 37 skipped, 49 people
+2026-02-05T22:01:21.8730116Z 
+2026-02-05T22:01:21.8730323Z 🌍 Region: CN
+2026-02-05T22:01:21.8730932Z   TV (CN):
+2026-02-05T22:01:43.7550037Z     Page 4: all duplicates, continuing...
+2026-02-05T22:01:48.9828896Z     Page 5: all duplicates, continuing...
+2026-02-05T22:01:54.0101734Z     Page 6: all duplicates, continuing...
+2026-02-05T22:01:59.1962899Z     Page 7: all duplicates, continuing...
+2026-02-05T22:02:04.2663482Z     Page 8: all duplicates, continuing...
+2026-02-05T22:02:09.6701721Z     Page 9: all duplicates, continuing...
+2026-02-05T22:02:14.8972960Z     Page 10: all duplicates, continuing...
+2026-02-05T22:02:20.7114976Z     Page 11: all duplicates, continuing...
+2026-02-05T22:02:25.6899895Z     Page 12: all duplicates, continuing...
+2026-02-05T22:02:30.8688792Z     Page 13: all duplicates, continuing...
+2026-02-05T22:02:35.7713910Z     Page 14: all duplicates, continuing...
+2026-02-05T22:02:40.8875948Z     Page 15: all duplicates, continuing...
+2026-02-05T22:02:45.9771945Z     Page 16: all duplicates, continuing...
+2026-02-05T22:02:50.9414966Z     Page 17: all duplicates, continuing...
+2026-02-05T22:02:55.8368263Z     Page 18: all duplicates, continuing...
+2026-02-05T22:03:00.8567296Z     Page 19: all duplicates, continuing...
+2026-02-05T22:03:05.9582626Z     Page 20: all duplicates, continuing...
+2026-02-05T22:03:11.1359431Z     Page 21: all duplicates, continuing...
+2026-02-05T22:03:16.2158387Z     Page 22: all duplicates, continuing...
+2026-02-05T22:03:21.1747395Z     Page 23: all duplicates, continuing...
+2026-02-05T22:03:26.0858256Z     Page 24: all duplicates, continuing...
+2026-02-05T22:03:31.2005645Z     Page 25: all duplicates, continuing...
+2026-02-05T22:03:36.1573717Z     Page 26: all duplicates, continuing...
+2026-02-05T22:03:41.1369176Z     Page 27: all duplicates, continuing...
+2026-02-05T22:03:46.1610361Z     Page 28: all duplicates, continuing...
+2026-02-05T22:04:09.4206711Z     Page 31: all duplicates, continuing...
+2026-02-05T22:05:27.8855182Z     Page 38: all duplicates, continuing...
+2026-02-05T22:05:35.9964332Z     ✓ 10/964 (768 skipped, 103 people)
+2026-02-05T22:06:42.1718492Z     ✓ 20/964 (818 skipped, 194 people)
+2026-02-05T22:07:53.0600441Z     ✓ 30/964 (862 skipped, 298 people)
+2026-02-05T22:09:00.2518042Z     ✓ 40/964 (903 skipped, 394 people)
+2026-02-05T22:10:23.0195732Z     ✓ 50/964 (927 skipped, 526 people)
+2026-02-05T22:10:51.2867264Z     ✅ tv: 54 imported, 946 skipped, 564 people
+2026-02-05T22:10:51.2867872Z   MOVIE (CN):
+2026-02-05T22:12:19.2067164Z     ✓ 10/910 (30 skipped, 140 people)
+2026-02-05T22:12:19.6068607Z     ✅ movie: 10 imported, 30 skipped, 140 people
+2026-02-05T22:12:19.6069669Z   TV (TW):
+2026-02-05T22:12:39.7315007Z     Page 4: all duplicates, continuing...
+2026-02-05T22:12:44.7004758Z     Page 5: all duplicates, continuing...
+2026-02-05T22:12:49.6069849Z     Page 6: all duplicates, continuing...
+2026-02-05T22:12:54.6420239Z     Page 7: all duplicates, continuing...
+2026-02-05T22:12:59.6334100Z     Page 8: all duplicates, continuing...
+2026-02-05T22:13:04.6995871Z     Page 9: all duplicates, continuing...
+2026-02-05T22:13:09.6914879Z     Page 10: all duplicates, continuing...
+2026-02-05T22:13:14.7597691Z     Page 11: all duplicates, continuing...
+2026-02-05T22:13:19.7007470Z     Page 12: all duplicates, continuing...
+2026-02-05T22:13:24.6177562Z     Page 13: all duplicates, continuing...
+2026-02-05T22:13:29.5002868Z     Page 14: all duplicates, continuing...
+2026-02-05T22:13:34.5577213Z     Page 15: all duplicates, continuing...
+2026-02-05T22:13:39.5506583Z     Page 16: all duplicates, continuing...
+2026-02-05T22:13:44.4442829Z     Page 17: all duplicates, continuing...
+2026-02-05T22:13:49.4830081Z     Page 18: all duplicates, continuing...
+2026-02-05T22:13:54.3459820Z     Page 19: all duplicates, continuing...
+2026-02-05T22:13:59.3216050Z     Page 20: all duplicates, continuing...
+2026-02-05T22:14:04.2670207Z     Page 21: all duplicates, continuing...
+2026-02-05T22:14:09.2758457Z     Page 22: all duplicates, continuing...
+2026-02-05T22:14:14.3403824Z     Page 23: all duplicates, continuing...
+2026-02-05T22:14:19.3390832Z     Page 24: all duplicates, continuing...
+2026-02-05T22:14:24.2072347Z     Page 25: all duplicates, continuing...
+2026-02-05T22:14:29.3328792Z     Page 26: all duplicates, continuing...
+2026-02-05T22:14:34.2630087Z     Page 27: all duplicates, continuing...
+2026-02-05T22:14:39.2908905Z     Page 28: all duplicates, continuing...
+2026-02-05T22:14:44.3638436Z     Page 29: all duplicates, continuing...
+2026-02-05T22:14:49.2664294Z     Page 30: all duplicates, continuing...
+2026-02-05T22:14:54.5019656Z     Page 31: all duplicates, continuing...
+2026-02-05T22:14:59.4812874Z     Page 32: all duplicates, continuing...
+2026-02-05T22:15:04.6766651Z     Page 33: all duplicates, continuing...
+2026-02-05T22:15:09.9243865Z     Page 34: all duplicates, continuing...
+2026-02-05T22:15:15.0366549Z     Page 35: all duplicates, continuing...
+2026-02-05T22:15:19.9908072Z     Page 36: all duplicates, continuing...
+2026-02-05T22:15:25.1345107Z     Page 37: all duplicates, continuing...
+2026-02-05T22:15:30.2395347Z     Page 38: all duplicates, continuing...
+2026-02-05T22:15:35.2366048Z     Page 39: all duplicates, continuing...
+2026-02-05T22:15:40.2606783Z     Page 40: all duplicates, continuing...
+2026-02-05T22:15:45.2869349Z     Page 41: all duplicates, continuing...
+2026-02-05T22:15:50.3079008Z     Page 42: all duplicates, continuing...
+2026-02-05T22:15:55.3022069Z     Page 43: all duplicates, continuing...
+2026-02-05T22:16:42.1227317Z     ✓ 10/900 (961 skipped, 26 people)
+2026-02-05T22:17:00.5642868Z     ✅ tv: 16 imported, 984 skipped, 40 people
+2026-02-05T22:17:00.5643611Z   MOVIE (TW):
+2026-02-05T22:17:54.4664558Z     ✅ movie: 7 imported, 33 skipped, 84 people
+2026-02-05T22:17:54.4665385Z   TV (HK):
+2026-02-05T22:18:23.9441518Z     Page 4: all duplicates, continuing...
+2026-02-05T22:18:28.7635858Z     Page 5: all duplicates, continuing...
+2026-02-05T22:18:33.8105091Z     Page 6: all duplicates, continuing...
+2026-02-05T22:18:38.7368866Z     Page 7: all duplicates, continuing...
+2026-02-05T22:18:43.6228909Z     Page 8: all duplicates, continuing...
+2026-02-05T22:18:48.5970164Z     Page 9: all duplicates, continuing...
+2026-02-05T22:18:53.3101210Z     Page 10: all duplicates, continuing...
+2026-02-05T22:18:58.0289699Z     Page 11: all duplicates, continuing...
+2026-02-05T22:19:02.7536617Z     Page 12: all duplicates, continuing...
+2026-02-05T22:19:07.5737570Z     Page 13: all duplicates, continuing...
+2026-02-05T22:19:12.4425075Z     Page 14: all duplicates, continuing...
+2026-02-05T22:19:17.1869325Z     Page 15: all duplicates, continuing...
+2026-02-05T22:19:22.3105913Z     Page 16: all duplicates, continuing...
+2026-02-05T22:19:27.1742170Z     Page 17: all duplicates, continuing...
+2026-02-05T22:19:38.3705072Z     Page 19: all duplicates, continuing...
+2026-02-05T22:19:43.1553415Z     Page 20: all duplicates, continuing...
+2026-02-05T22:19:47.9662169Z     Page 21: all duplicates, continuing...
+2026-02-05T22:19:59.3245132Z     Page 23: all duplicates, continuing...
+2026-02-05T22:20:04.2769980Z     Page 24: all duplicates, continuing...
+2026-02-05T22:20:26.9447745Z     Page 27: all duplicates, continuing...
+2026-02-05T22:20:31.7901747Z     Page 28: all duplicates, continuing...
+2026-02-05T22:20:36.6054283Z     Page 29: all duplicates, continuing...
+2026-02-05T22:20:56.5987061Z     Page 32: all duplicates, continuing...
+2026-02-05T22:21:27.0034205Z     ✓ 10/877 (658 skipped, 83 people)
+2026-02-05T22:21:54.3909442Z     Page 36: all duplicates, continuing...
+2026-02-05T22:22:31.6391570Z     ✓ 20/877 (742 skipped, 149 people)
+2026-02-05T22:23:37.7523669Z     ✓ 30/877 (767 skipped, 254 people)
+2026-02-05T22:23:43.6577945Z     Page 41: all duplicates, continuing...
+2026-02-05T22:24:10.2501063Z     Page 43: all duplicates, continuing...
+2026-02-05T22:25:10.6730938Z     ✓ 40/877 (842 skipped, 386 people)
+2026-02-05T22:26:20.1494424Z     ✓ 50/877 (858 skipped, 500 people)
+2026-02-05T22:27:39.3578825Z     ✓ 60/877 (882 skipped, 628 people)
+2026-02-05T22:28:56.4272553Z     ✓ 70/877 (893 skipped, 759 people)
+2026-02-05T22:30:06.3855718Z     ✓ 80/877 (908 skipped, 875 people)
+2026-02-05T22:30:39.7376124Z     ✅ tv: 84 imported, 916 skipped, 930 people
+2026-02-05T22:30:39.7376636Z   MOVIE (HK):
+2026-02-05T22:32:43.5129287Z     ✓ 10/793 (28 skipped, 215 people)
+2026-02-05T22:32:44.4830393Z     ✅ movie: 10 imported, 30 skipped, 215 people
+2026-02-05T22:32:44.4831173Z 
+2026-02-05T22:32:44.4831493Z 🌍 Region: TH
+2026-02-05T22:32:44.4831890Z   TV (TH):
+2026-02-05T22:33:05.1322554Z     Page 4: all duplicates, continuing...
+2026-02-05T22:33:10.1200473Z     Page 5: all duplicates, continuing...
+2026-02-05T22:33:22.3146543Z     Page 7: all duplicates, continuing...
+2026-02-05T22:33:27.4991249Z     Page 8: all duplicates, continuing...
+2026-02-05T22:33:32.8624867Z     Page 9: all duplicates, continuing...
+2026-02-05T22:33:37.9112370Z     Page 10: all duplicates, continuing...
+2026-02-05T22:33:43.2269850Z     Page 11: all duplicates, continuing...
+2026-02-05T22:33:48.6118549Z     Page 12: all duplicates, continuing...
+2026-02-05T22:34:56.4127146Z     ✓ 10/783 (274 skipped, 105 people)
+2026-02-05T22:36:36.1827837Z     ✓ 20/783 (298 skipped, 217 people)
+2026-02-05T22:37:53.3796728Z     ✓ 30/783 (315 skipped, 350 people)
+2026-02-05T22:38:57.6898186Z     ✓ 40/783 (325 skipped, 457 people)
+2026-02-05T22:40:08.4709967Z     ✓ 50/783 (328 skipped, 583 people)
+2026-02-05T22:41:11.0373006Z     ✓ 60/783 (334 skipped, 689 people)
+2026-02-05T22:42:45.9939874Z     ✓ 70/783 (334 skipped, 860 people)
+2026-02-05T22:43:55.4866391Z     ✓ 80/783 (337 skipped, 982 people)
+2026-02-05T22:45:24.6863240Z     ✓ 90/783 (338 skipped, 1148 people)
+2026-02-05T22:46:26.6129499Z     ✓ 100/783 (340 skipped, 1257 people)
+2026-02-05T22:47:27.4990293Z     ✓ 110/783 (343 skipped, 1363 people)
+2026-02-05T22:48:30.0763376Z     ✓ 120/783 (344 skipped, 1474 people)
+2026-02-05T22:49:36.2797220Z     ✓ 130/783 (346 skipped, 1593 people)
+2026-02-05T22:50:51.8637293Z     ✓ 140/783 (347 skipped, 1730 people)
+2026-02-05T22:51:58.7792709Z     ✓ 150/783 (348 skipped, 1845 people)
+2026-02-05T22:53:19.9893192Z     ✓ 160/783 (348 skipped, 1993 people)
+2026-02-05T22:54:42.7596064Z     ✓ 170/783 (351 skipped, 2145 people)
+2026-02-05T22:55:42.2951887Z     ✓ 180/783 (353 skipped, 2252 people)
+2026-02-05T22:56:37.6591858Z     ✓ 190/783 (353 skipped, 2351 people)
+2026-02-05T22:57:57.9458227Z     ✓ 200/783 (353 skipped, 2503 people)
+2026-02-05T22:59:25.8283341Z     ✓ 210/783 (354 skipped, 2673 people)
+2026-02-05T23:00:18.0165082Z     ✓ 220/783 (354 skipped, 2768 people)
+2026-02-05T23:01:15.2164033Z     ✓ 230/783 (354 skipped, 2869 people)
+2026-02-05T23:02:21.7527381Z     ✓ 240/783 (354 skipped, 2991 people)
+2026-02-05T23:03:32.7287781Z     ✓ 250/783 (354 skipped, 3123 people)
+2026-02-05T23:04:33.9107534Z     ✓ 260/783 (354 skipped, 3232 people)
+2026-02-05T23:05:23.5642713Z     ✓ 270/783 (355 skipped, 3316 people)
+2026-02-05T23:06:31.2919385Z     ✓ 280/783 (355 skipped, 3437 people)
+2026-02-05T23:07:44.2527620Z     ✓ 290/783 (355 skipped, 3569 people)
+2026-02-05T23:08:30.6830040Z     ✓ 300/783 (355 skipped, 3648 people)
+2026-02-05T23:09:36.6444895Z     ✓ 310/783 (355 skipped, 3767 people)
+2026-02-05T23:10:48.5162715Z     ✓ 320/783 (355 skipped, 3898 people)
+2026-02-05T23:11:55.1772888Z     ✓ 330/783 (355 skipped, 4016 people)
+2026-02-05T23:13:03.3801119Z     ✓ 340/783 (355 skipped, 4136 people)
+2026-02-05T23:14:05.7078839Z     ✓ 350/783 (355 skipped, 4244 people)
+2026-02-05T23:15:30.3159680Z     ✓ 360/783 (355 skipped, 4396 people)
+2026-02-05T23:16:39.9793871Z     ✓ 370/783 (355 skipped, 4518 people)
+2026-02-05T23:18:03.8033990Z     ✓ 380/783 (355 skipped, 4674 people)
+2026-02-05T23:19:01.6337466Z     ✓ 390/783 (355 skipped, 4777 people)
+2026-02-05T23:20:03.9879293Z     ✓ 400/783 (355 skipped, 4888 people)
+2026-02-05T23:21:05.8985762Z     ✓ 410/783 (355 skipped, 4997 people)
+2026-02-05T23:22:12.2160329Z     ✓ 420/783 (355 skipped, 5108 people)
+2026-02-05T23:23:12.6866748Z     ✓ 430/783 (355 skipped, 5208 people)
+2026-02-05T23:24:15.3821841Z     ✓ 440/783 (355 skipped, 5316 people)
+2026-02-05T23:25:19.8264163Z     ✓ 450/783 (355 skipped, 5429 people)
+2026-02-05T23:26:32.2829765Z     ✓ 460/783 (355 skipped, 5562 people)
+2026-02-05T23:27:33.5667530Z     ✓ 470/783 (355 skipped, 5673 people)
+2026-02-05T23:28:37.0497065Z     ✓ 480/783 (355 skipped, 5785 people)
+2026-02-05T23:29:45.3556862Z     ✓ 490/783 (355 skipped, 5909 people)
+2026-02-05T23:31:04.3319643Z     ✓ 500/783 (355 skipped, 6053 people)
+2026-02-05T23:31:55.7583394Z     ✓ 510/783 (355 skipped, 6141 people)
+2026-02-05T23:32:52.7272729Z     ✓ 520/783 (355 skipped, 6245 people)
+2026-02-05T23:33:59.1891377Z     ✓ 530/783 (355 skipped, 6365 people)
+2026-02-05T23:34:54.4323128Z     ✓ 540/783 (355 skipped, 6462 people)
+2026-02-05T23:35:50.9009039Z     ✓ 550/783 (355 skipped, 6559 people)
+2026-02-05T23:36:59.6801313Z     ✓ 560/783 (355 skipped, 6683 people)
+2026-02-05T23:38:12.6126977Z     ✓ 570/783 (355 skipped, 6812 people)
+2026-02-05T23:39:08.1741212Z     ✓ 580/783 (355 skipped, 6906 people)
+2026-02-05T23:40:08.0607461Z     ✓ 590/783 (355 skipped, 7009 people)
+2026-02-05T23:41:04.5009325Z     ✓ 600/783 (355 skipped, 7107 people)
+2026-02-05T23:42:02.4833070Z     ✓ 610/783 (355 skipped, 7204 people)
+2026-02-05T23:42:59.9080065Z     ✓ 620/783 (355 skipped, 7301 people)
+2026-02-05T23:44:05.6265547Z     ✓ 630/783 (355 skipped, 7416 people)
+2026-02-05T23:45:13.4840423Z     ✓ 640/783 (355 skipped, 7540 people)
+2026-02-05T23:45:47.8776720Z     ✅ tv: 645 imported, 355 skipped, 7601 people
+2026-02-05T23:45:47.8777285Z   MOVIE (TH):
+2026-02-05T23:47:39.4078586Z     ✓ 10/138 (2 skipped, 214 people)
+2026-02-05T23:48:23.8948530Z     ✓ 20/138 (3 skipped, 290 people)
+2026-02-05T23:49:28.7522109Z     ✓ 30/138 (7 skipped, 405 people)
+2026-02-05T23:49:36.4749481Z     ✅ movie: 33 imported, 7 skipped, 415 people
+2026-02-05T23:49:36.4749981Z 
+2026-02-05T23:49:36.4750230Z 🌍 Region: TR
+2026-02-05T23:49:36.4750956Z   TV (TR):
+2026-02-05T23:51:09.7281474Z     ✓ 10/105 (1 skipped, 177 people)
+2026-02-05T23:52:47.0526671Z     ✓ 20/105 (1 skipped, 358 people)
+2026-02-05T23:54:08.3150392Z     ✓ 30/105 (1 skipped, 510 people)
+2026-02-05T23:55:36.1999559Z     ✓ 40/105 (1 skipped, 676 people)
+2026-02-05T23:57:11.7533290Z     ✓ 50/105 (2 skipped, 856 people)
+2026-02-05T23:58:32.2192605Z     ✓ 60/105 (2 skipped, 1005 people)
+2026-02-05T23:59:53.6388880Z     ✓ 70/105 (2 skipped, 1159 people)
+2026-02-06T00:01:18.1031709Z     ✓ 80/105 (2 skipped, 1311 people)
+2026-02-06T00:02:55.2186916Z     ✓ 90/105 (2 skipped, 1493 people)
+2026-02-06T00:04:17.6202338Z     ✓ 100/105 (2 skipped, 1640 people)
+2026-02-06T00:05:00.0945910Z     ✅ tv: 105 imported, 2 skipped, 1716 people
+2026-02-06T00:05:00.3524376Z 
+2026-02-06T00:05:00.3524404Z 
+2026-02-06T00:05:00.3525580Z 🎉 Auto-Import completed successfully!
+2026-02-06T00:05:00.3526312Z 📊 Final Stats:
+2026-02-06T00:05:00.3526745Z   ✅ Imported: 1000 content
+2026-02-06T00:05:00.3527200Z   👥 People: 12131
+2026-02-06T00:05:00.3527739Z   ⏭️  Skipped: 4307 (duplicates)
+2026-02-06T00:05:00.3528189Z   ❌ Failed: 0
+2026-02-06T00:05:00.3528605Z   📡 Discovered: 5320 total items
+2026-02-06T00:05:00.3784007Z ##[group]Run echo "## Auto-Import Results" >> $GITHUB_STEP_SUMMARY
+2026-02-06T00:05:00.3784502Z [36;1mecho "## Auto-Import Results" >> $GITHUB_STEP_SUMMARY[0m
+2026-02-06T00:05:00.3784969Z [36;1mecho "Run completed at $(date -u)" >> $GITHUB_STEP_SUMMARY[0m
+2026-02-06T00:05:00.3816261Z shell: /usr/bin/bash -e {0}
+2026-02-06T00:05:00.3816516Z env:
+2026-02-06T00:05:00.3816707Z   NODE_VERSION: 20
+2026-02-06T00:05:00.3817343Z   SUPABASE_URL: ***
+2026-02-06T00:05:00.3818906Z   SUPABASE_SERVICE_ROLE_KEY: ***
+2026-02-06T00:05:00.3820719Z   TMDB_ACCESS_TOKEN: ***
+2026-02-06T00:05:00.3820961Z ##[endgroup]
+2026-02-06T00:05:00.3952078Z Post job cleanup.
+2026-02-06T00:05:00.5539432Z Cache hit occurred on the primary key node-cache-Linux-x64-npm-6e2cbf0d9c32f318f1b915911c9a881069cc746069b4f466a9a1a96c81922acd, not saving cache.
+2026-02-06T00:05:00.5715250Z Post job cleanup.
+2026-02-06T00:05:00.7080706Z [command]/usr/bin/git version
+2026-02-06T00:05:00.7121464Z git version 2.52.0
+2026-02-06T00:05:00.7167109Z Temporarily overriding HOME='/home/runner/work/_temp/8af22a60-fae7-4aa1-9e16-361198bac697' before making global git config changes
+2026-02-06T00:05:00.7168525Z Adding repository directory to the temporary git global config as a safe directory
+2026-02-06T00:05:00.7173863Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/GDVG-Admin-Console/GDVG-Admin-Console
+2026-02-06T00:05:00.7215755Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-02-06T00:05:00.7250454Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-02-06T00:05:00.7514699Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-02-06T00:05:00.7540344Z http.https://github.com/.extraheader
+2026-02-06T00:05:00.7554641Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-02-06T00:05:00.7588015Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-02-06T00:05:00.7842408Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-02-06T00:05:00.7879182Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-02-06T00:05:00.8260002Z Cleaning up orphan processes
