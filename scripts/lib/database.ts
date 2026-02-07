@@ -27,6 +27,9 @@ export interface Person {
     adult?: boolean;
     wikipedia_url?: string | null;
     bio_source?: 'wikipedia' | 'tmdb' | 'none';
+    import_batch_id?: string | null;
+    import_batch_name?: string | null;
+    imported_at?: string | null;
 }
 
 export interface Content {
@@ -67,6 +70,9 @@ export interface Content {
     imdb_id?: string;
     wikipedia_url?: string | null;
     overview_source?: 'wikipedia' | 'tmdb' | 'none';
+    import_batch_id?: string | null;
+    import_batch_name?: string | null;
+    imported_at?: string | null;
 }
 
 // ============================================

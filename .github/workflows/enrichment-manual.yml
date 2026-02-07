@@ -1,0 +1,162 @@
+name: Manual Enrichment
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_quality_check:
+        description: 'Run quality validation first'
+        required: false
+        default: true
+        type: boolean
+      run_queue_refresh:
+        description: 'Refresh enrichment queue'
+        required: false
+        default: true
+        type: boolean
+      enrich_content:
+        description: 'Run content enrichment'
+        required: false
+        default: true
+        type: boolean
+      enrich_people:
+        description: 'Run people enrichment'
+        required: false
+        default: true
+        type: boolean
+      content_batch_size:
+        description: 'Content batch size (0 = unlimited)'
+        required: false
+        default: '10000'
+      people_batch_size:
+        description: 'People batch size'
+        required: false
+        default: '200'
+
+env:
+  NODE_VERSION: '20'
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+  TMDB_ACCESS_TOKEN: ${{ secrets.TMDB_ACCESS_TOKEN }}
+
+jobs:
+  quality-check:
+    if: github.event.inputs.run_quality_check == 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Content
+        run: npx tsx scripts/validate-content.ts
+
+      - name: Validate People
+        run: npx tsx scripts/validate-people.ts
+
+  queue-refresh:
+    needs: [quality-check]
+    if: |
+      always() &&
+      (needs.quality-check.result == 'success' || needs.quality-check.result == 'skipped') &&
+      github.event.inputs.run_queue_refresh == 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Refresh Queue
+        env:
+          INCLUDE_CONTENT: 'true'
+          INCLUDE_PEOPLE: 'true'
+        run: npx tsx scripts/refresh-queue.ts
+
+  content-enrichment:
+    needs: [queue-refresh]
+    if: |
+      always() &&
+      (needs.queue-refresh.result == 'success' || needs.queue-refresh.result == 'skipped') &&
+      github.event.inputs.enrich_content == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Enrich Content
+        env:
+          BATCH_SIZE: ${{ github.event.inputs.content_batch_size || '10000' }}
+          DRY_RUN: 'false'
+        run: npx tsx scripts/enrich-queue.ts
+
+  people-enrichment:
+    needs: [queue-refresh]
+    if: |
+      always() &&
+      (needs.queue-refresh.result == 'success' || needs.queue-refresh.result == 'skipped') &&
+      github.event.inputs.enrich_people == 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Enrich People
+        env:
+          BATCH_SIZE: ${{ github.event.inputs.people_batch_size || '2000' }}
+          DRY_RUN: 'false'
+        run: npx tsx scripts/enrich-people.ts
+
+  summary:
+    needs: [quality-check, queue-refresh, content-enrichment, people-enrichment]
+    if: always()
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Generate Summary
+        run: |
+          echo "## 👤 Manual Enrichment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "Triggered by: @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Steps Executed:" >> $GITHUB_STEP_SUMMARY
+          echo "- Quality Check: ${{ needs.quality-check.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Queue Refresh: ${{ needs.queue-refresh.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Content Enrichment: ${{ needs.content-enrichment.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- People Enrichment: ${{ needs.people-enrichment.result }}" >> $GITHUB_STEP_SUMMARY

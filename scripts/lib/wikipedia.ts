@@ -280,20 +280,307 @@ export async function getPersonBioMultiVariant(
 }
 
 // ============================================
-// UTILITY FUNCTIONS
+// MEDIAWIKI ACTION API
 // ============================================
 
 /**
- * Extract categories from Wikipedia page (for tags)
- * Note: This requires the full page API, not the summary API
- * Categories can be used as tags
+ * MediaWiki Action API response types
+ */
+interface MediaWikiActionResponse {
+    query?: {
+        pages?: {
+            [pageId: string]: {
+                pageid?: number;
+                title?: string;
+                categories?: Array<{ title: string; ns: number }>;
+                revisions?: Array<{ slots?: { main?: { content?: string } } }>;
+                images?: Array<{ title: string }>;
+            };
+        };
+    };
+    error?: {
+        code: string;
+        info: string;
+    };
+}
+
+/**
+ * Fetch data from MediaWiki Action API
+ */
+async function fetchMediaWikiAction(
+    language: string,
+    params: Record<string, string>
+): Promise<MediaWikiActionResponse | null> {
+    await delay(RATE_LIMIT_DELAY_MS);
+
+    const url = new URL(`https://${language}.wikipedia.org/w/api.php`);
+    url.searchParams.set('format', 'json');
+    url.searchParams.set('origin', '*'); // CORS support
+
+    Object.entries(params).forEach(([key, value]) => {
+        url.searchParams.set(key, value);
+    });
+
+    try {
+        const response = await fetch(url.toString(), {
+            headers: {
+                'User-Agent': USER_AGENT,
+                'Accept': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            console.warn(`  ⚠️  MediaWiki API error: ${response.status} ${response.statusText}`);
+            return null;
+        }
+
+        const data: MediaWikiActionResponse = await response.json();
+
+        if (data.error) {
+            console.warn(`  ⚠️  MediaWiki API error: ${data.error.code} - ${data.error.info}`);
+            return null;
+        }
+
+        return data;
+
+    } catch (error) {
+        console.error(`  ❌ MediaWiki API fetch error: ${error instanceof Error ? error.message : String(error)}`);
+        return null;
+    }
+}
+
+/**
+ * Extract categories from Wikipedia page (for auto-tagging)
+ * Categories are Wikipedia's taxonomy system and can be used as content tags
+ * 
+ * @param title Wikipedia page title
+ * @param language Wikipedia language code (default: 'en')
+ * @returns Array of category names (without "Category:" prefix)
  */
 export async function getPageCategories(
     title: string,
     language: string = 'en'
 ): Promise<string[]> {
-    // TODO: Implement using MediaWiki API if needed for tag extraction
-    // For now, return empty array
-    // Endpoint would be: https://{lang}.wikipedia.org/w/api.php?action=query&titles={title}&prop=categories
-    return [];
+    try {
+        console.log(`  🔍 Fetching categories for: "${title}" (${language})`);
+
+        const data = await fetchMediaWikiAction(language, {
+            action: 'query',
+            titles: title,
+            prop: 'categories',
+            cllimit: '500', // Max categories per page
+            clshow: '!hidden', // Exclude hidden/maintenance categories
+        });
+
+        if (!data || !data.query || !data.query.pages) {
+            console.log(`  ℹ️  No categories found for: "${title}"`);
+            return [];
+        }
+
+        const pages = data.query.pages;
+        const pageId = Object.keys(pages)[0];
+        const page = pages[pageId];
+
+        if (!page || !page.categories || page.categories.length === 0) {
+            console.log(`  ℹ️  Page has no categories: "${title}"`);
+            return [];
+        }
+
+        // Extract category names, remove "Category:" prefix
+        const categories = page.categories
+            .map(cat => cat.title.replace(/^Category:/i, ''))
+            .filter(cat => {
+                // Filter out obvious maintenance categories
+                const lower = cat.toLowerCase();
+                return !lower.includes('articles') &&
+                    !lower.includes('pages') &&
+                    !lower.includes('wikipedia') &&
+                    !lower.includes('redirects') &&
+                    !lower.includes('disambiguation');
+            });
+
+        console.log(`  ✅ Found ${categories.length} categories`);
+        if (categories.length > 0 && categories.length <= 10) {
+            console.log(`     Categories: ${categories.join(', ')}`);
+        }
+
+        return categories;
+
+    } catch (error) {
+        console.error(`  ❌ Error getting categories: ${error instanceof Error ? error.message : String(error)}`);
+        return [];
+    }
 }
+
+/**
+ * Get full page content from Wikipedia (for detailed plot summaries)
+ * Returns parsed HTML content of the article
+ * 
+ * @param title Wikipedia page title
+ * @param language Wikipedia language code (default: 'en')
+ * @param section Section number to fetch (0 = intro, undefined = full page)
+ * @returns HTML content or null if not found
+ */
+export async function getPageContent(
+    title: string,
+    language: string = 'en',
+    section?: number
+): Promise<string | null> {
+    try {
+        console.log(`  🔍 Fetching full content for: "${title}" (${language})`);
+
+        const params: Record<string, string> = {
+            action: 'parse',
+            page: title,
+            prop: 'text',
+            disableeditsection: '1',
+            disabletoc: '1',
+        };
+
+        if (section !== undefined) {
+            params.section = String(section);
+        }
+
+        const data = await fetchMediaWikiAction(language, params);
+
+        if (!data || !data.query) {
+            // Parse API uses different response structure
+            const parseData = data as any;
+            if (parseData && parseData.parse && parseData.parse.text) {
+                const html = parseData.parse.text['*'] || parseData.parse.text;
+                console.log(`  ✅ Content fetched (${html.length} chars)`);
+                return html;
+            }
+
+            console.log(`  ℹ️  No content found for: "${title}"`);
+            return null;
+        }
+
+        return null;
+
+    } catch (error) {
+        console.error(`  ❌ Error getting page content: ${error instanceof Error ? error.message : String(error)}`);
+        return null;
+    }
+}
+
+/**
+ * Get all images from a Wikipedia page
+ * Useful for gathering promotional images, posters, character photos
+ * 
+ * @param title Wikipedia page title
+ * @param language Wikipedia language code (default: 'en')
+ * @returns Array of image filenames (without "File:" prefix)
+ */
+export async function getPageImages(
+    title: string,
+    language: string = 'en'
+): Promise<string[]> {
+    try {
+        console.log(`  🔍 Fetching images for: "${title}" (${language})`);
+
+        const data = await fetchMediaWikiAction(language, {
+            action: 'query',
+            titles: title,
+            prop: 'images',
+            imlimit: '500', // Max images per page
+        });
+
+        if (!data || !data.query || !data.query.pages) {
+            console.log(`  ℹ️  No images found for: "${title}"`);
+            return [];
+        }
+
+        const pages = data.query.pages;
+        const pageId = Object.keys(pages)[0];
+        const page = pages[pageId];
+
+        if (!page || !page.images || page.images.length === 0) {
+            console.log(`  ℹ️  Page has no images: "${title}"`);
+            return [];
+        }
+
+        // Extract image filenames, remove "File:" prefix
+        const images = page.images
+            .map(img => img.title.replace(/^File:/i, ''))
+            .filter(img => {
+                // Filter out common icons, logos, and maintenance images
+                const lower = img.toLowerCase();
+                return !lower.includes('icon') &&
+                    !lower.includes('logo') &&
+                    !lower.includes('.svg') &&
+                    !lower.includes('commons-logo') &&
+                    !lower.includes('wikidata') &&
+                    !lower.includes('edit-');
+            });
+
+        console.log(`  ✅ Found ${images.length} images`);
+        if (images.length > 0 && images.length <= 5) {
+            console.log(`     Images: ${images.join(', ')}`);
+        }
+
+        return images;
+
+    } catch (error) {
+        console.error(`  ❌ Error getting images: ${error instanceof Error ? error.message : String(error)}`);
+        return [];
+    }
+}
+
+/**
+ * Get image URL from Wikimedia Commons
+ * Converts image filename to actual URL
+ * 
+ * @param filename Image filename (e.g., "Example.jpg")
+ * @param width Desired width in pixels (optional, for thumbnails)
+ * @returns Full image URL or null if not found
+ */
+export async function getImageUrl(
+    filename: string,
+    width?: number
+): Promise<string | null> {
+    try {
+        await delay(RATE_LIMIT_DELAY_MS);
+
+        const url = new URL('https://commons.wikimedia.org/w/api.php');
+        url.searchParams.set('action', 'query');
+        url.searchParams.set('titles', `File:${filename}`);
+        url.searchParams.set('prop', 'imageinfo');
+        url.searchParams.set('iiprop', 'url');
+        url.searchParams.set('format', 'json');
+        url.searchParams.set('origin', '*');
+
+        if (width) {
+            url.searchParams.set('iiurlwidth', String(width));
+        }
+
+        const response = await fetch(url.toString(), {
+            headers: {
+                'User-Agent': USER_AGENT,
+                'Accept': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            return null;
+        }
+
+        const data: any = await response.json();
+        const pages = data.query?.pages;
+
+        if (!pages) return null;
+
+        const pageId = Object.keys(pages)[0];
+        const imageInfo = pages[pageId]?.imageinfo?.[0];
+
+        if (!imageInfo) return null;
+
+        // Return thumbnail URL if width specified, otherwise full URL
+        return width ? imageInfo.thumburl || imageInfo.url : imageInfo.url;
+
+    } catch (error) {
+        console.error(`  ❌ Error getting image URL: ${error instanceof Error ? error.message : String(error)}`);
+        return null;
+    }
+}
+

@@ -1,15 +1,63 @@
 name: Process Import Queue
 
 on:
-  schedule:
-    - cron: '*/30 * * * *' # Check every 30 minutes
-  workflow_dispatch: # Manual trigger
+  workflow_call: # Called by other workflows
+  workflow_dispatch: # Manual trigger only
 
 jobs:
+  check-queue:
+    runs-on: ubuntu-latest
+    outputs:
+      has_items: ${{ steps.count.outputs.has_items }}
+      queue_size: ${{ steps.count.outputs.queue_size }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Check Queue Size
+        id: count
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          QUEUE_SIZE=$(npx tsx -e "
+            import { createClient } from '@supabase/supabase-js';
+            const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+            const { count } = await supabase.from('import_queue').select('*', { count: 'exact', head: true });
+            console.log(count || 0);
+          ")
+          
+          echo "queue_size=$QUEUE_SIZE" >> $GITHUB_OUTPUT
+          
+          if [ "$QUEUE_SIZE" -gt 0 ]; then
+            echo "has_items=true" >> $GITHUB_OUTPUT
+            echo "✅ Queue has $QUEUE_SIZE items - will process" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "has_items=false" >> $GITHUB_OUTPUT
+            echo "⏭️ Queue is empty - skipping processing" >> $GITHUB_STEP_SUMMARY
+          fi
+
   process-imports:
+    needs: check-queue
+    if: needs.check-queue.outputs.has_items == 'true'
     runs-on: ubuntu-latest
     
     steps:
+      - name: Log Queue Size
+        run: |
+          echo "## 📦 Processing Import Queue" >> $GITHUB_STEP_SUMMARY
+          echo "Queue size: ${{ needs.check-queue.outputs.queue_size }} items" >> $GITHUB_STEP_SUMMARY
+      
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -28,3 +76,9 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           TMDB_ACCESS_TOKEN: ${{ secrets.TMDB_ACCESS_TOKEN }}
         run: npx tsx scripts/process-imports.ts
+      
+      - name: Report Completion
+        if: always()
+        run: |
+          echo "✅ Import queue processing completed" >> $GITHUB_STEP_SUMMARY
+          echo "Check database for results" >> $GITHUB_STEP_SUMMARY

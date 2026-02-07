@@ -185,6 +185,49 @@ interface ProcessResult {
 }
 
 /**
+ * Get progressive discovery filters based on page number
+ * Filters relax as pages increase to discover more content
+ * 
+ * - Pages 1-20: Strict (high quality only)
+ * - Pages 21-50: Medium (good quality)
+ * - Pages 51-100: Relaxed (acceptable quality)
+ * - Pages 101+: Region-only (no quality filters)
+ */
+function getProgressiveFilters(page: number): Record<string, string | number> {
+    const filters: Record<string, string | number> = {};
+
+    if (page <= 20) {
+        // Tier 1: High quality only
+        filters['vote_average.gte'] = 6;
+        filters['vote_count.gte'] = 100;
+        filters['popularity.gte'] = 10;
+    } else if (page <= 50) {
+        // Tier 2: Good quality
+        filters['vote_average.gte'] = 5;
+        filters['vote_count.gte'] = 50;
+        filters['popularity.gte'] = 5;
+    } else if (page <= 100) {
+        // Tier 3: Acceptable quality
+        filters['vote_average.gte'] = 4;
+        filters['vote_count.gte'] = 20;
+        filters['popularity.gte'] = 1;
+    }
+    // Tier 4 (page 101+): No quality filters, region-only
+
+    return filters;
+}
+
+/**
+ * Get filter tier name for logging
+ */
+function getFilterTierName(page: number): string {
+    if (page <= 20) return 'Tier 1 (High Quality)';
+    if (page <= 50) return 'Tier 2 (Good Quality)';
+    if (page <= 100) return 'Tier 3 (Acceptable)';
+    return 'Tier 4 (Region-Only)';
+}
+
+/**
  * Process content type for a country with adaptive page fetching
  * Keeps fetching pages until quota met or max pages reached
  */
@@ -203,14 +246,35 @@ async function processContentType(
     let page = 1;
     let consecutiveEmptyPages = 0;
 
-    console.log(`  ${contentType.toUpperCase()} (${country}):`);
+    const filterTier = getFilterTierName(page);
+    console.log(`  ${contentType.toUpperCase()} (${country}) - Starting with ${filterTier}:`);
 
     while (imported < remainingQuota && page <= maxPages) {
         try {
-            // Fetch page from TMDB
+            // Get progressive filters for current page
+            const progressiveFilters = getProgressiveFilters(page);
+
+            // Log filter tier changes
+            const currentTier = getFilterTierName(page);
+            const previousTier = getFilterTierName(page - 1);
+            if (page > 1 && currentTier !== previousTier) {
+                console.log(`    → Switching to ${currentTier} (page ${page})`);
+            }
+
+            // Fetch page from TMDB with progressive filters
             const data = contentType === 'tv'
-                ? await discoverTv({ with_origin_country: country, sort_by: 'popularity.desc', page })
-                : await discoverMovies({ with_origin_country: country, sort_by: 'popularity.desc', page });
+                ? await discoverTv({
+                    with_origin_country: country,
+                    sort_by: 'popularity.desc',
+                    page,
+                    ...progressiveFilters
+                })
+                : await discoverMovies({
+                    with_origin_country: country,
+                    sort_by: 'popularity.desc',
+                    page,
+                    ...progressiveFilters
+                });
 
             const items = data.results || [];
             discovered += items.length;
