@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import PaginationControls from '@/components/PaginationControls';
+import { useDebounce } from '@/hooks/useDebounce';
 
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w185';
 
@@ -99,6 +101,15 @@ export default function PeopleManagerPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [departmentFilter, setDepartmentFilter] = useState<string>('all');
 
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(25);
+    const [totalCount, setTotalCount] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
+
+    // Debounce search query
+    const debouncedSearch = useDebounce(searchQuery, 300);
+
     // Modals
     const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
     const [personCredits, setPersonCredits] = useState<PersonCredits | null>(null);
@@ -106,13 +117,23 @@ export default function PeopleManagerPage() {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
 
-    // Fetch people
+    // Fetch people with pagination
     const fetchPeople = async () => {
         setLoading(true);
         try {
-            const response = await fetch('/api/people');
+            const params = new URLSearchParams({
+                page: currentPage.toString(),
+                pageSize: pageSize.toString(),
+                search: debouncedSearch,
+                department: departmentFilter === 'all' ? '' : departmentFilter,
+            });
+
+            const response = await fetch(`/api/people?${params}`);
             const data = await response.json();
+
             setPeople(data.people || []);
+            setTotalCount(data.totalCount || 0);
+            setTotalPages(data.totalPages || 0);
         } catch (error) {
             console.error('Failed to fetch people:', error);
         } finally {
@@ -120,17 +141,18 @@ export default function PeopleManagerPage() {
         }
     };
 
+    // Fetch on page/filter/search change
     useEffect(() => {
         fetchPeople();
-    }, []);
+    }, [currentPage, pageSize, debouncedSearch, departmentFilter]);
 
-    // Filter logic
-    const filteredPeople = people.filter(person => {
-        const matchesSearch = person.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            person.tmdb_id.toString().includes(searchQuery);
-        const matchesDept = departmentFilter === 'all' || person.known_for_department === departmentFilter;
-        return matchesSearch && matchesDept;
-    });
+    // Reset to page 1 when filters/search change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [debouncedSearch, departmentFilter]);
+
+    // Use people directly (no client-side filtering)
+    const filteredPeople = people;
 
     // Selection logic
     const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -233,23 +255,17 @@ export default function PeopleManagerPage() {
                 </div>
             </div>
 
-            {/* Stats Bar */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 backdrop-blur-sm">
-                    <h3 className="text-slate-400 text-sm font-medium mb-1">Total People</h3>
-                    <p className="text-2xl font-bold text-white">{totalPeople.toLocaleString()}</p>
-                </div>
-                <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 backdrop-blur-sm">
-                    <h3 className="text-slate-400 text-sm font-medium mb-1">Avg. Data Quality</h3>
-                    <div className="flex items-center gap-2">
-                        <p className={`text-2xl font-bold ${avgQuality >= 80 ? 'text-green-400' : avgQuality >= 50 ? 'text-amber-400' : 'text-red-400'}`}>
-                            {avgQuality}%
-                        </p>
-                        <div className="flex-1 h-1.5 bg-slate-700/50 rounded-full max-w-[100px]">
-                            <div className={`h-full rounded-full ${avgQuality >= 80 ? 'bg-green-500' : avgQuality >= 50 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${avgQuality}%` }} />
-                        </div>
-                    </div>
-                </div>
+            {/* Pagination Controls - Top */}
+            <div className="mb-6">
+                <PaginationControls
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    pageSize={pageSize}
+                    totalCount={totalCount}
+                    onPageChange={setCurrentPage}
+                    onPageSizeChange={setPageSize}
+                    isLoading={loading}
+                />
             </div>
 
             {/* Filter Bar */}

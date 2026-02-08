@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import PaginationControls from '@/components/PaginationControls';
+import { useDebounce } from '@/hooks/useDebounce';
 
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w185';
 
@@ -102,18 +104,37 @@ export default function ContentManagerPage() {
     const [isSaving, setIsSaving] = useState(false);
     const [filter, setFilter] = useState<'all' | 'draft' | 'published' | 'archived'>('all');
 
-    // NEW: Search and selection state
+    // Search and selection state
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [isBulkActioning, setIsBulkActioning] = useState(false);
 
-    // Fetch content
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(25);
+    const [totalCount, setTotalCount] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
+
+    // Debounce search query
+    const debouncedSearch = useDebounce(searchQuery, 300);
+
+    // Fetch content with pagination
     const fetchContent = async () => {
         setLoading(true);
         try {
-            const response = await fetch('/api/content');
+            const params = new URLSearchParams({
+                page: currentPage.toString(),
+                pageSize: pageSize.toString(),
+                search: debouncedSearch,
+                status: filter === 'all' ? '' : filter,
+            });
+
+            const response = await fetch(`/api/content?${params}`);
             const data = await response.json();
+
             setContent(data.content || []);
+            setTotalCount(data.totalCount || 0);
+            setTotalPages(data.totalPages || 0);
         } catch (error) {
             console.error('Failed to fetch content:', error);
         } finally {
@@ -121,19 +142,18 @@ export default function ContentManagerPage() {
         }
     };
 
+    // Fetch on page/filter/search change
     useEffect(() => {
         fetchContent();
-    }, []);
+    }, [currentPage, pageSize, debouncedSearch, filter]);
 
-    // Filter and search content
-    const filteredContent = content
-        .filter(c => filter === 'all' || c.status === filter)
-        .filter(c =>
-            searchQuery === '' ||
-            c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            c.original_title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            c.tmdb_id.toString().includes(searchQuery)
-        );
+    // Reset to page 1 when filters/search change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [debouncedSearch, filter]);
+
+    // Use content directly (no client-side filtering)
+    const filteredContent = content;
 
     // Selection handlers
     const toggleSelect = (id: string) => {
@@ -281,7 +301,7 @@ export default function ContentManagerPage() {
                             : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
                             }`}
                     >
-                        {f} ({f === 'all' ? content.length : content.filter(c => c.status === f).length})
+                        {f}
                     </button>
                 ))}
             </div>
@@ -346,17 +366,17 @@ export default function ContentManagerPage() {
                 </div>
             )}
 
-            {/* Stats bar */}
-            <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 mb-6 border border-slate-700/50 flex gap-6">
-                <div className="text-slate-400">
-                    <span className="text-white font-bold">{filteredContent.length}</span> Showing
-                </div>
-                <div className="text-slate-400">
-                    <span className="text-white font-bold">{content.filter(c => c.content_type === 'tv').length}</span> TV
-                </div>
-                <div className="text-slate-400">
-                    <span className="text-white font-bold">{content.filter(c => c.content_type === 'movie').length}</span> Movies
-                </div>
+            {/* Pagination Controls - Top */}
+            <div className="mb-6">
+                <PaginationControls
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    pageSize={pageSize}
+                    totalCount={totalCount}
+                    onPageChange={setCurrentPage}
+                    onPageSizeChange={setPageSize}
+                    isLoading={loading}
+                />
             </div>
 
             {/* Content Table */}
