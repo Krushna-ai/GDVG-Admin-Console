@@ -31,10 +31,12 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           QUEUE_SIZE=$(npx tsx -e "
-            import { createClient } from '@supabase/supabase-js';
-            const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-            const { count } = await supabase.from('import_queue').select('*', { count: 'exact', head: true });
-            console.log(count || 0);
+            (async () => {
+              const { createClient } = await import('@supabase/supabase-js');
+              const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+              const { count } = await supabase.from('import_queue').select('*', { count: 'exact', head: true });
+              console.log(count || 0);
+            })();
           ")
           
           echo "queue_size=$QUEUE_SIZE" >> $GITHUB_OUTPUT

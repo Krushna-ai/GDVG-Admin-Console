@@ -118,12 +118,12 @@ async function main() {
                 continue;
             }
 
-            // Fetch from TMDB API
+            // Fetch from TMDB API with comprehensive media
             const tmdbEndpoint = getTmdbEndpoint(content.content_type);
-            const tmdbUrl = `https://api.themoviedb.org/3/${tmdbEndpoint}/${content.tmdb_id}?append_to_response=credits,keywords`;
+            const tmdbUrl = `https://api.themoviedb.org/3/${tmdbEndpoint}/${content.tmdb_id}?append_to_response=credits,keywords,videos,images`;
             const tmdbResponse = await fetch(tmdbUrl, {
                 headers: {
-                    'Authorization': `Bearer ${process.env.TMDB_API_READ_ACCESS_TOKEN}`,
+                    'Authorization': `Bearer ${process.env.TMDB_ACCESS_TOKEN}`,
                     'Content-Type': 'application/json',
                 },
             });
@@ -148,6 +148,80 @@ async function main() {
                 backdrop_path: tmdbData.backdrop_path || content.backdrop_path,
                 poster_path: tmdbData.poster_path || content.poster_path,
             };
+
+            // NEW: Set main poster (prioritize highest rated poster, fallback to poster_path)
+            if (tmdbData.images?.posters && tmdbData.images.posters.length > 0) {
+                const bestPoster = tmdbData.images.posters.sort((a: any, b: any) => b.vote_average - a.vote_average)[0];
+                enrichedData.main_poster = bestPoster.file_path;
+            } else {
+                enrichedData.main_poster = tmdbData.poster_path || content.main_poster;
+            }
+
+            // NEW: Store all videos (trailers, teasers, interviews, featurettes)
+            if (tmdbData.videos?.results && tmdbData.videos.results.length > 0) {
+                const videos = tmdbData.videos.results;
+                enrichedData.videos = {
+                    trailers: videos.filter((v: any) => v.type === 'Trailer').map((v: any) => ({
+                        key: v.key,
+                        name: v.name,
+                        site: v.site,
+                        type: v.type,
+                        official: v.official,
+                        published_at: v.published_at
+                    })),
+                    teasers: videos.filter((v: any) => v.type === 'Teaser').map((v: any) => ({
+                        key: v.key,
+                        name: v.name,
+                        site: v.site,
+                        type: v.type,
+                        official: v.official,
+                        published_at: v.published_at
+                    })),
+                    interviews: videos.filter((v: any) => v.type === 'Behind the Scenes' || v.type === 'Interview').map((v: any) => ({
+                        key: v.key,
+                        name: v.name,
+                        site: v.site,
+                        type: v.type,
+                        official: v.official,
+                        published_at: v.published_at
+                    })),
+                    featurettes: videos.filter((v: any) => v.type === 'Featurette').map((v: any) => ({
+                        key: v.key,
+                        name: v.name,
+                        site: v.site,
+                        type: v.type,
+                        official: v.official,
+                        published_at: v.published_at
+                    }))
+                };
+            }
+
+            // NEW: Store all images (posters, backdrops, logos)
+            if (tmdbData.images) {
+                enrichedData.images = {
+                    posters: tmdbData.images.posters?.slice(0, 15).map((img: any) => ({
+                        file_path: img.file_path,
+                        width: img.width,
+                        height: img.height,
+                        vote_average: img.vote_average,
+                        iso_639_1: img.iso_639_1
+                    })) || [],
+                    backdrops: tmdbData.images.backdrops?.slice(0, 15).map((img: any) => ({
+                        file_path: img.file_path,
+                        width: img.width,
+                        height: img.height,
+                        vote_average: img.vote_average,
+                        iso_639_1: img.iso_639_1
+                    })) || [],
+                    logos: tmdbData.images.logos?.slice(0, 5).map((img: any) => ({
+                        file_path: img.file_path,
+                        width: img.width,
+                        height: img.height,
+                        vote_average: img.vote_average,
+                        iso_639_1: img.iso_639_1
+                    })) || []
+                };
+            }
 
             if (content.content_type === 'tv') {
                 enrichedData.number_of_episodes = tmdbData.number_of_episodes || content.number_of_episodes;

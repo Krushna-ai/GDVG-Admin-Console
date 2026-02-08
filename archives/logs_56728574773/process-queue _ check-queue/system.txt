@@ -1,0 +1,14 @@
+2026-02-08T00:41:24.8450000Z Job is about to start running on the hosted runner: GitHub Actions 1000001685
+2026-02-08T00:41:24.8450000Z Job is waiting for a hosted runner to come online.
+2026-02-08T00:41:24.8340000Z Evaluating process-queue.if
+2026-02-08T00:41:24.8340000Z Evaluating: success()
+2026-02-08T00:41:24.8340000Z Result: true
+2026-02-08T00:41:24.8340000Z Evaluating process-queue.check-queue.if
+2026-02-08T00:41:24.8340000Z Evaluating: success()
+2026-02-08T00:41:24.8340000Z Result: true
+2026-02-08T00:41:24.8350000Z Requested labels: ubuntu-latest
+2026-02-08T00:41:24.8350000Z Job defined at: Krushna-ai/GDVG-Admin-Console/.github/workflows/process-imports.yml@refs/heads/main
+2026-02-08T00:41:24.8350000Z Reusable workflow chain:
+2026-02-08T00:41:24.8350000Z Krushna-ai/GDVG-Admin-Console/.github/workflows/auto-import-scheduled.yml@refs/heads/main (8ac447fa506a59f0f5f1271789bd379f3a13a67e)
+2026-02-08T00:41:24.8350000Z -> Krushna-ai/GDVG-Admin-Console/.github/workflows/process-imports.yml@refs/heads/main (8ac447fa506a59f0f5f1271789bd379f3a13a67e)
+2026-02-08T00:41:24.8350000Z Waiting for a runner to pick up this job...

@@ -41,13 +41,13 @@ export async function discoverMovies(params: Record<string, string | number> = {
 
 export async function getMovieDetails(id: number) {
     return tmdbFetch<any>(`/movie/${id}`, {
-        append_to_response: 'credits,keywords,videos,watch/providers,external_ids,content_ratings'
+        append_to_response: 'credits,keywords,videos,images,watch/providers,external_ids,content_ratings'
     });
 }
 
 export async function getTvDetails(id: number) {
     return tmdbFetch<any>(`/tv/${id}`, {
-        append_to_response: 'credits,keywords,videos,watch/providers,external_ids,content_ratings'
+        append_to_response: 'credits,keywords,videos,images,watch/providers,external_ids,content_ratings'
     });
 }
 

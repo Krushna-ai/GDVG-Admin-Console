@@ -65,7 +65,7 @@ async function checkSyncPauseStatus() {
 async function fetchPersonDetails(tmdbId: number): Promise<any | null> {
     try {
         const response = await fetch(
-            `https://api.themoviedb.org/3/person/${tmdbId}?append_to_response=combined_credits,external_ids`,
+            `https://api.themoviedb.org/3/person/${tmdbId}?append_to_response=combined_credits,external_ids,images,tagged_images`,
             {
                 headers: {
                     Authorization: `Bearer ${TMDB_ACCESS_TOKEN}`,
@@ -171,6 +171,42 @@ async function enrichPerson(personId: string, tmdbId: number, name: string): Pro
             console.log(`    ⚠️  Wikipedia fetch failed, using TMDB`);
         }
 
+        // NEW: Process images from TMDB
+        let main_profile_photo = details.profile_path;
+        let images = null;
+
+        if (details.images) {
+            // Set main profile photo (prioritize highest rated profile, fallback to profile_path)
+            if (details.images.profiles && details.images.profiles.length > 0) {
+                const bestProfile = details.images.profiles.sort((a: any, b: any) => b.vote_average - a.vote_average)[0];
+                main_profile_photo = bestProfile.file_path;
+            }
+
+            // Store all profile photos and tagged images
+            images = {
+                profiles: details.images.profiles?.slice(0, 10).map((img: any) => ({
+                    file_path: img.file_path,
+                    width: img.width,
+                    height: img.height,
+                    vote_average: img.vote_average,
+                    aspect_ratio: img.aspect_ratio
+                })) || [],
+                tagged: details.tagged_images?.results?.slice(0, 20).map((img: any) => ({
+                    id: img.id,
+                    file_path: img.file_path,
+                    width: img.width,
+                    height: img.height,
+                    vote_average: img.vote_average,
+                    media_type: img.media_type,
+                    media: img.media ? {
+                        id: img.media.id,
+                        title: img.media.title || img.media.name,
+                        media_type: img.media_type
+                    } : null
+                })) || []
+            };
+        }
+
         // Update people table with ALL fields
         const { error } = await supabase
             .from('people')
@@ -181,6 +217,8 @@ async function enrichPerson(personId: string, tmdbId: number, name: string): Pro
                 deathday: details.deathday,
                 place_of_birth: details.place_of_birth,
                 profile_path: details.profile_path,
+                main_profile_photo: main_profile_photo, // NEW: Main photo for app UI
+                images: images, // NEW: All photos and tagged images
                 gender: details.gender,
                 known_for_department: details.known_for_department,
                 popularity: details.popularity,
