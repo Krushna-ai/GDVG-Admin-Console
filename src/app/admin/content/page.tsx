@@ -329,6 +329,40 @@ export default function ContentManagerPage() {
                         </button>
                     )}
                 </div>
+
+                {/* Date Filters */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div className="bg-slate-800/30 border border-slate-700/50 rounded-lg p-3">
+                        <label className="text-xs text-slate-400 mb-2 block">📥 Filter by Import Date</label>
+                        <div className="flex gap-2">
+                            <input
+                                type="date"
+                                placeholder="From"
+                                className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
+                            />
+                            <input
+                                type="date"
+                                placeholder="To"
+                                className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
+                            />
+                        </div>
+                    </div>
+                    <div className="bg-slate-800/30 border border-slate-700/50 rounded-lg p-3">
+                        <label className="text-xs text-slate-400 mb-2 block">✨ Filter by Last Updated</label>
+                        <div className="flex gap-2">
+                            <input
+                                type="date"
+                                placeholder="From"
+                                className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
+                            />
+                            <input
+                                type="date"
+                                placeholder="To"
+                                className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
+                            />
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Bulk Actions Bar */}
@@ -405,7 +439,8 @@ export default function ContentManagerPage() {
                                 <th className="text-left text-slate-400 text-sm font-medium px-4 py-4">Status</th>
                                 <th className="text-left text-slate-400 text-sm font-medium px-4 py-4">Rating</th>
                                 <th className="text-left text-slate-400 text-sm font-medium px-4 py-4">Year</th>
-                                <th className="text-left text-slate-400 text-sm font-medium px-4 py-4">Imported/Enriched</th>
+                                <th className="text-left text-slate-400 text-sm font-medium px-4 py-4">Import On</th>
+                                <th className="text-left text-slate-400 text-sm font-medium px-4 py-4">Last Updated</th>
                                 <th className="text-left text-slate-400 text-sm font-medium px-4 py-4">Quality</th>
                                 <th className="text-right text-slate-400 text-sm font-medium px-4 py-4">Actions</th>
                             </tr>
@@ -482,23 +517,26 @@ export default function ContentManagerPage() {
                                         {item.release_date?.substring(0, 4) || item.first_air_date?.substring(0, 4) || 'N/A'}
                                     </td>
 
-                                    {/* Imported/Enriched Timestamps */}
+                                    {/* Import On */}
                                     <td className="px-4 py-4">
-                                        <div className="text-xs space-y-1">
-                                            {item.imported_at && (
-                                                <div className="text-slate-400">
-                                                    <span className="text-slate-500">📥</span> {new Date(item.imported_at).toLocaleDateString()}
-                                                </div>
-                                            )}
-                                            {item.enriched_at && (
-                                                <div className="text-green-400">
-                                                    <span className="text-green-500">✨</span> {new Date(item.enriched_at).toLocaleDateString()}
-                                                </div>
-                                            )}
-                                            {!item.imported_at && !item.enriched_at && (
-                                                <span className="text-slate-500">-</span>
-                                            )}
-                                        </div>
+                                        {item.imported_at ? (
+                                            <div className="text-xs text-slate-400">
+                                                📥 {new Date(item.imported_at).toLocaleDateString()}
+                                            </div>
+                                        ) : (
+                                            <span className="text-slate-500 text-xs">-</span>
+                                        )}
+                                    </td>
+
+                                    {/* Last Updated (Enriched) */}
+                                    <td className="px-4 py-4">
+                                        {item.enriched_at ? (
+                                            <div className="text-xs text-green-400">
+                                                ✨ {new Date(item.enriched_at).toLocaleDateString()}
+                                            </div>
+                                        ) : (
+                                            <span className="text-slate-500 text-xs">-</span>
+                                        )}
                                     </td>
 
                                     {/* Quality */}

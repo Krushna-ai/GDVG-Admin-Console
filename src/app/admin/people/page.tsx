@@ -297,18 +297,52 @@ export default function PeopleManagerPage() {
                         </select>
                     </div>
 
-                    {selectedIds.size > 0 && (
-                        <div className="flex items-center gap-3 animate-in fade-in slide-in-from-right-4">
-                            <span className="text-sm text-slate-400">{selectedIds.size} selected</span>
-                            <button
-                                onClick={handleBulkDelete}
-                                className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                            >
-                                🗑️ Delete Selected
-                            </button>
+                    {/* Date Filters */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                        <div className="bg-slate-800/30 border border-slate-700/50 rounded-lg p-3">
+                            <label className="text-xs text-slate-400 mb-2 block">📥 Filter by Import Date</label>
+                            <div className="flex gap-2">
+                                <input
+                                    type="date"
+                                    placeholder="From"
+                                    className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
+                                />
+                                <input
+                                    type="date"
+                                    placeholder="To"
+                                    className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
+                                />
+                            </div>
                         </div>
-                    )}
+                        <div className="bg-slate-800/30 border border-slate-700/50 rounded-lg p-3">
+                            <label className="text-xs text-slate-400 mb-2 block">✨ Filter by Last Updated</label>
+                            <div className="flex gap-2">
+                                <input
+                                    type="date"
+                                    placeholder="From"
+                                    className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
+                                />
+                                <input
+                                    type="date"
+                                    placeholder="To"
+                                    className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
+                                />
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
+                {selectedIds.size > 0 && (
+                    <div className="flex items-center gap-3 animate-in fade-in slide-in-from-right-4">
+                        <span className="text-sm text-slate-400">{selectedIds.size} selected</span>
+                        <button
+                            onClick={handleBulkDelete}
+                            className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                        >
+                            🗑️ Delete Selected
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* People Table */}
@@ -329,7 +363,8 @@ export default function PeopleManagerPage() {
                                 <th className="p-4">Name</th>
                                 <th className="p-4">Department</th>
                                 <th className="p-4">TMDB ID</th>
-                                <th className="p-4">Imported/Enriched</th>
+                                <th className="p-4">Import On</th>
+                                <th className="p-4">Last Updated</th>
                                 <th className="p-4 w-32">Quality</th>
                                 <th className="p-4 text-right">Actions</th>
                             </tr>
@@ -395,21 +430,22 @@ export default function PeopleManagerPage() {
                                             {person.tmdb_id}
                                         </td>
                                         <td className="p-4">
-                                            <div className="text-xs space-y-1">
-                                                {person.imported_at && (
-                                                    <div className="text-slate-400">
-                                                        <span className="text-slate-500">📥</span> {new Date(person.imported_at).toLocaleDateString()}
-                                                    </div>
-                                                )}
-                                                {person.enriched_at && (
-                                                    <div className="text-green-400">
-                                                        <span className="text-green-500">✨</span> {new Date(person.enriched_at).toLocaleDateString()}
-                                                    </div>
-                                                )}
-                                                {!person.imported_at && !person.enriched_at && (
-                                                    <span className="text-slate-500">-</span>
-                                                )}
-                                            </div>
+                                            {person.imported_at ? (
+                                                <div className="text-xs text-slate-400">
+                                                    📥 {new Date(person.imported_at).toLocaleDateString()}
+                                                </div>
+                                            ) : (
+                                                <span className="text-slate-500 text-xs">-</span>
+                                            )}
+                                        </td>
+                                        <td className="p-4">
+                                            {person.enriched_at ? (
+                                                <div className="text-xs text-green-400">
+                                                    ✨ {new Date(person.enriched_at).toLocaleDateString()}
+                                                </div>
+                                            ) : (
+                                                <span className="text-slate-500 text-xs">-</span>
+                                            )}
                                         </td>
                                         <td className="p-4">
                                             <QualityBadge score={calculatePersonQuality(person)} />
@@ -444,142 +480,146 @@ export default function PeopleManagerPage() {
             </div>
 
             {/* Detail Modal */}
-            {isDetailModalOpen && selectedPerson && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
-                        <div className="sticky top-0 bg-slate-900/95 backdrop-blur border-b border-slate-700 p-6 flex justify-between items-center z-10">
-                            <h2 className="text-2xl font-bold">{selectedPerson.name}</h2>
-                            <button
-                                onClick={() => setIsDetailModalOpen(false)}
-                                className="text-slate-400 hover:text-white w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-800"
-                            >
-                                ✕
-                            </button>
-                        </div>
+            {
+                isDetailModalOpen && selectedPerson && (
+                    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
+                            <div className="sticky top-0 bg-slate-900/95 backdrop-blur border-b border-slate-700 p-6 flex justify-between items-center z-10">
+                                <h2 className="text-2xl font-bold">{selectedPerson.name}</h2>
+                                <button
+                                    onClick={() => setIsDetailModalOpen(false)}
+                                    className="text-slate-400 hover:text-white w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-800"
+                                >
+                                    ✕
+                                </button>
+                            </div>
 
-                        <div className="p-8">
-                            <div className="flex flex-col md:flex-row gap-8">
-                                <div className="w-full md:w-64 shrink-0">
-                                    <div className="aspect-[2/3] rounded-xl overflow-hidden bg-slate-800 border border-slate-700 shadow-xl mb-4">
-                                        {selectedPerson.profile_path ? (
-                                            <img
-                                                src={`https://image.tmdb.org/t/p/w500${selectedPerson.profile_path}`}
-                                                alt={selectedPerson.name}
-                                                className="w-full h-full object-cover"
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-6xl">👤</div>
-                                        )}
+                            <div className="p-8">
+                                <div className="flex flex-col md:flex-row gap-8">
+                                    <div className="w-full md:w-64 shrink-0">
+                                        <div className="aspect-[2/3] rounded-xl overflow-hidden bg-slate-800 border border-slate-700 shadow-xl mb-4">
+                                            {selectedPerson.profile_path ? (
+                                                <img
+                                                    src={`https://image.tmdb.org/t/p/w500${selectedPerson.profile_path}`}
+                                                    alt={selectedPerson.name}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-6xl">👤</div>
+                                            )}
+                                        </div>
+                                        <div className="space-y-3">
+                                            <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
+                                                <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Quality Score</p>
+                                                <QualityBadge score={calculatePersonQuality(selectedPerson)} />
+                                            </div>
+                                            <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
+                                                <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Known For</p>
+                                                <p className="font-medium">{selectedPerson.known_for_department}</p>
+                                            </div>
+                                            <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
+                                                <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Birthday</p>
+                                                <p className="font-medium">{selectedPerson.birthday || 'Unknown'}</p>
+                                            </div>
+                                            <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
+                                                <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Place of Birth</p>
+                                                <p className="font-medium">{selectedPerson.place_of_birth || 'Unknown'}</p>
+                                            </div>
+                                            {selectedPerson.imdb_id && (
+                                                <a
+                                                    href={`https://www.imdb.com/name/${selectedPerson.imdb_id}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="block text-center w-full py-2 bg-[#F5C518] hover:bg-[#E2B616] text-black font-bold rounded-lg transition-colors"
+                                                >
+                                                    View on IMDB
+                                                </a>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className="space-y-3">
-                                        <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
-                                            <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Quality Score</p>
-                                            <QualityBadge score={calculatePersonQuality(selectedPerson)} />
-                                        </div>
-                                        <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
-                                            <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Known For</p>
-                                            <p className="font-medium">{selectedPerson.known_for_department}</p>
-                                        </div>
-                                        <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
-                                            <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Birthday</p>
-                                            <p className="font-medium">{selectedPerson.birthday || 'Unknown'}</p>
-                                        </div>
-                                        <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
-                                            <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Place of Birth</p>
-                                            <p className="font-medium">{selectedPerson.place_of_birth || 'Unknown'}</p>
-                                        </div>
-                                        {selectedPerson.imdb_id && (
-                                            <a
-                                                href={`https://www.imdb.com/name/${selectedPerson.imdb_id}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="block text-center w-full py-2 bg-[#F5C518] hover:bg-[#E2B616] text-black font-bold rounded-lg transition-colors"
-                                            >
-                                                View on IMDB
-                                            </a>
-                                        )}
-                                    </div>
-                                </div>
 
-                                <div className="flex-1 space-y-8">
-                                    {selectedPerson.biography && (
+                                    <div className="flex-1 space-y-8">
+                                        {selectedPerson.biography && (
+                                            <section>
+                                                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                                                    <span className="text-blue-400">📝</span> Biography
+                                                </h3>
+                                                <p className="text-slate-300 leading-relaxed whitespace-pre-wrap">
+                                                    {selectedPerson.biography}
+                                                </p>
+                                            </section>
+                                        )}
+
                                         <section>
                                             <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                                                <span className="text-blue-400">📝</span> Biography
+                                                <span className="text-purple-400">🎬</span> Filmography
                                             </h3>
-                                            <p className="text-slate-300 leading-relaxed whitespace-pre-wrap">
-                                                {selectedPerson.biography}
-                                            </p>
+                                            {personCredits ? (
+                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                    {[...personCredits.cast, ...personCredits.crew]
+                                                        .slice(0, 12)
+                                                        .map((credit: any, idx) => (
+                                                            <div key={idx} className="flex gap-3 bg-slate-800/30 p-2 rounded-lg border border-slate-700/30 hover:bg-slate-800/50 transition-colors">
+                                                                <div className="w-12 h-16 bg-slate-800 rounded flex-shrink-0 overflow-hidden">
+                                                                    {credit.poster_path ? (
+                                                                        <img src={`https://image.tmdb.org/t/p/w92${credit.poster_path}`} className="w-full h-full object-cover" />
+                                                                    ) : (
+                                                                        <div className="w-full h-full flex items-center justify-center text-xs">🎬</div>
+                                                                    )}
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <p className="text-sm font-medium truncate">{credit.content_title}</p>
+                                                                    <p className="text-xs text-slate-500 truncate">
+                                                                        {credit.character ? `as ${credit.character}` : credit.job}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                </div>
+                                            ) : (
+                                                <div className="animate-pulse space-y-2">
+                                                    <div className="h-10 bg-slate-800 rounded"></div>
+                                                    <div className="h-10 bg-slate-800 rounded"></div>
+                                                </div>
+                                            )}
                                         </section>
-                                    )}
-
-                                    <section>
-                                        <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                                            <span className="text-purple-400">🎬</span> Filmography
-                                        </h3>
-                                        {personCredits ? (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                {[...personCredits.cast, ...personCredits.crew]
-                                                    .slice(0, 12)
-                                                    .map((credit: any, idx) => (
-                                                        <div key={idx} className="flex gap-3 bg-slate-800/30 p-2 rounded-lg border border-slate-700/30 hover:bg-slate-800/50 transition-colors">
-                                                            <div className="w-12 h-16 bg-slate-800 rounded flex-shrink-0 overflow-hidden">
-                                                                {credit.poster_path ? (
-                                                                    <img src={`https://image.tmdb.org/t/p/w92${credit.poster_path}`} className="w-full h-full object-cover" />
-                                                                ) : (
-                                                                    <div className="w-full h-full flex items-center justify-center text-xs">🎬</div>
-                                                                )}
-                                                            </div>
-                                                            <div className="min-w-0">
-                                                                <p className="text-sm font-medium truncate">{credit.content_title}</p>
-                                                                <p className="text-xs text-slate-500 truncate">
-                                                                    {credit.character ? `as ${credit.character}` : credit.job}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                            </div>
-                                        ) : (
-                                            <div className="animate-pulse space-y-2">
-                                                <div className="h-10 bg-slate-800 rounded"></div>
-                                                <div className="h-10 bg-slate-800 rounded"></div>
-                                            </div>
-                                        )}
-                                    </section>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Delete Modal */}
-            {isDeleteModalOpen && selectedPerson && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-md w-full p-6 shadow-2xl">
-                        <h3 className="text-xl font-bold text-white mb-2">Delete Person?</h3>
-                        <p className="text-slate-400 mb-6">
-                            Are you sure you want to delete <span className="text-white font-medium">{selectedPerson.name}</span>?
-                            This action cannot be undone and will remove them from all related content cast lists.
-                        </p>
-                        <div className="flex justify-end gap-3">
-                            <button
-                                onClick={() => setIsDeleteModalOpen(false)}
-                                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleDelete}
-                                disabled={isDeleting}
-                                className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors flex items-center gap-2"
-                            >
-                                {isDeleting ? 'Deleting...' : 'Delete Person'}
-                            </button>
+            {
+                isDeleteModalOpen && selectedPerson && (
+                    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-md w-full p-6 shadow-2xl">
+                            <h3 className="text-xl font-bold text-white mb-2">Delete Person?</h3>
+                            <p className="text-slate-400 mb-6">
+                                Are you sure you want to delete <span className="text-white font-medium">{selectedPerson.name}</span>?
+                                This action cannot be undone and will remove them from all related content cast lists.
+                            </p>
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={() => setIsDeleteModalOpen(false)}
+                                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleDelete}
+                                    disabled={isDeleting}
+                                    className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors flex items-center gap-2"
+                                >
+                                    {isDeleting ? 'Deleting...' : 'Delete Person'}
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }
