@@ -150,6 +150,12 @@ export default function ContentManagerPage() {
                 pageSize: pageSize.toString(),
                 search: debouncedSearch,
                 status: filter === 'all' ? '' : filter,
+                importFrom: appliedImportFrom,
+                importTo: appliedImportTo,
+                enrichedFrom: appliedEnrichedFrom,
+                enrichedTo: appliedEnrichedTo,
+                genre: appliedGenre,
+                country: appliedCountry,
             });
 
             const response = await fetch(`/api/content?${params}`);
@@ -168,12 +174,12 @@ export default function ContentManagerPage() {
     // Fetch on page/filter/search change
     useEffect(() => {
         fetchContent();
-    }, [currentPage, pageSize, debouncedSearch, filter]);
+    }, [currentPage, pageSize, debouncedSearch, filter, appliedImportFrom, appliedImportTo, appliedEnrichedFrom, appliedEnrichedTo, appliedGenre, appliedCountry]);
 
     // Reset to page 1 when filters/search change
     useEffect(() => {
         setCurrentPage(1);
-    }, [debouncedSearch, filter]);
+    }, [debouncedSearch, filter, appliedImportFrom, appliedImportTo, appliedEnrichedFrom, appliedEnrichedTo, appliedGenre, appliedCountry]);
 
     // Use content directly (no client-side filtering)
     const filteredContent = content;
@@ -267,25 +273,30 @@ export default function ContentManagerPage() {
         }
     };
 
-    // Publish all draft items
+    // Publish all draft items (across ALL pages)
     const handlePublishAll = async () => {
-        const draftCount = content.filter(c => c.status === 'draft').length;
-
-        if (draftCount === 0) {
-            alert('No draft items to publish');
-            return;
-        }
-
-        if (!confirm(`Are you sure you want to publish ALL ${draftCount} draft items?`)) {
-            return;
-        }
-
         setIsBulkActioning(true);
         try {
-            const draftIds = content.filter(c => c.status === 'draft').map(c => c.id);
+            // Fetch ALL draft items from backend (not just current page)
+            const response = await fetch('/api/content?status=draft&pageSize=999999');
+            const data = await response.json();
+            const allDrafts = data.content || [];
+            const draftCount = allDrafts.length;
 
-            for (const id of draftIds) {
-                await fetch(`/api/content/${id}`, {
+            if (draftCount === 0) {
+                alert('No draft items to publish');
+                setIsBulkActioning(false);
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to publish ALL ${draftCount} draft items across all pages?`)) {
+                setIsBulkActioning(false);
+                return;
+            }
+
+            // Publish all drafts
+            for (const item of allDrafts) {
+                await fetch(`/api/content/${item.id}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ status: 'published' }),

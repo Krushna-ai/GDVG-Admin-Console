@@ -14,6 +14,12 @@ export async function GET(request: NextRequest) {
         // Filter params
         const search = searchParams.get('search') || '';
         const status = searchParams.get('status') || '';
+        const importFrom = searchParams.get('importFrom') || '';
+        const importTo = searchParams.get('importTo') || '';
+        const enrichedFrom = searchParams.get('enrichedFrom') || '';
+        const enrichedTo = searchParams.get('enrichedTo') || '';
+        const genre = searchParams.get('genre') || '';
+        const country = searchParams.get('country') || '';
 
         // Calculate range
         const from = (page - 1) * pageSize;
@@ -32,6 +38,30 @@ export async function GET(request: NextRequest) {
 
         if (search) {
             query = query.or(`title.ilike.%${search}%,original_title.ilike.%${search}%,tmdb_id.eq.${search}`);
+        }
+
+        // Date filters
+        if (importFrom) {
+            query = query.gte('imported_at', importFrom);
+        }
+        if (importTo) {
+            query = query.lte('imported_at', importTo);
+        }
+        if (enrichedFrom) {
+            query = query.gte('enriched_at', enrichedFrom);
+        }
+        if (enrichedTo) {
+            query = query.lte('enriched_at', enrichedTo);
+        }
+
+        // Genre filter (genres is JSONB array)
+        if (genre) {
+            query = query.contains('genres', [{ name: genre }]);
+        }
+
+        // Country filter (origin_country is text array)
+        if (country) {
+            query = query.contains('origin_country', [country]);
         }
 
         // Apply pagination
