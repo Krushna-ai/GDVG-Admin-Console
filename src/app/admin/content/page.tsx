@@ -267,6 +267,41 @@ export default function ContentManagerPage() {
         }
     };
 
+    // Publish all draft items
+    const handlePublishAll = async () => {
+        const draftCount = content.filter(c => c.status === 'draft').length;
+
+        if (draftCount === 0) {
+            alert('No draft items to publish');
+            return;
+        }
+
+        if (!confirm(`Are you sure you want to publish ALL ${draftCount} draft items?`)) {
+            return;
+        }
+
+        setIsBulkActioning(true);
+        try {
+            const draftIds = content.filter(c => c.status === 'draft').map(c => c.id);
+
+            for (const id of draftIds) {
+                await fetch(`/api/content/${id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'published' }),
+                });
+            }
+
+            await fetchContent();
+            alert(`Successfully published ${draftCount} items!`);
+        } catch (error) {
+            console.error('Failed to publish all:', error);
+            alert('Failed to publish some items');
+        } finally {
+            setIsBulkActioning(false);
+        }
+    };
+
     // Handle status change
     const handleStatusChange = async (id: string, newStatus: string) => {
         try {
@@ -333,12 +368,21 @@ export default function ContentManagerPage() {
                     <h1 className="text-3xl font-bold text-white mb-2">🎬 Content Manager</h1>
                     <p className="text-slate-400">Manage, edit, and delete your imported content</p>
                 </div>
-                <a
-                    href="/admin/tmdb-import"
-                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-semibold rounded-xl transition-all"
-                >
-                    + Import More
-                </a>
+                <div className="flex gap-3">
+                    <button
+                        onClick={handlePublishAll}
+                        disabled={isBulkActioning || content.filter(c => c.status === 'draft').length === 0}
+                        className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        ✓ Publish All Drafts
+                    </button>
+                    <a
+                        href="/admin/tmdb-import"
+                        className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-semibold rounded-xl transition-all"
+                    >
+                        + Import More
+                    </a>
+                </div>
             </div>
 
             {/* Filter Tabs */}
