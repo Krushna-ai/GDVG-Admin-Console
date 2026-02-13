@@ -275,36 +275,31 @@ export default function ContentManagerPage() {
 
     // Publish all draft items (across ALL pages)
     const handlePublishAll = async () => {
+        if (!confirm('Are you sure you want to publish ALL draft items across all pages?')) {
+            return;
+        }
+
         setIsBulkActioning(true);
         try {
-            // Fetch ALL draft items from backend (not just current page)
-            const response = await fetch('/api/content?status=draft&pageSize=999999');
-            const data = await response.json();
-            const allDrafts = data.content || [];
-            const draftCount = allDrafts.length;
+            // Use dedicated bulk publish endpoint
+            const response = await fetch('/api/content/publish-all', {
+                method: 'POST',
+            });
 
-            if (draftCount === 0) {
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to publish');
+            }
+
+            if (result.count === 0) {
                 alert('No draft items to publish');
-                setIsBulkActioning(false);
-                return;
+            } else {
+                alert(`Successfully published ${result.count} items!`);
             }
 
-            if (!confirm(`Are you sure you want to publish ALL ${draftCount} draft items across all pages?`)) {
-                setIsBulkActioning(false);
-                return;
-            }
-
-            // Publish all drafts
-            for (const item of allDrafts) {
-                await fetch(`/api/content/${item.id}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status: 'published' }),
-                });
-            }
-
+            // Refresh the list
             await fetchContent();
-            alert(`Successfully published ${draftCount} items!`);
         } catch (error) {
             console.error('Failed to publish all:', error);
             alert('Failed to publish some items');
