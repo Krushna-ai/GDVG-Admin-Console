@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import PaginationControls from '@/components/PaginationControls';
 import { useDebounce } from '@/hooks/useDebounce';
+import CycleStats from '@/components/CycleStats';
 
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w185';
 
@@ -121,6 +122,7 @@ export default function ContentManagerPage() {
     // Additional filters
     const [genreFilter, setGenreFilter] = useState('');
     const [countryFilter, setCountryFilter] = useState('');
+    const [filtersExpanded, setFiltersExpanded] = useState(false);
 
     // Applied filters (for Apply button functionality)
     const [appliedImportFrom, setAppliedImportFrom] = useState('');
@@ -355,119 +357,152 @@ export default function ContentManagerPage() {
                 ))}
             </div>
 
+            {/* Cycle Stats */}
+            <div className="mb-6">
+                <CycleStats entityType="content" />
+            </div>
+
             {/* Search Bar */}
             <div className="mb-6">
                 <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-xl">🔍</span>
                     <input
                         type="text"
                         placeholder="Search by title, original title, or TMDB ID..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full px-4 py-3 pl-12 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        className="w-full px-4 py-3.5 pl-12 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50 transition-all"
                     />
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">🔍</span>
                     {searchQuery && (
                         <button
                             onClick={() => setSearchQuery('')}
-                            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xl transition-colors"
                         >
                             ✕
                         </button>
                     )}
                 </div>
 
-                {/* Date Filters */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
-                    <div className="bg-slate-800/30 border border-slate-700/50 rounded-lg p-3">
-                        <label className="text-xs text-slate-400 mb-2 block">📥 Import Date</label>
-                        <div className="flex gap-2">
-                            <input
-                                type="date"
-                                value={importDateFrom}
-                                onChange={(e) => setImportDateFrom(e.target.value)}
-                                placeholder="From"
-                                className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
-                            />
-                            <input
-                                type="date"
-                                value={importDateTo}
-                                onChange={(e) => setImportDateTo(e.target.value)}
-                                placeholder="To"
-                                className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
-                            />
-                        </div>
-                    </div>
-                    <div className="bg-slate-800/30 border border-slate-700/50 rounded-lg p-3">
-                        <label className="text-xs text-slate-400 mb-2 block">✨ Last Updated</label>
-                        <div className="flex gap-2">
-                            <input
-                                type="date"
-                                value={enrichedDateFrom}
-                                onChange={(e) => setEnrichedDateFrom(e.target.value)}
-                                placeholder="From"
-                                className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
-                            />
-                            <input
-                                type="date"
-                                value={enrichedDateTo}
-                                onChange={(e) => setEnrichedDateTo(e.target.value)}
-                                placeholder="To"
-                                className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
-                            />
-                        </div>
-                    </div>
-                    <div className="bg-slate-800/30 border border-slate-700/50 rounded-lg p-3">
-                        <label className="text-xs text-slate-400 mb-2 block">🎭 Genre</label>
-                        <select
-                            value={genreFilter}
-                            onChange={(e) => setGenreFilter(e.target.value)}
-                            className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
-                        >
-                            <option value="">All Genres</option>
-                            <option value="Action">Action</option>
-                            <option value="Drama">Drama</option>
-                            <option value="Comedy">Comedy</option>
-                            <option value="Thriller">Thriller</option>
-                            <option value="Horror">Horror</option>
-                            <option value="Romance">Romance</option>
-                            <option value="Sci-Fi">Sci-Fi</option>
-                            <option value="Fantasy">Fantasy</option>
-                            <option value="Animation">Animation</option>
-                        </select>
-                    </div>
-                    <div className="bg-slate-800/30 border border-slate-700/50 rounded-lg p-3">
-                        <label className="text-xs text-slate-400 mb-2 block">🌍 Country</label>
-                        <select
-                            value={countryFilter}
-                            onChange={(e) => setCountryFilter(e.target.value)}
-                            className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
-                        >
-                            <option value="">All Countries</option>
-                            <option value="US">United States</option>
-                            <option value="GB">United Kingdom</option>
-                            <option value="KR">South Korea</option>
-                            <option value="JP">Japan</option>
-                            <option value="IN">India</option>
-                            <option value="FR">France</option>
-                            <option value="DE">Germany</option>
-                        </select>
-                    </div>
-                </div>
+                {/* Collapsible Advanced Filters */}
+                <div className="mt-4">
+                    <button
+                        onClick={() => setFiltersExpanded(!filtersExpanded)}
+                        className="flex items-center gap-2 px-4 py-2 text-slate-400 hover:text-white transition-colors text-sm font-medium"
+                    >
+                        <span className="transition-transform duration-200" style={{ transform: filtersExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>
+                            ▶
+                        </span>
+                        Advanced Filters
+                        {(appliedImportFrom || appliedImportTo || appliedEnrichedFrom || appliedEnrichedTo || appliedGenre || appliedCountry) && (
+                            <span className="ml-2 px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded-full text-xs">
+                                Active
+                            </span>
+                        )}
+                    </button>
 
-                {/* Filter Actions */}
-                <div className="flex gap-3 mt-4">
-                    <button
-                        onClick={handleApplyFilters}
-                        className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
-                    >
-                        Apply Filters
-                    </button>
-                    <button
-                        onClick={handleClearFilters}
-                        className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm font-medium transition-colors"
-                    >
-                        Clear All
-                    </button>
+                    {filtersExpanded && (
+                        <div className="mt-4 p-6 bg-slate-800/30 border border-slate-700/50 rounded-xl backdrop-blur-sm animate-in slide-in-from-top-2 fade-in duration-200">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                {/* Import Date Filter */}
+                                <div>
+                                    <label className="text-xs font-medium text-slate-400 mb-2 block">📥 Import Date</label>
+                                    <div className="space-y-2">
+                                        <input
+                                            type="date"
+                                            value={importDateFrom}
+                                            onChange={(e) => setImportDateFrom(e.target.value)}
+                                            placeholder="From"
+                                            className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                        />
+                                        <input
+                                            type="date"
+                                            value={importDateTo}
+                                            onChange={(e) => setImportDateTo(e.target.value)}
+                                            placeholder="To"
+                                            className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Enriched Date Filter */}
+                                <div>
+                                    <label className="text-xs font-medium text-slate-400 mb-2 block">✨ Last Updated</label>
+                                    <div className="space-y-2">
+                                        <input
+                                            type="date"
+                                            value={enrichedDateFrom}
+                                            onChange={(e) => setEnrichedDateFrom(e.target.value)}
+                                            placeholder="From"
+                                            className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                        />
+                                        <input
+                                            type="date"
+                                            value={enrichedDateTo}
+                                            onChange={(e) => setEnrichedDateTo(e.target.value)}
+                                            placeholder="To"
+                                            className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Genre Filter */}
+                                <div>
+                                    <label className="text-xs font-medium text-slate-400 mb-2 block">🎭 Genre</label>
+                                    <select
+                                        value={genreFilter}
+                                        onChange={(e) => setGenreFilter(e.target.value)}
+                                        className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                    >
+                                        <option value="">All Genres</option>
+                                        <option value="Action">Action</option>
+                                        <option value="Drama">Drama</option>
+                                        <option value="Comedy">Comedy</option>
+                                        <option value="Thriller">Thriller</option>
+                                        <option value="Horror">Horror</option>
+                                        <option value="Romance">Romance</option>
+                                        <option value="Sci-Fi">Sci-Fi</option>
+                                        <option value="Fantasy">Fantasy</option>
+                                        <option value="Animation">Animation</option>
+                                    </select>
+                                </div>
+
+                                {/* Country Filter */}
+                                <div>
+                                    <label className="text-xs font-medium text-slate-400 mb-2 block">🌍 Country</label>
+                                    <select
+                                        value={countryFilter}
+                                        onChange={(e) => setCountryFilter(e.target.value)}
+                                        className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                    >
+                                        <option value="">All Countries</option>
+                                        <option value="US">United States</option>
+                                        <option value="GB">United Kingdom</option>
+                                        <option value="KR">South Korea</option>
+                                        <option value="JP">Japan</option>
+                                        <option value="IN">India</option>
+                                        <option value="FR">France</option>
+                                        <option value="DE">Germany</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Filter Actions */}
+                            <div className="flex gap-3 mt-6">
+                                <button
+                                    onClick={handleApplyFilters}
+                                    className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white rounded-lg text-sm font-medium transition-all shadow-lg shadow-blue-500/25"
+                                >
+                                    Apply Filters
+                                </button>
+                                <button
+                                    onClick={handleClearFilters}
+                                    className="px-5 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm font-medium transition-colors"
+                                >
+                                    Clear All
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 

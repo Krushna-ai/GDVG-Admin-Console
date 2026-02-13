@@ -1,6 +1,7 @@
 import { supabase } from './lib/supabase';
 import { fetchContentDetails } from './lib/tmdb';
 import { delay } from './lib/tmdb';
+import { getCurrentCycle, checkAndIncrementCycle, updateCycleStats } from './lib/cycle';
 
 /**
  * Batch Enrichment Script for Content
@@ -189,6 +190,7 @@ async function enrichContent(contentId: string, tmdbId: number, contentType: 'mo
                 in_production: details.in_production,
                 updated_at: new Date().toISOString(),
                 enriched_at: new Date().toISOString(),
+                enrichment_cycle: await getCurrentCycle('content'),
             })
             .eq('id', contentId);
 
@@ -303,14 +305,20 @@ async function main() {
     };
 
     try {
+        // Get current enrichment cycle
+        const currentCycle = await getCurrentCycle('content');
+        console.log(`📊 Current Enrichment Cycle: ${currentCycle}`);
+
         // Get starting point
         const lastProcessedId = await getLastProcessedId();
 
-        // Fetch content to enrich
+        // Fetch content to enrich (prioritize items behind current cycle)
         let query = supabase
             .from('content')
-            .select('id, tmdb_id, title, content_type')
-            .order('id', { ascending: true })
+            .select('id, tmdb_id, title, content_type, enrichment_cycle')
+            .lt('enrichment_cycle', currentCycle)
+            .order('enriched_at', { ascending: true, nullsFirst: true })
+            .order('popularity', { ascending: false })
             .limit(BATCH_SIZE);
 
         if (lastProcessedId) {
@@ -327,7 +335,9 @@ async function main() {
         console.log(`📦 Processing ${contentBatch.length} content items\n`);
 
         if (contentBatch.length === 0) {
-            console.log('✅ No more content to process!\n');
+            console.log('✅ All content in current cycle complete!\n');
+            await checkAndIncrementCycle('content');
+            console.log('Check back later for next cycle.\n');
             return;
         }
 
@@ -359,14 +369,18 @@ async function main() {
         // Final progress save
         await saveProgress(progress, 'completed');
 
-        console.log('\n═══════════════════════════════════════');
-        console.log('✅ ENRICHMENT COMPLETE');
-        console.log('═══════════════════════════════════════');
+        // Update cycle stats and check for completion
+        await updateCycleStats('content');
+        await checkAndIncrementCycle('content');
+
+        console.log('\n' + '='.repeat(60));
+        console.log('📊 FINAL SUMMARY');
+        console.log('='.repeat(60));
         console.log(`Total Processed: ${progress.processed}`);
-        console.log(`Succeeded: ${progress.succeeded}`);
-        console.log(`Failed: ${progress.failed}`);
-        console.log(`Last ID: ${progress.lastProcessedId}`);
-        console.log('\nTo continue, run this script again (it will resume automatically)\n');
+        console.log(`✅ Succeeded: ${progress.succeeded}`);
+        console.log(`❌ Failed: ${progress.failed}`);
+        console.log(`Success Rate: ${Math.round((progress.succeeded / progress.processed) * 100)}%`);
+        console.log('='.repeat(60) + '\n');
 
     } catch (error) {
         console.error('\n❌ Enrichment failed:', error);

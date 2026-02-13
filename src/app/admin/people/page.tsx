@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import PaginationControls from '@/components/PaginationControls';
 import { useDebounce } from '@/hooks/useDebounce';
+import CycleStats from '@/components/CycleStats';
 
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w185';
 
@@ -102,12 +103,9 @@ export default function PeopleManagerPage() {
     // Filters & Search
     const [searchQuery, setSearchQuery] = useState('');
     const [departmentFilter, setDepartmentFilter] = useState<string>('all');
-
-    // Date filter state
-    const [importDateFrom, setImportDateFrom] = useState('');
-    const [importDateTo, setImportDateTo] = useState('');
-    const [enrichedDateFrom, setEnrichedDateFrom] = useState('');
-    const [enrichedDateTo, setEnrichedDateTo] = useState('');
+    const [countryFilter, setCountryFilter] = useState('');
+    const [qualityMin, setQualityMin] = useState('');
+    const [qualityMax, setQualityMax] = useState('');
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
@@ -134,6 +132,9 @@ export default function PeopleManagerPage() {
                 pageSize: pageSize.toString(),
                 search: debouncedSearch,
                 department: departmentFilter === 'all' ? '' : departmentFilter,
+                country: countryFilter,
+                qualityMin: qualityMin,
+                qualityMax: qualityMax,
             });
 
             const response = await fetch(`/api/people?${params}`);
@@ -152,12 +153,12 @@ export default function PeopleManagerPage() {
     // Fetch on page/filter/search change
     useEffect(() => {
         fetchPeople();
-    }, [currentPage, pageSize, debouncedSearch, departmentFilter]);
+    }, [currentPage, pageSize, debouncedSearch, departmentFilter, countryFilter, qualityMin, qualityMax]);
 
     // Reset to page 1 when filters/search change
     useEffect(() => {
         setCurrentPage(1);
-    }, [debouncedSearch, departmentFilter]);
+    }, [debouncedSearch, departmentFilter, countryFilter, qualityMin, qualityMax]);
 
     // Use people directly (no client-side filtering)
     const filteredPeople = people;
@@ -263,6 +264,11 @@ export default function PeopleManagerPage() {
                 </div>
             </div>
 
+            {/* Cycle Stats */}
+            <div className="mb-6">
+                <CycleStats entityType="people" />
+            </div>
+
             {/* Pagination Controls - Top */}
             <div className="mb-6">
                 <PaginationControls
@@ -277,23 +283,42 @@ export default function PeopleManagerPage() {
             </div>
 
             {/* Filter Bar */}
-            <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 mb-6 backdrop-blur-sm">
-                <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                    <div className="flex items-center gap-4 w-full md:w-auto flex-1">
-                        <div className="relative flex-1 max-w-md">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+            <div className="bg-slate-900/50 p-6 rounded-xl border border-slate-800 mb-6 backdrop-blur-sm">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* Search Input */}
+                    <div className="lg:col-span-2">
+                        <label className="text-xs font-medium text-slate-400 mb-2 block">🔍 Search</label>
+                        <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">👤</span>
                             <input
                                 type="text"
                                 placeholder="Search by name or TMDB ID..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                                className="w-full pl-10 pr-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-white placeholder-slate-500"
                             />
                         </div>
+                    </div>
+
+                    {/* Country Filter */}
+                    <div>
+                        <label className="text-xs font-medium text-slate-400 mb-2 block">📍 Country</label>
+                        <input
+                            type="text"
+                            placeholder="e.g., South Korea"
+                            value={countryFilter}
+                            onChange={(e) => setCountryFilter(e.target.value)}
+                            className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-white placeholder-slate-500"
+                        />
+                    </div>
+
+                    {/* Department Filter */}
+                    <div>
+                        <label className="text-xs font-medium text-slate-400 mb-2 block">👔 Department</label>
                         <select
                             value={departmentFilter}
                             onChange={(e) => setDepartmentFilter(e.target.value)}
-                            className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                            className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-white"
                         >
                             <option value="all">All Departments</option>
                             <option value="Acting">Acting</option>
@@ -303,61 +328,62 @@ export default function PeopleManagerPage() {
                         </select>
                     </div>
 
-                    {/* Date Filters */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
-                        <div className="bg-slate-800/30 border border-slate-700/50 rounded-lg p-3">
-                            <label className="text-xs text-slate-400 mb-2 block">📥 Filter by Import Date</label>
-                            <div className="flex gap-2">
-                                <input
-                                    type="date"
-                                    value={importDateFrom}
-                                    onChange={(e) => setImportDateFrom(e.target.value)}
-                                    placeholder="From"
-                                    className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
-                                />
-                                <input
-                                    type="date"
-                                    value={importDateTo}
-                                    onChange={(e) => setImportDateTo(e.target.value)}
-                                    placeholder="To"
-                                    className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
-                                />
-                            </div>
-                        </div>
-                        <div className="bg-slate-800/30 border border-slate-700/50 rounded-lg p-3">
-                            <label className="text-xs text-slate-400 mb-2 block">✨ Filter by Last Updated</label>
-                            <div className="flex gap-2">
-                                <input
-                                    type="date"
-                                    value={enrichedDateFrom}
-                                    onChange={(e) => setEnrichedDateFrom(e.target.value)}
-                                    placeholder="From"
-                                    className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
-                                />
-                                <input
-                                    type="date"
-                                    value={enrichedDateTo}
-                                    onChange={(e) => setEnrichedDateTo(e.target.value)}
-                                    placeholder="To"
-                                    className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
-                                />
-                            </div>
+                    {/* Quality Range Filter */}
+                    <div className="lg:col-span-2">
+                        <label className="text-xs font-medium text-slate-400 mb-2 block">⭐ Quality Score Range (%)</label>
+                        <div className="flex gap-3 items-center">
+                            <input
+                                type="number"
+                                placeholder="Min"
+                                min="0"
+                                max="100"
+                                value={qualityMin}
+                                onChange={(e) => setQualityMin(e.target.value)}
+                                className="flex-1 px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-white placeholder-slate-500"
+                            />
+                            <span className="text-slate-500">—</span>
+                            <input
+                                type="number"
+                                placeholder="Max"
+                                min="0"
+                                max="100"
+                                value={qualityMax}
+                                onChange={(e) => setQualityMax(e.target.value)}
+                                className="flex-1 px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-white placeholder-slate-500"
+                            />
                         </div>
                     </div>
-                </div>
 
-                {selectedIds.size > 0 && (
-                    <div className="flex items-center gap-3 animate-in fade-in slide-in-from-right-4">
-                        <span className="text-sm text-slate-400">{selectedIds.size} selected</span>
+                    {/* Clear Filters Button */}
+                    <div className="lg:col-span-2 flex items-end">
                         <button
-                            onClick={handleBulkDelete}
-                            className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                            onClick={() => {
+                                setSearchQuery('');
+                                setCountryFilter('');
+                                setDepartmentFilter('all');
+                                setQualityMin('');
+                                setQualityMax('');
+                            }}
+                            className="w-full px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg font-medium transition-colors"
                         >
-                            🗑️ Delete Selected
+                            Clear All Filters
                         </button>
                     </div>
-                )}
+                </div>
             </div>
+
+            {/* Bulk Actions */}
+            {selectedIds.size > 0 && (
+                <div className="flex items-center gap-3 animate-in fade-in slide-in-from-right-4">
+                    <span className="text-sm text-slate-400">{selectedIds.size} selected</span>
+                    <button
+                        onClick={handleBulkDelete}
+                        className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                    >
+                        🗑️ Delete Selected
+                    </button>
+                </div>
+            )}
 
             {/* People Table */}
             <div className="bg-slate-900/50 rounded-xl border border-slate-800 overflow-hidden backdrop-blur-sm">
