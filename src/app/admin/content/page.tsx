@@ -118,6 +118,18 @@ export default function ContentManagerPage() {
     const [enrichedDateFrom, setEnrichedDateFrom] = useState('');
     const [enrichedDateTo, setEnrichedDateTo] = useState('');
 
+    // Additional filters
+    const [genreFilter, setGenreFilter] = useState('');
+    const [countryFilter, setCountryFilter] = useState('');
+
+    // Applied filters (for Apply button functionality)
+    const [appliedImportFrom, setAppliedImportFrom] = useState('');
+    const [appliedImportTo, setAppliedImportTo] = useState('');
+    const [appliedEnrichedFrom, setAppliedEnrichedFrom] = useState('');
+    const [appliedEnrichedTo, setAppliedEnrichedTo] = useState('');
+    const [appliedGenre, setAppliedGenre] = useState('');
+    const [appliedCountry, setAppliedCountry] = useState('');
+
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(25);
@@ -163,6 +175,34 @@ export default function ContentManagerPage() {
 
     // Use content directly (no client-side filtering)
     const filteredContent = content;
+
+    // Filter handlers
+    const handleApplyFilters = () => {
+        setAppliedImportFrom(importDateFrom);
+        setAppliedImportTo(importDateTo);
+        setAppliedEnrichedFrom(enrichedDateFrom);
+        setAppliedEnrichedTo(enrichedDateTo);
+        setAppliedGenre(genreFilter);
+        setAppliedCountry(countryFilter);
+        setCurrentPage(1); // Reset to first page when applying filters
+        // Note: Actual filtering logic needs backend API support or client-side implementation
+    };
+
+    const handleClearFilters = () => {
+        setImportDateFrom('');
+        setImportDateTo('');
+        setEnrichedDateFrom('');
+        setEnrichedDateTo('');
+        setGenreFilter('');
+        setCountryFilter('');
+        setAppliedImportFrom('');
+        setAppliedImportTo('');
+        setAppliedEnrichedFrom('');
+        setAppliedEnrichedTo('');
+        setAppliedGenre('');
+        setAppliedCountry('');
+        setCurrentPage(1);
+    };
 
     // Selection handlers
     const toggleSelect = (id: string) => {
@@ -337,9 +377,9 @@ export default function ContentManagerPage() {
                 </div>
 
                 {/* Date Filters */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
                     <div className="bg-slate-800/30 border border-slate-700/50 rounded-lg p-3">
-                        <label className="text-xs text-slate-400 mb-2 block">📥 Filter by Import Date</label>
+                        <label className="text-xs text-slate-400 mb-2 block">📥 Import Date</label>
                         <div className="flex gap-2">
                             <input
                                 type="date"
@@ -358,7 +398,7 @@ export default function ContentManagerPage() {
                         </div>
                     </div>
                     <div className="bg-slate-800/30 border border-slate-700/50 rounded-lg p-3">
-                        <label className="text-xs text-slate-400 mb-2 block">✨ Filter by Last Updated</label>
+                        <label className="text-xs text-slate-400 mb-2 block">✨ Last Updated</label>
                         <div className="flex gap-2">
                             <input
                                 type="date"
@@ -376,6 +416,58 @@ export default function ContentManagerPage() {
                             />
                         </div>
                     </div>
+                    <div className="bg-slate-800/30 border border-slate-700/50 rounded-lg p-3">
+                        <label className="text-xs text-slate-400 mb-2 block">🎭 Genre</label>
+                        <select
+                            value={genreFilter}
+                            onChange={(e) => setGenreFilter(e.target.value)}
+                            className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
+                        >
+                            <option value="">All Genres</option>
+                            <option value="Action">Action</option>
+                            <option value="Drama">Drama</option>
+                            <option value="Comedy">Comedy</option>
+                            <option value="Thriller">Thriller</option>
+                            <option value="Horror">Horror</option>
+                            <option value="Romance">Romance</option>
+                            <option value="Sci-Fi">Sci-Fi</option>
+                            <option value="Fantasy">Fantasy</option>
+                            <option value="Animation">Animation</option>
+                        </select>
+                    </div>
+                    <div className="bg-slate-800/30 border border-slate-700/50 rounded-lg p-3">
+                        <label className="text-xs text-slate-400 mb-2 block">🌍 Country</label>
+                        <select
+                            value={countryFilter}
+                            onChange={(e) => setCountryFilter(e.target.value)}
+                            className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
+                        >
+                            <option value="">All Countries</option>
+                            <option value="US">United States</option>
+                            <option value="GB">United Kingdom</option>
+                            <option value="KR">South Korea</option>
+                            <option value="JP">Japan</option>
+                            <option value="IN">India</option>
+                            <option value="FR">France</option>
+                            <option value="DE">Germany</option>
+                        </select>
+                    </div>
+                </div>
+
+                {/* Filter Actions */}
+                <div className="flex gap-3 mt-4">
+                    <button
+                        onClick={handleApplyFilters}
+                        className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                        Apply Filters
+                    </button>
+                    <button
+                        onClick={handleClearFilters}
+                        className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm font-medium transition-colors"
+                    >
+                        Clear All
+                    </button>
                 </div>
             </div>
 

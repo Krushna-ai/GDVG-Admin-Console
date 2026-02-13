@@ -16,6 +16,43 @@ interface ValidationResult {
     with_issues: number;
     issues_by_field: Record<string, number>;
     priority_list: ValidationIssue[];
+    status_updates: {
+        published: number;
+        drafted: number;
+        unchanged: number;
+    };
+}
+
+/**
+ * Calculate quality score for content (0-100)
+ * Same logic as enrichment script for consistency
+ */
+function calculateContentQuality(content: any): number {
+    let score = 0;
+    const maxScore = 10;
+
+    // Basic info (4 points)
+    if (content.title) score += 1;
+    if (content.original_title) score += 0.5;
+    if (content.overview && content.overview.length > 50) score += 1;
+    if (content.tagline) score += 0.5;
+    if (content.genres && content.genres.length > 0) score += 1;
+
+    // Media (2 points)
+    if (content.poster_path) score += 1;
+    if (content.backdrop_path) score += 1;
+
+    // Metadata (2 points)
+    if (content.vote_average && content.vote_average > 0) score += 0.5;
+    if (content.content_rating) score += 0.5;
+    if (content.keywords && content.keywords.length > 0) score += 0.5;
+    if (content.origin_country && content.origin_country.length > 0) score += 0.5;
+
+    // Rich data (2 points)
+    if (content.videos && content.videos.length > 0) score += 1;
+    if (content.watch_providers) score += 1;
+
+    return Math.round((score / maxScore) * 100);
 }
 
 /**
@@ -30,6 +67,11 @@ async function validateContent(): Promise<ValidationResult> {
         with_issues: 0,
         issues_by_field: {},
         priority_list: [],
+        status_updates: {
+            published: 0,
+            drafted: 0,
+            unchanged: 0,
+        },
     };
 
     // Fetch ALL content
@@ -165,6 +207,33 @@ async function validateContent(): Promise<ValidationResult> {
             result.issues_by_field['crew'] = (result.issues_by_field['crew'] || 0) + 1;
         }
 
+        // Auto-publish based on quality score
+        const quality = calculateContentQuality(content);
+        const currentStatus = content.status;
+        let newStatus = currentStatus;
+
+        if (quality >= 85) {
+            newStatus = 'published';
+        } else if (quality < 75 && currentStatus === 'published') {
+            newStatus = 'draft';
+        }
+
+        // Update status if changed
+        if (newStatus !== currentStatus) {
+            await supabase
+                .from('content')
+                .update({ status: newStatus })
+                .eq('id', content.id);
+
+            if (newStatus === 'published') {
+                result.status_updates.published++;
+            } else {
+                result.status_updates.drafted++;
+            }
+        } else {
+            result.status_updates.unchanged++;
+        }
+
         // Track results
         if (missing.length === 0) {
             result.fully_complete++;
@@ -205,6 +274,12 @@ function displayResults(result: ValidationResult) {
 
     console.log(`✅ Fully Complete: ${result.fully_complete} / ${result.total_checked} (${Math.round(result.fully_complete / result.total_checked * 100)}%)`);
     console.log(`⚠️  With Issues: ${result.with_issues} / ${result.total_checked} (${Math.round(result.with_issues / result.total_checked * 100)}%)\n`);
+
+    console.log('📋 Auto-Publish Status Updates:');
+    console.log('─────────────────────────────────────────────────────');
+    console.log(`  ✅ Published (quality ≥85): ${result.status_updates.published}`);
+    console.log(`  📝 Drafted (quality <75): ${result.status_updates.drafted}`);
+    console.log(`  ⏸️  Unchanged: ${result.status_updates.unchanged}\n`);
 
     console.log('📋 Issues by Field:');
     console.log('─────────────────────────────────────────────────────');
