@@ -33,7 +33,10 @@ interface Content {
     videos?: any[];
     watch_providers?: any;
     alternative_titles?: any[];
+    // Timestamps
     created_at: string;
+    imported_at?: string;
+    enriched_at?: string;
 }
 
 // Calculate quality score based on data completeness
@@ -402,6 +405,7 @@ export default function ContentManagerPage() {
                                 <th className="text-left text-slate-400 text-sm font-medium px-4 py-4">Status</th>
                                 <th className="text-left text-slate-400 text-sm font-medium px-4 py-4">Rating</th>
                                 <th className="text-left text-slate-400 text-sm font-medium px-4 py-4">Year</th>
+                                <th className="text-left text-slate-400 text-sm font-medium px-4 py-4">Imported/Enriched</th>
                                 <th className="text-left text-slate-400 text-sm font-medium px-4 py-4">Quality</th>
                                 <th className="text-right text-slate-400 text-sm font-medium px-4 py-4">Actions</th>
                             </tr>
@@ -476,6 +480,25 @@ export default function ContentManagerPage() {
                                     {/* Year */}
                                     <td className="px-4 py-4 text-slate-300 text-sm">
                                         {item.release_date?.substring(0, 4) || item.first_air_date?.substring(0, 4) || 'N/A'}
+                                    </td>
+
+                                    {/* Imported/Enriched Timestamps */}
+                                    <td className="px-4 py-4">
+                                        <div className="text-xs space-y-1">
+                                            {item.imported_at && (
+                                                <div className="text-slate-400">
+                                                    <span className="text-slate-500">📥</span> {new Date(item.imported_at).toLocaleDateString()}
+                                                </div>
+                                            )}
+                                            {item.enriched_at && (
+                                                <div className="text-green-400">
+                                                    <span className="text-green-500">✨</span> {new Date(item.enriched_at).toLocaleDateString()}
+                                                </div>
+                                            )}
+                                            {!item.imported_at && !item.enriched_at && (
+                                                <span className="text-slate-500">-</span>
+                                            )}
+                                        </div>
                                     </td>
 
                                     {/* Quality */}

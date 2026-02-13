@@ -229,6 +229,7 @@ async function enrichPerson(personId: string, tmdbId: number, name: string): Pro
                 wikipedia_url: wikipedia_url,
                 bio_source: bio_source,
                 updated_at: new Date().toISOString(),
+                enriched_at: new Date().toISOString(),
             })
             .eq('id', personId);
 

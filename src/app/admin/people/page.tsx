@@ -23,6 +23,8 @@ interface Person {
     also_known_as?: string[];
     homepage?: string;
     created_at: string;
+    imported_at?: string;
+    enriched_at?: string;
 }
 
 interface PersonCredits {
@@ -327,6 +329,7 @@ export default function PeopleManagerPage() {
                                 <th className="p-4">Name</th>
                                 <th className="p-4">Department</th>
                                 <th className="p-4">TMDB ID</th>
+                                <th className="p-4">Imported/Enriched</th>
                                 <th className="p-4 w-32">Quality</th>
                                 <th className="p-4 text-right">Actions</th>
                             </tr>
@@ -390,6 +393,23 @@ export default function PeopleManagerPage() {
                                         </td>
                                         <td className="p-4 text-slate-400 font-mono text-xs">
                                             {person.tmdb_id}
+                                        </td>
+                                        <td className="p-4">
+                                            <div className="text-xs space-y-1">
+                                                {person.imported_at && (
+                                                    <div className="text-slate-400">
+                                                        <span className="text-slate-500">📥</span> {new Date(person.imported_at).toLocaleDateString()}
+                                                    </div>
+                                                )}
+                                                {person.enriched_at && (
+                                                    <div className="text-green-400">
+                                                        <span className="text-green-500">✨</span> {new Date(person.enriched_at).toLocaleDateString()}
+                                                    </div>
+                                                )}
+                                                {!person.imported_at && !person.enriched_at && (
+                                                    <span className="text-slate-500">-</span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="p-4">
                                             <QualityBadge score={calculatePersonQuality(person)} />

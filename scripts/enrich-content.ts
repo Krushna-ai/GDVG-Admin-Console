@@ -151,6 +151,7 @@ async function enrichContent(contentId: string, tmdbId: number, contentType: 'mo
                 homepage: details.homepage,
                 in_production: details.in_production,
                 updated_at: new Date().toISOString(),
+                enriched_at: new Date().toISOString(),
             })
             .eq('id', contentId);
 
