@@ -103,6 +103,12 @@ export default function PeopleManagerPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [departmentFilter, setDepartmentFilter] = useState<string>('all');
 
+    // Date filter state
+    const [importDateFrom, setImportDateFrom] = useState('');
+    const [importDateTo, setImportDateTo] = useState('');
+    const [enrichedDateFrom, setEnrichedDateFrom] = useState('');
+    const [enrichedDateTo, setEnrichedDateTo] = useState('');
+
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(25);
@@ -304,11 +310,15 @@ export default function PeopleManagerPage() {
                             <div className="flex gap-2">
                                 <input
                                     type="date"
+                                    value={importDateFrom}
+                                    onChange={(e) => setImportDateFrom(e.target.value)}
                                     placeholder="From"
                                     className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
                                 />
                                 <input
                                     type="date"
+                                    value={importDateTo}
+                                    onChange={(e) => setImportDateTo(e.target.value)}
                                     placeholder="To"
                                     className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
                                 />
@@ -319,11 +329,15 @@ export default function PeopleManagerPage() {
                             <div className="flex gap-2">
                                 <input
                                     type="date"
+                                    value={enrichedDateFrom}
+                                    onChange={(e) => setEnrichedDateFrom(e.target.value)}
                                     placeholder="From"
                                     className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
                                 />
                                 <input
                                     type="date"
+                                    value={enrichedDateTo}
+                                    onChange={(e) => setEnrichedDateTo(e.target.value)}
                                     placeholder="To"
                                     className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
                                 />

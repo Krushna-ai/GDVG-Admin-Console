@@ -132,6 +132,38 @@ async function saveProgress(progress: EnrichmentProgress, status: 'running' | 'c
 }
 
 /**
+ * Calculate quality score for person (0-100)
+ */
+function calculatePersonQuality(person: any): number {
+    let score = 0;
+    const weights = {
+        basic: 40,   // Name, Bio, Birthday, Place of Birth
+        media: 30,   // Profile Path
+        meta: 30     // IMDB, Homepage, Known For
+    };
+
+    // Basic Info (40%)
+    let basicScore = 0;
+    if (person.name) basicScore += 10;
+    if (person.biography && person.biography.length > 50) basicScore += 10;
+    if (person.birthday) basicScore += 10;
+    if (person.place_of_birth) basicScore += 10;
+    score += (basicScore / 40) * weights.basic;
+
+    // Media (30%)
+    if (person.profile_path) score += weights.media;
+
+    // Metadata (30%)
+    let metaScore = 0;
+    if (person.imdb_id) metaScore += 10;
+    if (person.homepage) metaScore += 10;
+    if (person.known_for_department) metaScore += 10;
+    score += (metaScore / 30) * weights.meta;
+
+    return Math.round(score);
+}
+
+/**
  * Enrich a single person
  */
 async function enrichPerson(personId: string, tmdbId: number, name: string): Promise<boolean> {
@@ -237,6 +269,8 @@ async function enrichPerson(personId: string, tmdbId: number, name: string): Pro
             console.log(`  ❌ Error updating person: ${error.message}`);
             return false;
         }
+
+        console.log(`  ✅ Person updated successfully`);
 
         return true;
 

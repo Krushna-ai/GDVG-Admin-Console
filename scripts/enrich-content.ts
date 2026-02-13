@@ -104,6 +104,37 @@ async function saveProgress(progress: EnrichmentProgress, status: 'running' | 'c
 }
 
 /**
+ * Calculate quality score for content (0-100)
+ */
+function calculateContentQuality(details: any): number {
+    let score = 0;
+    const maxScore = 10;
+
+    // Basic info (4 points)
+    if (details.title || details.name) score += 1;
+    if (details.original_title || details.original_name) score += 0.5;
+    if (details.overview && details.overview.length > 50) score += 1;
+    if (details.tagline) score += 0.5;
+    if (details.genres && details.genres.length > 0) score += 1;
+
+    // Media (2 points)
+    if (details.poster_path) score += 1;
+    if (details.backdrop_path) score += 1;
+
+    // Metadata (2 points)
+    if (details.vote_average && details.vote_average > 0) score += 0.5;
+    if (details.content_rating) score += 0.5;
+    if (details.keywords && details.keywords.length > 0) score += 0.5;
+    if (details.origin_country && details.origin_country.length > 0) score += 0.5;
+
+    // Rich data (2 points)
+    if (details.videos && details.videos.length > 0) score += 1;
+    if (details.watch_providers) score += 1;
+
+    return Math.round((score / maxScore) * 100);
+}
+
+/**
  * Enrich a single content item
  */
 async function enrichContent(contentId: string, tmdbId: number, contentType: 'movie' | 'tv' | 'drama' | 'anime'): Promise<boolean> {
@@ -123,6 +154,12 @@ async function enrichContent(contentId: string, tmdbId: number, contentType: 'mo
             return true;
         }
 
+        // Calculate quality score
+        const qualityScore = calculateContentQuality(details);
+
+        // Determine status: auto-publish if quality > 85
+        const newStatus = qualityScore > 85 ? 'published' : 'draft';
+
         // Update content table with ALL fields
         const { error: contentError } = await supabase
             .from('content')
@@ -136,7 +173,7 @@ async function enrichContent(contentId: string, tmdbId: number, contentType: 'mo
                 release_date: details.release_date,
                 first_air_date: details.first_air_date,
                 last_air_date: details.last_air_date,
-                status: details.status,
+                status: newStatus, // Auto-publish if quality > 85
                 runtime: details.runtime,
                 number_of_episodes: details.number_of_episodes,
                 number_of_seasons: details.number_of_seasons,
@@ -159,6 +196,8 @@ async function enrichContent(contentId: string, tmdbId: number, contentType: 'mo
             console.log(`  ❌ Error updating content: ${contentError.message}`);
             return false;
         }
+
+        console.log(`  ✅ Content updated (Quality: ${qualityScore}%, Status: ${newStatus})`);
 
         // Delete existing cast/crew links (we'll re-import)
         await supabase.from('content_cast').delete().eq('content_id', contentId);
