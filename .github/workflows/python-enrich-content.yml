@@ -1,0 +1,107 @@
+name: Python - Enrich Content
+
+on:
+  # Scheduled run every 6 hours
+  schedule:
+    - cron: '0 */6 * * *'
+  
+  # Manual trigger with custom inputs
+  workflow_dispatch:
+    inputs:
+      source:
+        description: 'Source queue (enrichment-queue or import-queue)'
+        required: false
+        default: 'enrichment-queue'
+        type: choice
+        options:
+          - enrichment-queue
+          - import-queue
+      batch_size:
+        description: 'Number of items to process'
+        required: false
+        default: '100'
+      content_type:
+        description: 'Content type filter (leave empty for both)'
+        required: false
+        type: choice
+        options:
+          - ''
+          - movie
+          - tv
+      cycle:
+        description: 'Enrichment cycle (0-8, leave empty for no filter)'
+        required: false
+        type: choice
+        options:
+          - ''
+          - '0'
+          - '1'
+          - '2'
+          - '3'
+          - '4'
+          - '5'
+          - '6'
+          - '7'
+          - '8'
+      tmdb_only:
+        description: 'Skip Wikipedia/Wikidata (faster)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  enrich:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'python/requirements.txt'
+      
+      - name: Install dependencies
+        run: |
+          cd python
+          pip install -r requirements.txt
+      
+      - name: Set environment variables
+        run: |
+          echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> $GITHUB_ENV
+          echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> $GITHUB_ENV
+          echo "TMDB_ACCESS_TOKEN=${{ secrets.TMDB_ACCESS_TOKEN }}" >> $GITHUB_ENV
+          echo "WIKI_USER_AGENT=GDVG-Admin/1.0 (github.com/${{ github.repository }})" >> $GITHUB_ENV
+      
+      - name: Run enrichment (scheduled)
+        if: github.event_name == 'schedule'
+        run: |
+          cd python
+          python -m gdvg.enrichment.run_enrich_content \
+            --source enrichment-queue \
+            --batch-size 100 \
+            --verbose
+      
+      - name: Run enrichment (manual)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          cd python
+          python -m gdvg.enrichment.run_enrich_content \
+            --source ${{ github.event.inputs.source }} \
+            --batch-size ${{ github.event.inputs.batch_size }} \
+            ${{ github.event.inputs.content_type != '' && format('--content-type {0}', github.event.inputs.content_type) || '' }} \
+            ${{ github.event.inputs.cycle != '' && format('--cycle {0}', github.event.inputs.cycle) || '' }} \
+            ${{ github.event.inputs.tmdb_only == 'true' && '--tmdb-only' || '' }} \
+            --verbose
+      
+      - name: Upload enrichment logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: enrichment-logs-${{ github.run_number }}
+          path: |
+            python/*.log
+          retention-days: 7

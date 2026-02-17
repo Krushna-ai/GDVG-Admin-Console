@@ -1,0 +1,77 @@
+name: Python - Sync Changes
+
+on:
+  # Scheduled run daily at 3 AM IST
+  schedule:
+    - cron: '30 21 * * *'  # 3:00 AM IST = 21:30 UTC previous day
+  
+  # Manual trigger with custom inputs
+  workflow_dispatch:
+    inputs:
+      days:
+        description: 'Number of days to look back'
+        required: false
+        default: '1'
+      type:
+        description: 'Type of changes to sync'
+        required: false
+        type: choice
+        options:
+          - 'all'
+          - 'movie'
+          - 'tv'
+          - 'people'
+        default: 'all'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'python/requirements.txt'
+      
+      - name: Install dependencies
+        run: |
+          cd python
+          pip install -r requirements.txt
+      
+      - name: Set environment variables
+        run: |
+          echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> $GITHUB_ENV
+          echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> $GITHUB_ENV
+          echo "TMDB_ACCESS_TOKEN=${{ secrets.TMDB_ACCESS_TOKEN }}" >> $GITHUB_ENV
+      
+      - name: Run sync (scheduled)
+        if: github.event_name == 'schedule'
+        run: |
+          cd python
+          python -m gdvg.sync.run_sync_changes \
+            --days 1 \
+            --type all \
+            --verbose
+      
+      - name: Run sync (manual)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          cd python
+          python -m gdvg.sync.run_sync_changes \
+            --days ${{ github.event.inputs.days }} \
+            --type ${{ github.event.inputs.type }} \
+            --verbose
+      
+      - name: Upload sync logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: change-sync-logs-${{ github.run_number }}
+          path: |
+            python/*.log
+          retention-days: 7
