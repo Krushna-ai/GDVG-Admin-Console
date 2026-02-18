@@ -31,6 +31,8 @@ from gdvg.db.content import (
 from gdvg.db.queue import (
     get_import_queue_batch,
     mark_import_queue_completed,
+    get_current_enrichment_cycle,
+    advance_enrichment_cycle,
 )
 
 
@@ -122,98 +124,77 @@ async def enrich_from_enrichment_queue(
     tmdb_only: bool = False,
 ) -> dict[str, int]:
     """Process content from enrichment_queue.
-    
-    Args:
-        batch_size: Number of items to process
-        content_type: Filter by content type
-        cycle: Filter by enrichment cycle
-        tmdb_only: Skip Wikipedia/Wikidata
-        
-    Returns:
-        Statistics dict
+
+    Phase 1: Fetch all TMDB data concurrently (20 parallel requests).
+    Phase 2: Enrich with Wikipedia/Wikidata sequentially (rate-limited).
     """
-    # Get batch from enrichment queue
     content_df = get_content_needing_enrichment(
         limit=batch_size,
         content_type=content_type,
         cycle=cycle,
     )
-    
+
     if content_df.empty:
         logger.info("No content needing enrichment")
         return {"processed": 0, "success": 0, "failed": 0}
-    
+
     logger.info(f"Processing {len(content_df)} items from enrichment queue")
-    
-    stats = {
-        "processed": 0,
-        "success": 0,
-        "failed": 0,
-        "tmdb_enriched": 0,
-        "wiki_enriched": 0,
-    }
-    
-    # Enrich each item
+
+    stats = {"processed": 0, "success": 0, "failed": 0, "tmdb_enriched": 0, "wiki_enriched": 0}
+
+    items = [
+        (int(row["tmdb_id"]), row["content_type"])
+        for _, row in content_df.iterrows()
+    ]
+
+    # --- Phase 1: Concurrent TMDB fetch ---
     tmdb_enricher = ContentEnricher()
-    wiki_enricher = WikiEnricher()
-    
+    tmdb_results = await tmdb_enricher.enrich_batch(items, max_concurrent=20)
+    stats["tmdb_enriched"] = len(tmdb_results)
+    stats["processed"] = len(items)
+    stats["failed"] = len(items) - len(tmdb_results)
+
+    if not tmdb_results:
+        return stats
+
+    # --- Phase 2: Sequential Wikipedia/Wikidata (rate-limited by clients) ---
     enriched_items = []
-    
-    for _, row in content_df.iterrows():
-        tmdb_id = row["tmdb_id"]
-        content_type_val = row["content_type"]
-        
-        try:
-            # TMDB enrichment
-            tmdb_data = await tmdb_enricher.enrich_content(tmdb_id, content_type_val)
-            
-            if not tmdb_data:
-                stats["failed"] += 1
-                stats["processed"] += 1
-                continue
-            
-            stats["tmdb_enriched"] += 1
-            
-            # Wikipedia/Wikidata enrichment (unless tmdb-only)
-            if not tmdb_only:
+    if not tmdb_only:
+        wiki_enricher = WikiEnricher()
+        for tmdb_data in tmdb_results:
+            try:
                 wiki_data = await wiki_enricher.enrich_content(
-                    tmdb_id=tmdb_id,
-                    content_type=content_type_val,
+                    tmdb_id=tmdb_data["tmdb_id"],
+                    content_type=tmdb_data["content_type"],
                     current_overview=tmdb_data.get("overview"),
                     current_genres=tmdb_data.get("genres"),
                     current_keywords=tmdb_data.get("keywords"),
                 )
-                
                 if wiki_data:
-                    # Merge wiki data into tmdb data
                     tmdb_data.update(wiki_data)
                     stats["wiki_enriched"] += 1
-            
-            # Remove temporary credit fields
+            except Exception as e:
+                logger.warning(f"Wiki enrichment failed for {tmdb_data.get('tmdb_id')}: {e}")
+
             tmdb_data.pop("_cast", None)
             tmdb_data.pop("_crew", None)
-            
             enriched_items.append(tmdb_data)
-            stats["success"] += 1
-            
-        except Exception as e:
-            logger.error(f"Error enriching {content_type_val} {tmdb_id}: {e}")
-            stats["failed"] += 1
-        
-        stats["processed"] += 1
-    
-    # Bulk upsert enriched content
+    else:
+        for tmdb_data in tmdb_results:
+            tmdb_data.pop("_cast", None)
+            tmdb_data.pop("_crew", None)
+            enriched_items.append(tmdb_data)
+
+    stats["success"] = len(enriched_items)
+
+    # Bulk upsert
     if enriched_items:
         enriched_df = pd.DataFrame(enriched_items)
         upsert_content_bulk(enriched_df)
-        
-        # Update enrichment cycles
-        tmdb_ids = [item["tmdb_id"] for item in enriched_items]
-        content_types_list = [item["content_type"] for item in enriched_items]
-        
-        for tmdb_id, ct in zip(tmdb_ids, content_types_list):
-            update_content_enrichment_cycle(tmdb_id, ct)
-    
+
+        for item in enriched_items:
+            update_content_enrichment_cycle(item["tmdb_id"], item["content_type"])
+
     return stats
 
 
@@ -223,94 +204,86 @@ async def enrich_from_import_queue(
     tmdb_only: bool = False,
 ) -> dict[str, int]:
     """Process content from import_queue.
-    
-    Args:
-        batch_size: Number of items to process
-        content_type: Filter by content type
-        tmdb_only: Skip Wikipedia/Wikidata
-        
-    Returns:
-        Statistics dict
+
+    Phase 1: Fetch all TMDB data concurrently (20 parallel requests).
+    Phase 2: Enrich with Wikipedia/Wikidata sequentially (rate-limited).
     """
-    # Get batch from import queue
     queue_df = get_import_queue_batch(
         limit=batch_size,
         content_type=content_type,
     )
-    
+
     if queue_df.empty:
         logger.info("No items in import queue")
         return {"processed": 0, "success": 0, "failed": 0}
-    
+
     logger.info(f"Processing {len(queue_df)} items from import queue")
-    
-    stats = {
-        "processed": 0,
-        "success": 0,
-        "failed": 0,
-        "tmdb_enriched": 0,
-        "wiki_enriched": 0,
+
+    stats = {"processed": 0, "success": 0, "failed": 0, "tmdb_enriched": 0, "wiki_enriched": 0}
+
+    items = [
+        (int(row["tmdb_id"]), row["content_type"])
+        for _, row in queue_df.iterrows()
+    ]
+    queue_id_map = {
+        int(row["tmdb_id"]): row["id"]
+        for _, row in queue_df.iterrows()
     }
-    
-    # Enrich each item
+
+    # --- Phase 1: Concurrent TMDB fetch ---
     tmdb_enricher = ContentEnricher()
-    wiki_enricher = WikiEnricher()
-    
+    tmdb_results = await tmdb_enricher.enrich_batch(items, max_concurrent=20)
+    stats["tmdb_enriched"] = len(tmdb_results)
+    stats["processed"] = len(items)
+    stats["failed"] = len(items) - len(tmdb_results)
+
+    if not tmdb_results:
+        return stats
+
+    # --- Phase 2: Sequential Wikipedia/Wikidata (rate-limited by clients) ---
     enriched_items = []
     queue_ids_to_complete = []
-    
-    for _, row in queue_df.iterrows():
-        tmdb_id = row["tmdb_id"]
-        content_type_val = row["content_type"]
-        queue_id = row["id"]
-        
-        try:
-            # TMDB enrichment
-            tmdb_data = await tmdb_enricher.enrich_content(tmdb_id, content_type_val)
-            
-            if not tmdb_data:
-                stats["failed"] += 1
-                stats["processed"] += 1
-                continue
-            
-            stats["tmdb_enriched"] += 1
-            
-            # Wikipedia/Wikidata enrichment (unless tmdb-only)
-            if not tmdb_only:
+
+    if not tmdb_only:
+        wiki_enricher = WikiEnricher()
+        for tmdb_data in tmdb_results:
+            try:
                 wiki_data = await wiki_enricher.enrich_content(
-                    tmdb_id=tmdb_id,
-                    content_type=content_type_val,
+                    tmdb_id=tmdb_data["tmdb_id"],
+                    content_type=tmdb_data["content_type"],
                     current_overview=tmdb_data.get("overview"),
                     current_genres=tmdb_data.get("genres"),
                     current_keywords=tmdb_data.get("keywords"),
                 )
-                
                 if wiki_data:
                     tmdb_data.update(wiki_data)
                     stats["wiki_enriched"] += 1
-            
-            # Remove temporary credit fields
+            except Exception as e:
+                logger.warning(f"Wiki enrichment failed for {tmdb_data.get('tmdb_id')}: {e}")
+
             tmdb_data.pop("_cast", None)
             tmdb_data.pop("_crew", None)
-            
             enriched_items.append(tmdb_data)
-            queue_ids_to_complete.append(queue_id)
-            stats["success"] += 1
-            
-        except Exception as e:
-            logger.error(f"Error enriching {content_type_val} {tmdb_id}: {e}")
-            stats["failed"] += 1
-        
-        stats["processed"] += 1
-    
-    # Bulk upsert enriched content
+            qid = queue_id_map.get(int(tmdb_data["tmdb_id"]))
+            if qid:
+                queue_ids_to_complete.append(qid)
+    else:
+        for tmdb_data in tmdb_results:
+            tmdb_data.pop("_cast", None)
+            tmdb_data.pop("_crew", None)
+            enriched_items.append(tmdb_data)
+            qid = queue_id_map.get(int(tmdb_data["tmdb_id"]))
+            if qid:
+                queue_ids_to_complete.append(qid)
+
+    stats["success"] = len(enriched_items)
+
+    # Bulk upsert + mark completed
     if enriched_items:
         enriched_df = pd.DataFrame(enriched_items)
         upsert_content_bulk(enriched_df)
-        
-        # Mark queue items as completed
         mark_import_queue_completed(queue_ids_to_complete)
-    
+
     return stats
 
 
@@ -338,11 +311,17 @@ async def main():
     start_time = datetime.now()
     
     try:
+        # Resolve active cycle: use --cycle if explicitly passed, else read from DB
+        active_cycle = args.cycle
+        if active_cycle is None:
+            active_cycle = get_current_enrichment_cycle("content")
+            logger.info(f"Auto-resolved enrichment cycle: {active_cycle}")
+
         if args.source == "enrichment-queue":
             stats = await enrich_from_enrichment_queue(
                 batch_size=args.batch_size,
                 content_type=args.content_type,
-                cycle=args.cycle,
+                cycle=active_cycle,
                 tmdb_only=args.tmdb_only,
             )
         else:
@@ -351,6 +330,11 @@ async def main():
                 content_type=args.content_type,
                 tmdb_only=args.tmdb_only,
             )
+
+        # Advance cycle tracker
+        if stats["processed"] > 0:
+            advance_enrichment_cycle("content", stats["processed"])
+            logger.info(f"Advanced enrichment cycle for 'content' by {stats['processed']} items")
         
         # Print results
         logger.info("")

@@ -16,6 +16,7 @@ from datetime import datetime
 import pandas as pd
 
 from gdvg.clients.supabase_client import get_supabase
+from gdvg.db.queue import bulk_add_to_enrichment_queue
 
 logger = logging.getLogger(__name__)
 
@@ -32,46 +33,122 @@ class DataQualityAnalyzer:
         }
     
     def _fetch_all_content(self) -> pd.DataFrame:
-        """Fetch all content from database.
+        """Fetch all content from database using pagination (100 rows/page).
+
+        Excludes large JSONB blobs (videos, images, watch_providers) — those
+        are counted separately via _fetch_content_jsonb_counts().
         
         Returns:
             DataFrame with all content records
         """
         try:
-            result = (
-                self.supabase.table("content")
-                .select("*")
-                .execute()
-            )
-            
-            if result.data:
-                return pd.DataFrame(result.data)
-            return pd.DataFrame()
+            all_rows = []
+            page_size = 100
+            offset = 0
+
+            while True:
+                result = (
+                    self.supabase.table("content")
+                    .select(
+                        "id,tmdb_id,content_type,title,popularity,"
+                        "poster_path,overview,genres,backdrop_path,tagline,"
+                        "imdb_id,content_rating"
+                    )
+                    .range(offset, offset + page_size - 1)
+                    .execute()
+                )
+                if not result.data:
+                    break
+                all_rows.extend(result.data)
+                if len(result.data) < page_size:
+                    break
+                offset += page_size
+
+            return pd.DataFrame(all_rows) if all_rows else pd.DataFrame()
         
         except Exception as e:
             logger.error(f"Error fetching content: {e}")
             return pd.DataFrame()
+
+    def _fetch_content_jsonb_counts(self) -> dict[str, int]:
+        """Count non-empty values for large JSONB content columns separately."""
+        counts = {"Videos": 0, "Images": 0, "Watch Providers": 0, "Keywords": 0}
+        try:
+            for field, label in [
+                ("videos", "Videos"),
+                ("images", "Images"),
+                ("watch_providers", "Watch Providers"),
+                ("keywords", "Keywords"),
+            ]:
+                # Count rows where the JSONB field is not null and not empty array/object
+                result = (
+                    self.supabase.table("content")
+                    .select("id", count="exact")
+                    .not_.is_(field, "null")
+                    .execute()
+                )
+                counts[label] = result.count or 0
+        except Exception as e:
+            logger.warning(f"Error fetching content JSONB counts: {e}")
+        return counts
     
     def _fetch_all_people(self) -> pd.DataFrame:
-        """Fetch all people from database.
+        """Fetch all people from database using pagination (100 rows/page).
+
+        Excludes large JSONB blobs (images, combined_credits) — those
+        are counted separately via _fetch_people_jsonb_counts().
         
         Returns:
             DataFrame with all people records
         """
         try:
-            result = (
-                self.supabase.table("people")
-                .select("*")
-                .execute()
-            )
-            
-            if result.data:
-                return pd.DataFrame(result.data)
-            return pd.DataFrame()
+            all_rows = []
+            page_size = 100
+            offset = 0
+
+            while True:
+                result = (
+                    self.supabase.table("people")
+                    .select(
+                        "id,tmdb_id,name,popularity,"
+                        "profile_path,biography,birthday,place_of_birth,"
+                        "imdb_id"
+                    )
+                    .range(offset, offset + page_size - 1)
+                    .execute()
+                )
+                if not result.data:
+                    break
+                all_rows.extend(result.data)
+                if len(result.data) < page_size:
+                    break
+                offset += page_size
+
+            return pd.DataFrame(all_rows) if all_rows else pd.DataFrame()
         
         except Exception as e:
             logger.error(f"Error fetching people: {e}")
             return pd.DataFrame()
+
+    def _fetch_people_jsonb_counts(self) -> dict[str, int]:
+        """Count non-empty values for large JSONB people columns separately."""
+        counts = {"Also Known As": 0, "Images": 0, "Combined Credits": 0}
+        try:
+            for field, label in [
+                ("also_known_as", "Also Known As"),
+                ("images", "Images"),
+                ("combined_credits", "Combined Credits"),
+            ]:
+                result = (
+                    self.supabase.table("people")
+                    .select("id", count="exact")
+                    .not_.is_(field, "null")
+                    .execute()
+                )
+                counts[label] = result.count or 0
+        except Exception as e:
+            logger.warning(f"Error fetching people JSONB counts: {e}")
+        return counts
     
     def _fetch_cast_crew_stats(self) -> dict[str, Any]:
         """Fetch cast/crew linkage statistics.
@@ -103,28 +180,26 @@ class DataQualityAnalyzer:
             )
             stats["total_crew_links"] = crew_result.count or 0
             
-            # Count unique content with cast
+            # Count unique content with cast (content_cast has content_id UUID, not content_tmdb_id)
             cast_content = (
                 self.supabase.table("content_cast")
-                .select("content_tmdb_id,content_type")
+                .select("content_id")
                 .execute()
             )
             if cast_content.data:
-                cast_df = pd.DataFrame(cast_content.data)
                 stats["content_with_cast"] = len(
-                    cast_df.drop_duplicates(subset=["content_tmdb_id", "content_type"])
+                    {row["content_id"] for row in cast_content.data}
                 )
             
             # Count unique content with crew
             crew_content = (
                 self.supabase.table("content_crew")
-                .select("content_tmdb_id,content_type")
+                .select("content_id")
                 .execute()
             )
             if crew_content.data:
-                crew_df = pd.DataFrame(crew_content.data)
                 stats["content_with_crew"] = len(
-                    crew_df.drop_duplicates(subset=["content_tmdb_id", "content_type"])
+                    {row["content_id"] for row in crew_content.data}
                 )
         
         except Exception as e:
@@ -147,38 +222,29 @@ class DataQualityAnalyzer:
         
         total = len(content_df)
         
-        # Define critical fields
+        # Define critical fields (present in DataFrame)
         critical_fields = {
             "poster_path": "Poster",
             "overview": "Overview",
             "genres": "Genres",
         }
         
-        # Define optional but important fields
-        optional_fields = {
+        # Define optional fields present in DataFrame
+        optional_fields_df = {
             "backdrop_path": "Backdrop",
             "tagline": "Tagline",
-            "keywords": "Keywords",
-            "videos": "Videos",
-            "images": "Images",
-            "watch_providers": "Watch Providers",
             "imdb_id": "IMDb ID",
             "content_rating": "Content Rating",
         }
         
-        # Calculate field coverage
+        # Calculate field coverage from DataFrame columns
         field_coverage = {}
         
-        for field, label in {**critical_fields, **optional_fields}.items():
+        for field, label in {**critical_fields, **optional_fields_df}.items():
             if field in content_df.columns:
-                # Count non-null, non-empty values
-                if field in ["genres", "keywords", "videos", "images", "watch_providers"]:
-                    # For JSONB/array fields, check if not null and not empty
+                if field == "genres":
                     non_empty = content_df[field].apply(
-                        lambda x: x is not None and (
-                            (isinstance(x, list) and len(x) > 0) or
-                            (isinstance(x, dict) and len(x) > 0)
-                        )
+                        lambda x: x is not None and isinstance(x, list) and len(x) > 0
                     ).sum()
                 else:
                     non_empty = content_df[field].notna().sum()
@@ -189,7 +255,15 @@ class DataQualityAnalyzer:
                     "percentage": round(coverage, 2),
                 }
         
-        # Calculate completeness scores
+        # Merge JSONB counts (fetched separately to avoid timeout)
+        jsonb_counts = self._fetch_content_jsonb_counts()
+        for label, count in jsonb_counts.items():
+            field_coverage[label] = {
+                "count": count,
+                "percentage": round(count / total * 100, 2) if total > 0 else 0,
+            }
+        
+        # Calculate completeness scores (only from columns present in DataFrame)
         content_df["completeness_score"] = 0
         
         # Critical fields: 15 points each (45 total)
@@ -202,15 +276,10 @@ class DataQualityAnalyzer:
                 else:
                     content_df["completeness_score"] += content_df[field].notna().astype(int) * 15
         
-        # Optional fields: 5 points each (max 55)
-        for field in optional_fields.keys():
+        # Optional fields in DataFrame: 5 points each
+        for field in optional_fields_df.keys():
             if field in content_df.columns:
-                if field in ["keywords", "videos", "images", "watch_providers"]:
-                    content_df["completeness_score"] += content_df[field].apply(
-                        lambda x: 5 if (x and len(x) > 0) else 0
-                    )
-                else:
-                    content_df["completeness_score"] += content_df[field].notna().astype(int) * 5
+                content_df["completeness_score"] += content_df[field].notna().astype(int) * 5
         
         # Cast/crew stats
         cast_crew_stats = self._fetch_cast_crew_stats()
@@ -264,45 +333,41 @@ class DataQualityAnalyzer:
         
         total = len(people_df)
         
-        # Define critical fields
+        # Define critical fields (present in DataFrame)
         critical_fields = {
             "profile_path": "Profile Photo",
             "biography": "Biography",
         }
         
-        # Define optional fields
-        optional_fields = {
+        # Define optional fields present in DataFrame
+        optional_fields_df = {
             "birthday": "Birthday",
             "place_of_birth": "Place of Birth",
-            "also_known_as": "Also Known As",
-            "images": "Images",
-            "combined_credits": "Combined Credits",
             "imdb_id": "IMDb ID",
             "wikidata_id": "Wikidata ID",
         }
         
-        # Calculate field coverage
+        # Calculate field coverage from DataFrame columns
         field_coverage = {}
         
-        for field, label in {**critical_fields, **optional_fields}.items():
+        for field, label in {**critical_fields, **optional_fields_df}.items():
             if field in people_df.columns:
-                if field in ["also_known_as", "images", "combined_credits"]:
-                    non_empty = people_df[field].apply(
-                        lambda x: x is not None and (
-                            (isinstance(x, list) and len(x) > 0) or
-                            (isinstance(x, dict) and len(x) > 0)
-                        )
-                    ).sum()
-                else:
-                    non_empty = people_df[field].notna().sum()
-                
+                non_empty = people_df[field].notna().sum()
                 coverage = (non_empty / total * 100) if total > 0 else 0
                 field_coverage[label] = {
                     "count": int(non_empty),
                     "percentage": round(coverage, 2),
                 }
         
-        # Calculate completeness scores
+        # Merge JSONB counts (fetched separately to avoid timeout)
+        jsonb_counts = self._fetch_people_jsonb_counts()
+        for label, count in jsonb_counts.items():
+            field_coverage[label] = {
+                "count": count,
+                "percentage": round(count / total * 100, 2) if total > 0 else 0,
+            }
+        
+        # Calculate completeness scores (only from columns present in DataFrame)
         people_df["completeness_score"] = 0
         
         # Critical fields: 30 points each (60 total)
@@ -310,15 +375,10 @@ class DataQualityAnalyzer:
             if field in people_df.columns:
                 people_df["completeness_score"] += people_df[field].notna().astype(int) * 30
         
-        # Optional fields: 5 points each (max 40)
-        for field in optional_fields.keys():
+        # Optional fields in DataFrame: 5 points each
+        for field in optional_fields_df.keys():
             if field in people_df.columns:
-                if field in ["also_known_as", "images", "combined_credits"]:
-                    people_df["completeness_score"] += people_df[field].apply(
-                        lambda x: 5 if (x and len(x) > 0) else 0
-                    )
-                else:
-                    people_df["completeness_score"] += people_df[field].notna().astype(int) * 5
+                people_df["completeness_score"] += people_df[field].notna().astype(int) * 5
         
         # Completeness distribution
         score_ranges = {
@@ -363,25 +423,98 @@ class DataQualityAnalyzer:
     
     def save_report(self, report: dict[str, Any]) -> bool:
         """Save report to quality_reports table.
-        
+
+        Inserts two rows — one for 'content', one for 'people' — mapped to
+        the actual quality_reports schema columns.
+
         Args:
             report: Quality report dict
-            
+
         Returns:
             True if successful
         """
         try:
-            self.supabase.table("quality_reports").insert({
-                "generated_at": report["generated_at"],
-                "report_data": report,
-            }).execute()
-            
-            logger.info("Quality report saved to database")
+            rows = []
+
+            for entity_type in ("content", "people"):
+                section = report.get(entity_type, {})
+                total_checked = section.get("total_items", 0)
+                if total_checked == 0:
+                    continue
+
+                dist = section.get("completeness_distribution", {})
+                total_complete = dist.get("76-100%", 0)
+                total_issues = dist.get("0-25%", 0) + dist.get("26-50%", 0)
+
+                rows.append({
+                    "report_type": entity_type,
+                    "total_checked": total_checked,
+                    "total_complete": total_complete,
+                    "total_issues": total_issues,
+                    "issues_by_field": section.get("field_coverage", {}),
+                    "priority_items": section.get("high_priority_items", []),
+                })
+
+            if rows:
+                self.supabase.table("quality_reports").insert(rows).execute()
+                logger.info(f"Quality report saved ({len(rows)} rows) to quality_reports table")
             return True
-        
+
         except Exception as e:
             logger.error(f"Error saving quality report: {e}")
             return False
+
+    def queue_poor_quality_content(self, high_priority_items: list[dict]) -> int:
+        """Push poor-quality content items back into enrichment_queue.
+
+        Args:
+            high_priority_items: List of dicts with 'tmdb_id' and 'content_type'
+
+        Returns:
+            Number of items queued
+        """
+        if not high_priority_items:
+            return 0
+
+        total_queued = 0
+        # Group by content_type so bulk_add_to_enrichment_queue gets the right filter
+        by_type: dict[str, list[int]] = {}
+        for item in high_priority_items:
+            ct = item.get("content_type", "movie")
+            by_type.setdefault(ct, []).append(int(item["tmdb_id"]))
+
+        for content_type, tmdb_ids in by_type.items():
+            queued = bulk_add_to_enrichment_queue(
+                tmdb_ids=tmdb_ids,
+                queue_type="content",
+                content_type=content_type,
+                priority=8,
+            )
+            total_queued += queued
+            logger.info(f"Queued {queued} poor-quality {content_type} items for re-enrichment")
+
+        return total_queued
+
+    def queue_poor_quality_people(self, high_priority_items: list[dict]) -> int:
+        """Push poor-quality people items back into enrichment_queue.
+
+        Args:
+            high_priority_items: List of dicts with 'tmdb_id'
+
+        Returns:
+            Number of items queued
+        """
+        if not high_priority_items:
+            return 0
+
+        tmdb_ids = [int(item["tmdb_id"]) for item in high_priority_items]
+        queued = bulk_add_to_enrichment_queue(
+            tmdb_ids=tmdb_ids,
+            queue_type="people",
+            priority=8,
+        )
+        logger.info(f"Queued {queued} poor-quality people for re-enrichment")
+        return queued
 
 
 def generate_quality_report() -> dict[str, Any]:

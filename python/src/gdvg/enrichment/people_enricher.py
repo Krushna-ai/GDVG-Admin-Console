@@ -10,13 +10,12 @@ Extracts ALL fields from TMDB person detail responses including:
 - Wikipedia biography enrichment (with name variation matching)
 """
 
+import asyncio
 import logging
 from typing import Optional, Any
 from datetime import datetime
 
-import pandas as pd
-
-from gdvg.clients.tmdb import create_tmdb_client
+from gdvg.clients.tmdb import create_tmdb_client, TMDBClient
 from gdvg.clients.wikipedia import create_wikipedia_client
 from gdvg.db.people import upsert_people_bulk
 from gdvg.db.queue import get_enrichment_queue_batch, mark_enrichment_queue_completed
@@ -304,28 +303,31 @@ class PeopleEnricher:
     async def enrich_person(
         self,
         tmdb_id: int,
-        enrich_with_wikipedia: bool = True,
+        tmdb_client: Optional[TMDBClient] = None,
     ) -> Optional[dict[str, Any]]:
         """Enrich a single person with ALL TMDB data.
-        
+
         Args:
             tmdb_id: TMDB person ID
-            
+            tmdb_client: Optional shared TMDBClient. If None, creates a new one.
+
         Returns:
             Complete person dict ready for DB upsert, or None if failed
         """
         try:
-            async with create_tmdb_client() as tmdb:
-                # Fetch with full append_to_response
-                tmdb_data = await tmdb.get_person_details(tmdb_id)
-            
+            if tmdb_client is not None:
+                tmdb_data = await tmdb_client.get_person_details(tmdb_id)
+            else:
+                async with create_tmdb_client() as tmdb:
+                    tmdb_data = await tmdb.get_person_details(tmdb_id)
+
             if not tmdb_data:
                 logger.warning(f"No data returned for person {tmdb_id}")
                 return None
-            
+
             # Extract all fields
             person = self._extract_basic_fields(tmdb_data)
-            
+
             # Images and main profile photo
             images_data = self._extract_images(tmdb_data)
             person["images"] = {
@@ -333,11 +335,11 @@ class PeopleEnricher:
                 "tagged_images": images_data["tagged_images"],
             }
             person["main_profile_photo"] = images_data["main_profile_photo"]
-            
+
             # External IDs
             external_ids = self._extract_external_ids(tmdb_data)
             person.update(external_ids)
-            
+
             # Combined credits (for cross-linking)
             credits_data = self._extract_combined_credits(tmdb_data)
             person["combined_credits"] = {
@@ -345,17 +347,17 @@ class PeopleEnricher:
                 "crew": credits_data["crew_credits"],
             }
             person["combined_credits_count"] = credits_data["total_credits"]
-            
+
             # Store credits separately for processing
             person["_cast_credits"] = credits_data["cast_credits"]
             person["_crew_credits"] = credits_data["crew_credits"]
-            
+
             # Metadata
             person["enriched_at"] = datetime.utcnow().isoformat()
             person["bio_source"] = "tmdb"
-            
+
             return person
-            
+
         except Exception as e:
             logger.error(f"Error enriching person {tmdb_id}: {e}", exc_info=True)
             return None
@@ -363,33 +365,38 @@ class PeopleEnricher:
     async def enrich_batch(
         self,
         tmdb_ids: list[int],
-        batch_size: int = 50,
-    ) -> pd.DataFrame:
-        """Enrich multiple people in batch.
-        
+        max_concurrent: int = 20,
+    ) -> list[dict[str, Any]]:
+        """Enrich multiple people concurrently.
+
+        Uses a single shared TMDBClient with a semaphore to cap concurrency.
+        TMDB rate limiter (50ms/req) is enforced inside the shared client.
+
         Args:
             tmdb_ids: List of TMDB person IDs
-            batch_size: Number to process concurrently
-            
+            max_concurrent: Max simultaneous TMDB requests (default: 20)
+
         Returns:
-            DataFrame with enriched people ready for DB upsert
+            List of enriched person dicts (failures excluded)
         """
-        enriched = []
-        
-        for i in range(0, len(tmdb_ids), batch_size):
-            batch = tmdb_ids[i:i + batch_size]
-            
-            for tmdb_id in batch:
-                person = await self.enrich_person(tmdb_id)
-                if person:
-                    enriched.append(person)
-                    self.stats["success"] += 1
-                else:
-                    self.stats["failed"] += 1
-                
-                self.stats["processed"] += 1
-        
-        return pd.DataFrame(enriched)
+        semaphore = asyncio.Semaphore(max_concurrent)
+        enriched: list[Optional[dict[str, Any]]] = [None] * len(tmdb_ids)
+
+        async with create_tmdb_client() as shared_tmdb:
+            async def fetch_one(idx: int, tmdb_id: int) -> None:
+                async with semaphore:
+                    result = await self.enrich_person(tmdb_id, tmdb_client=shared_tmdb)
+                    if result:
+                        self.stats["success"] += 1
+                    else:
+                        self.stats["failed"] += 1
+                    self.stats["processed"] += 1
+                    enriched[idx] = result
+
+            tasks = [fetch_one(i, tid) for i, tid in enumerate(tmdb_ids)]
+            await asyncio.gather(*tasks)
+
+        return [r for r in enriched if r is not None]
 
 
 async def enrich_from_queue(

@@ -5,13 +5,13 @@ sub-resources: credits, keywords, videos, images, watch/providers, external_ids,
 content_ratings, alternative_titles, translations, reviews, recommendations, similar.
 """
 
+import asyncio
 import logging
 from typing import Optional, Any, Literal
 from datetime import datetime
 
-import pandas as pd
 
-from gdvg.clients.tmdb import create_tmdb_client
+from gdvg.clients.tmdb import create_tmdb_client, TMDBClient
 from gdvg.db.content import upsert_content_bulk
 from gdvg.db.queue import get_import_queue_batch, mark_import_queue_completed
 
@@ -420,34 +420,42 @@ class ContentEnricher:
         self,
         tmdb_id: int,
         content_type: Literal["movie", "tv"],
+        tmdb_client: Optional[TMDBClient] = None,
     ) -> Optional[dict[str, Any]]:
         """Enrich a single content item with ALL TMDB data.
-        
+
         Args:
             tmdb_id: TMDB ID
             content_type: 'movie' or 'tv'
-            
+            tmdb_client: Optional shared TMDBClient. If None, creates a new one.
+
         Returns:
             Complete content dict ready for DB upsert, or None if failed
         """
+        async def _fetch(tmdb: TMDBClient) -> Optional[dict[str, Any]]:
+            if content_type == "movie":
+                return await tmdb.get_movie_details(tmdb_id)
+            else:
+                return await tmdb.get_tv_details(tmdb_id)
+
         try:
-            async with create_tmdb_client() as tmdb:
-                # Fetch with full append_to_response
-                if content_type == "movie":
-                    tmdb_data = await tmdb.get_movie_details(tmdb_id)
-                else:
-                    tmdb_data = await tmdb.get_tv_details(tmdb_id)
-            
+            if tmdb_client is not None:
+                # Use shared client — no context manager needed
+                tmdb_data = await _fetch(tmdb_client)
+            else:
+                async with create_tmdb_client() as tmdb:
+                    tmdb_data = await _fetch(tmdb)
+
             if not tmdb_data:
                 logger.warning(f"No data returned for {content_type} {tmdb_id}")
                 return None
-            
+
             # Extract all fields
             content = self._extract_basic_fields(tmdb_data, content_type)
-            
+
             # Genres as array
             content["genres"] = self._extract_genres(tmdb_data)
-            
+
             # JSONB fields
             content["keywords"] = self._extract_keywords(tmdb_data)
             content["videos"] = self._extract_videos(tmdb_data)
@@ -457,25 +465,25 @@ class ContentEnricher:
             content["translations"] = self._extract_translations(tmdb_data)
             content["recommendations"] = self._extract_recommendations(tmdb_data)
             content["similar_content"] = self._extract_similar(tmdb_data)
-            
+
             # External IDs
             external_ids = self._extract_external_ids(tmdb_data)
             content.update(external_ids)
-            
+
             # Content rating
             content["content_rating"] = self._extract_content_ratings(tmdb_data, content_type)
-            
+
             # Extract credits (for separate processing)
             cast, crew = self._extract_credits(tmdb_data)
-            content["_cast"] = cast  # Temporary field for processing
-            content["_crew"] = crew  # Temporary field for processing
-            
+            content["_cast"] = cast
+            content["_crew"] = crew
+
             # Metadata
             content["enriched_at"] = datetime.utcnow().isoformat()
             content["overview_source"] = "tmdb"
-            
+
             return content
-            
+
         except Exception as e:
             logger.error(f"Error enriching {content_type} {tmdb_id}: {e}", exc_info=True)
             return None
@@ -483,33 +491,44 @@ class ContentEnricher:
     async def enrich_batch(
         self,
         items: list[tuple[int, Literal["movie", "tv"]]],
-        batch_size: int = 50,
-    ) -> pd.DataFrame:
-        """Enrich multiple content items in batch.
-        
+        max_concurrent: int = 20,
+    ) -> list[dict[str, Any]]:
+        """Enrich multiple content items concurrently.
+
+        Uses a single shared TMDBClient with a semaphore to cap concurrency.
+        TMDB rate limiter (50ms/req) is enforced inside the shared client.
+
         Args:
             items: List of (tmdb_id, content_type) tuples
-            batch_size: Number to process concurrently
-            
+            max_concurrent: Max simultaneous TMDB requests (default: 20)
+
         Returns:
-            DataFrame with enriched content ready for DB upsert
+            List of enriched content dicts (failures excluded)
         """
-        enriched = []
-        
-        for i in range(0, len(items), batch_size):
-            batch = items[i:i + batch_size]
+        semaphore = asyncio.Semaphore(max_concurrent)
+        enriched: list[Optional[dict[str, Any]]] = [None] * len(items)
 
-            for tmdb_id, content_type in batch:
-                content = await self.enrich_content(tmdb_id, content_type)
-                if content:
-                    enriched.append(content)
-                    self.stats["success"] += 1
-                else:
-                    self.stats["failed"] += 1
+        async with create_tmdb_client() as shared_tmdb:
+            async def fetch_one(idx: int, tmdb_id: int, content_type: str) -> None:
+                async with semaphore:
+                    result = await self.enrich_content(
+                        tmdb_id, content_type, tmdb_client=shared_tmdb
+                    )
+                    if result:
+                        self.stats["success"] += 1
+                    else:
+                        self.stats["failed"] += 1
+                    self.stats["processed"] += 1
+                    enriched[idx] = result
 
-                self.stats["processed"] += 1
+            tasks = [
+                fetch_one(i, tmdb_id, ct)
+                for i, (tmdb_id, ct) in enumerate(items)
+            ]
+            await asyncio.gather(*tasks)
 
-        return pd.DataFrame(enriched)
+        # Filter out None (failed) results
+        return [r for r in enriched if r is not None]
 
 
 async def enrich_from_queue(

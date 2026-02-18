@@ -222,12 +222,11 @@ class WikipediaClient:
         """
         params = {
             "action": "query",
-            "prop": "extracts|revisions",
-            "exintro": False,  # Full content, not just intro
-            "explaintext": True,  # Plain text, not HTML
+            "prop": "extracts",
+            # NOTE: Do NOT include exintro — omitting it returns the full article.
+            # Setting exintro=False sends "False" which Wikipedia treats as truthy (intro only).
+            "explaintext": True,  # Plain text with == Section == headers, not HTML
             "titles": title,
-            "rvprop": "content",
-            "rvslots": "main",
         }
         
         result = await self._request_action(params, language)

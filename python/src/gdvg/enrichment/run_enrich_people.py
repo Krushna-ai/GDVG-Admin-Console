@@ -18,14 +18,18 @@ import logging
 import sys
 from datetime import datetime
 
+import pandas as pd
+
 from gdvg.enrichment.people_enricher import PeopleEnricher
 from gdvg.db.people import (
     get_people_needing_enrichment,
     update_people_enrichment_cycle,
     upsert_people_bulk,
 )
-
-
+from gdvg.db.queue import (
+    get_current_enrichment_cycle,
+    advance_enrichment_cycle,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -92,85 +96,71 @@ async def enrich_from_enrichment_queue(
     tmdb_only: bool = False,
 ) -> dict[str, int]:
     """Process people from enrichment queue.
-    
-    Args:
-        batch_size: Number of items to process
-        cycle: Filter by enrichment cycle
-        tmdb_only: Skip Wikipedia enrichment
-        
-    Returns:
-        Statistics dict
+
+    Phase 1: Fetch all TMDB data concurrently (20 parallel requests).
+    Phase 2: Enrich with Wikipedia sequentially (rate-limited to 100ms/req).
     """
-    # Get batch from enrichment queue
     people_df = get_people_needing_enrichment(
         limit=batch_size,
         cycle=cycle,
     )
-    
+
     if people_df.empty:
         logger.info("No people needing enrichment")
         return {"processed": 0, "success": 0, "failed": 0}
-    
+
     logger.info(f"Processing {len(people_df)} people from enrichment queue")
-    
-    stats = {
-        "processed": 0,
-        "success": 0,
-        "failed": 0,
-        "tmdb_enriched": 0,
-        "wiki_enriched": 0,
-    }
-    
-    # Enrich each person
+
+    stats = {"processed": 0, "success": 0, "failed": 0, "tmdb_enriched": 0, "wiki_enriched": 0}
+
+    tmdb_ids = [int(row["tmdb_id"]) for _, row in people_df.iterrows()]
+
+    # --- Phase 1: Concurrent TMDB fetch ---
     enricher = PeopleEnricher()
+    tmdb_results = await enricher.enrich_batch(tmdb_ids, max_concurrent=20)
+    stats["tmdb_enriched"] = len(tmdb_results)
+    stats["processed"] = len(tmdb_ids)
+    stats["failed"] = len(tmdb_ids) - len(tmdb_results)
+
+    if not tmdb_results:
+        return stats
+
+    # --- Phase 2: Sequential Wikipedia enrichment (rate-limited by client) ---
     enriched_items = []
-    
-    for _, row in people_df.iterrows():
-        tmdb_id = row["tmdb_id"]
-        
-        try:
-            # Enrich with TMDB + Wikipedia
-            person = await enricher.enrich_person(
-                tmdb_id,
-                enrich_with_wikipedia=not tmdb_only,
-            )
-            
-            if not person:
-                stats["failed"] += 1
-                stats["processed"] += 1
-                continue
-            
-            stats["tmdb_enriched"] += 1
-            
-            # Check if Wikipedia was used
-            if person.get("bio_source") == "wikipedia":
-                stats["wiki_enriched"] += 1
-            
-            # Remove temporary credit fields
+    if not tmdb_only:
+        for person in tmdb_results:
+            try:
+                wiki_data = await enricher._enrich_biography_from_wikipedia(
+                    name=person["name"],
+                    also_known_as=person.get("also_known_as"),
+                    tmdb_biography=person.get("biography"),
+                )
+                if wiki_data:
+                    person.update(wiki_data)
+                    if person.get("bio_source") == "wikipedia":
+                        stats["wiki_enriched"] += 1
+            except Exception as e:
+                logger.warning(f"Wikipedia enrichment failed for {person.get('name')}: {e}")
+
             person.pop("_cast_credits", None)
             person.pop("_crew_credits", None)
-            
             enriched_items.append(person)
-            stats["success"] += 1
-            
-        except Exception as e:
-            logger.error(f"Error enriching person {tmdb_id}: {e}")
-            stats["failed"] += 1
-        
-        stats["processed"] += 1
-    
-    # Bulk upsert enriched people
+    else:
+        for person in tmdb_results:
+            person.pop("_cast_credits", None)
+            person.pop("_crew_credits", None)
+            enriched_items.append(person)
+
+    stats["success"] = len(enriched_items)
+
+    # Bulk upsert
     if enriched_items:
-        import pandas as pd
         enriched_df = pd.DataFrame(enriched_items)
         upsert_people_bulk(enriched_df)
-        
-        # Update enrichment cycles
-        tmdb_ids = [item["tmdb_id"] for item in enriched_items]
-        
-        for tmdb_id in tmdb_ids:
-            update_people_enrichment_cycle(tmdb_id)
-    
+
+        for item in enriched_items:
+            update_people_enrichment_cycle(item["tmdb_id"])
+
     return stats
 
 
@@ -194,11 +184,22 @@ async def main():
     start_time = datetime.now()
     
     try:
+        # Resolve active cycle: use --cycle if explicitly passed, else read from DB
+        active_cycle = args.cycle
+        if active_cycle is None:
+            active_cycle = get_current_enrichment_cycle("people")
+            logger.info(f"Auto-resolved enrichment cycle: {active_cycle}")
+
         stats = await enrich_from_enrichment_queue(
             batch_size=args.batch_size,
-            cycle=args.cycle,
+            cycle=active_cycle,
             tmdb_only=args.tmdb_only,
         )
+
+        # Advance cycle tracker
+        if stats["processed"] > 0:
+            advance_enrichment_cycle("people", stats["processed"])
+            logger.info(f"Advanced enrichment cycle for 'people' by {stats['processed']} items")
         
         # Print results
         logger.info("")

@@ -55,7 +55,7 @@ jobs:
       
       - name: Set environment variables
         run: |
-          echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> $GITHUB_ENV
+          echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" >> $GITHUB_ENV
           echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> $GITHUB_ENV
           echo "TMDB_ACCESS_TOKEN=${{ secrets.TMDB_ACCESS_TOKEN }}" >> $GITHUB_ENV
           echo "WIKI_USER_AGENT=GDVG-Admin/1.0 (github.com/${{ github.repository }})" >> $GITHUB_ENV

@@ -8,12 +8,17 @@ Usage:
 """
 
 import argparse
+import io
 import json
 import logging
 import sys
 from datetime import datetime
 
-from gdvg.quality.data_quality import generate_quality_report
+# Force UTF-8 output on Windows (avoids cp1252 UnicodeEncodeError for non-ASCII names)
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+from gdvg.quality.data_quality import DataQualityAnalyzer, generate_quality_report
 
 
 # Configure logging
@@ -50,6 +55,12 @@ Examples:
     )
     
     parser.add_argument(
+        "--queue-poor-quality",
+        action="store_true",
+        help="After generating report, push poor-quality items back into enrichment_queue (priority 8)",
+    )
+    
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Enable debug logging",
@@ -69,7 +80,7 @@ def print_report(report: dict):
     # Content quality
     content = report.get("content", {})
     if content.get("total_items", 0) > 0:
-        print("\n📺 CONTENT QUALITY")
+        print("\n[CONTENT] CONTENT QUALITY")
         print("-" * 80)
         print(f"Total Items: {content['total_items']:,}")
         print(f"  - Movies:   {content.get('content_by_type', {}).get('movies', 0):,}")
@@ -94,14 +105,14 @@ def print_report(report: dict):
         
         high_priority = content.get("high_priority_items", [])
         if high_priority:
-            print(f"\n🚨 High Priority Items (Low Quality, Top {len(high_priority)}):")
+            print(f"\n[!] High Priority Items (Low Quality, Top {len(high_priority)}):")
             for item in high_priority[:10]:  # Show first 10
                 print(f"  - {item.get('title', 'Unknown')[:50]:.<50} (Score: {item.get('completeness_score', 0):.0f}%)")
     
     # People quality
     people = report.get("people", {})
     if people.get("total_items", 0) > 0:
-        print("\n\n👤 PEOPLE QUALITY")
+        print("\n\n[PEOPLE] PEOPLE QUALITY")
         print("-" * 80)
         print(f"Total Items: {people['total_items']:,}")
         print(f"\nAverage Completeness: {people.get('average_completeness', 0):.1f}%")
@@ -117,7 +128,7 @@ def print_report(report: dict):
         
         high_priority = people.get("high_priority_items", [])
         if high_priority:
-            print(f"\n🚨 High Priority Items (Low Quality, Top {len(high_priority)}):")
+            print(f"\n[!] High Priority Items (Low Quality, Top {len(high_priority)}):")
             for item in high_priority[:10]:  # Show first 10
                 print(f"  - {item.get('name', 'Unknown')[:50]:.<50} (Score: {item.get('completeness_score', 0):.0f}%)")
     
@@ -135,15 +146,28 @@ def main():
     start_time = datetime.now()
     
     try:
-        # Generate report
-        report = generate_quality_report()
+        # Generate report (also saves to DB via generate_quality_report)
+        analyzer = DataQualityAnalyzer()
+        report = analyzer.generate_report()
+        analyzer.save_report(report)
         
         # Print report
         print_report(report)
         
+        # Optionally queue poor-quality items for re-enrichment
+        if args.queue_poor_quality:
+            logger.info("Queuing poor-quality items for re-enrichment...")
+            content_queued = analyzer.queue_poor_quality_content(
+                report.get("content", {}).get("high_priority_items", [])
+            )
+            people_queued = analyzer.queue_poor_quality_people(
+                report.get("people", {}).get("high_priority_items", [])
+            )
+            logger.info(f"Re-queued: {content_queued} content, {people_queued} people")
+        
         elapsed = (datetime.now() - start_time).total_seconds()
         print(f"\nReport generated in {elapsed:.1f} seconds")
-        print("Report saved to quality_reports table ✅")
+        print("Report saved to quality_reports table [OK]")
         
         return 0
         

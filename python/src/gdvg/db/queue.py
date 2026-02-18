@@ -155,9 +155,8 @@ def add_to_enrichment_queue(
     for i in range(0, len(records), DB_BATCH_SIZE_UPSERT):
         batch = records[i:i + DB_BATCH_SIZE_UPSERT]
 
-        supabase.table("enrichment_queue").upsert(
+        supabase.table("enrichment_queue").insert(
             batch,
-            on_conflict="queue_type,entity_id"
         ).execute()
 
         total_queued += len(batch)
@@ -300,3 +299,118 @@ def get_queue_stats() -> dict:
         "enrichment_queue_content_pending": enrich_content_pending.count or 0,
         "enrichment_queue_people_pending": enrich_people_pending.count or 0,
     }
+
+
+# ---------------------------------------------------------------------------
+# Enrichment cycle helpers (round-robin fairness across 9 cycles)
+# ---------------------------------------------------------------------------
+
+def get_current_enrichment_cycle(entity_type: str) -> int:
+    """Read the current enrichment cycle for an entity type.
+
+    Args:
+        entity_type: 'content' or 'people'
+
+    Returns:
+        Current cycle number (0-8), defaults to 0 if row missing
+    """
+    supabase = get_supabase()
+    result = (
+        supabase.table("enrichment_cycles")
+        .select("current_cycle")
+        .eq("entity_type", entity_type)
+        .limit(1)
+        .execute()
+    )
+    if result.data:
+        return result.data[0].get("current_cycle") or 0
+    return 0
+
+
+def advance_enrichment_cycle(entity_type: str, items_completed: int) -> None:
+    """Increment items_completed; advance cycle when all items processed.
+
+    When items_completed reaches total_items, bumps current_cycle by 1
+    (mod 9), resets items_completed to 0, refreshes total_items from DB,
+    and records cycle_completed_at.
+
+    Args:
+        entity_type: 'content' or 'people'
+        items_completed: Number of items processed in this batch
+    """
+    if items_completed <= 0:
+        return
+
+    supabase = get_supabase()
+
+    # Fetch current row
+    result = (
+        supabase.table("enrichment_cycles")
+        .select("*")
+        .eq("entity_type", entity_type)
+        .limit(1)
+        .execute()
+    )
+
+    now = datetime.utcnow().isoformat()
+
+    if not result.data:
+        # Row doesn't exist yet — create it
+        supabase.table("enrichment_cycles").insert({
+            "entity_type": entity_type,
+            "current_cycle": 0,
+            "items_completed": items_completed,
+            "total_items": 0,
+            "cycle_started_at": now,
+            "updated_at": now,
+        }).execute()
+        return
+
+    row = result.data[0]
+    new_completed = (row.get("items_completed") or 0) + items_completed
+    total = row.get("total_items") or 0
+    current_cycle = row.get("current_cycle") or 0
+
+    if total > 0 and new_completed >= total:
+        # Cycle complete — advance
+        table_name = "content" if entity_type == "content" else "people"
+        count_result = supabase.table(table_name).select("id", count="exact").execute()
+        new_total = count_result.count or 0
+
+        supabase.table("enrichment_cycles").update({
+            "current_cycle": (current_cycle + 1) % 9,
+            "items_completed": 0,
+            "total_items": new_total,
+            "cycle_completed_at": now,
+            "cycle_started_at": now,
+            "updated_at": now,
+        }).eq("entity_type", entity_type).execute()
+    else:
+        supabase.table("enrichment_cycles").update({
+            "items_completed": new_completed,
+            "updated_at": now,
+        }).eq("entity_type", entity_type).execute()
+
+
+def reset_enrichment_cycle(entity_type: str) -> None:
+    """Reset cycle progress and refresh total_items from live DB count.
+
+    Args:
+        entity_type: 'content' or 'people'
+    """
+    supabase = get_supabase()
+
+    table_name = "content" if entity_type == "content" else "people"
+    count_result = supabase.table(table_name).select("id", count="exact").execute()
+    total_items = count_result.count or 0
+
+    now = datetime.utcnow().isoformat()
+
+    supabase.table("enrichment_cycles").upsert({
+        "entity_type": entity_type,
+        "items_completed": 0,
+        "total_items": total_items,
+        "cycle_started_at": now,
+        "updated_at": now,
+    }, on_conflict="entity_type").execute()
+
