@@ -141,6 +141,12 @@ async def main():
         results = await run_harvest(
             content_types=args.content_type,
             strategies=args.strategy,
+            max_pages=args.max_pages,
+            regions=args.regions,
+            days_back=args.days_back,
+            start_id=args.start_id,
+            end_id=args.end_id,
+            dry_run=args.dry_run,
         )
         
         # Print results

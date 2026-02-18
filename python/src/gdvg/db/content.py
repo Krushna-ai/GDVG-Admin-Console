@@ -157,25 +157,32 @@ def get_content_needing_enrichment(
     return pd.DataFrame(response.data)
 
 
-def update_content_enrichment_cycle(content_ids: list[str], new_cycle: int) -> None:
-    """Update enrichment cycle for content items.
-    
+def update_content_enrichment_cycle(tmdb_id: int, content_type: str) -> None:
+    """Increment enrichment cycle for a content item.
+
+    Filters by tmdb_id + content_type and auto-increments the cycle
+    using (enrichment_cycle + 1) % 9 for round-robin coverage.
+
     Args:
-        content_ids: List of content database IDs (UUIDs)
-        new_cycle: New cycle number (0-8)
+        tmdb_id: TMDB ID of the content item
+        content_type: 'movie' or 'tv'
     """
-    if not content_ids:
-        return
-    
     supabase = get_supabase()
-    
-    # Batch update
-    for i in range(0, len(content_ids), DB_BATCH_SIZE_UPSERT):
-        batch_ids = content_ids[i:i + DB_BATCH_SIZE_UPSERT]
-        
-        supabase.table("content").update(
-            {"enrichment_cycle": new_cycle}
-        ).in_("id", batch_ids).execute()
+
+    # Fetch current cycle
+    response = supabase.table("content").select(
+        "enrichment_cycle"
+    ).eq("tmdb_id", tmdb_id).eq("content_type", content_type).limit(1).execute()
+
+    if not response.data:
+        return
+
+    current_cycle = response.data[0].get("enrichment_cycle") or 0
+    new_cycle = (current_cycle + 1) % 9
+
+    supabase.table("content").update(
+        {"enrichment_cycle": new_cycle}
+    ).eq("tmdb_id", tmdb_id).eq("content_type", content_type).execute()
 
 
 def get_content_stats() -> dict:

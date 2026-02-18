@@ -131,24 +131,31 @@ def get_people_needing_enrichment(
     return pd.DataFrame(response.data)
 
 
-def update_people_enrichment_cycle(people_ids: list[str], new_cycle: int) -> None:
-    """Update enrichment cycle for people.
-    
+def update_people_enrichment_cycle(tmdb_id: int) -> None:
+    """Increment enrichment cycle for a person.
+
+    Filters by tmdb_id and auto-increments the cycle using
+    (enrichment_cycle + 1) % 9 for round-robin coverage.
+
     Args:
-        people_ids: List of people database IDs (UUIDs)
-        new_cycle: New cycle number (0-8)
+        tmdb_id: TMDB person ID
     """
-    if not people_ids:
-        return
-    
     supabase = get_supabase()
-    
-    for i in range(0, len(people_ids), DB_BATCH_SIZE_UPSERT):
-        batch_ids = people_ids[i:i + DB_BATCH_SIZE_UPSERT]
-        
-        supabase.table("people").update(
-            {"enrichment_cycle": new_cycle}
-        ).in_("id", batch_ids).execute()
+
+    # Fetch current cycle
+    response = supabase.table("people").select(
+        "enrichment_cycle"
+    ).eq("tmdb_id", tmdb_id).limit(1).execute()
+
+    if not response.data:
+        return
+
+    current_cycle = response.data[0].get("enrichment_cycle") or 0
+    new_cycle = (current_cycle + 1) % 9
+
+    supabase.table("people").update(
+        {"enrichment_cycle": new_cycle}
+    ).eq("tmdb_id", tmdb_id).execute()
 
 
 def get_people_stats() -> dict:

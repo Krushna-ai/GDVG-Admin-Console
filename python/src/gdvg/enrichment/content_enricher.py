@@ -416,7 +416,7 @@ class ContentEnricher:
             ]
         }
     
-    def enrich_content(
+    async def enrich_content(
         self,
         tmdb_id: int,
         content_type: Literal["movie", "tv"],
@@ -498,17 +498,17 @@ class ContentEnricher:
         
         for i in range(0, len(items), batch_size):
             batch = items[i:i + batch_size]
-            
+
             for tmdb_id, content_type in batch:
-                content = self.enrich_content(tmdb_id, content_type)
+                content = await self.enrich_content(tmdb_id, content_type)
                 if content:
                     enriched.append(content)
                     self.stats["success"] += 1
                 else:
                     self.stats["failed"] += 1
-                
+
                 self.stats["processed"] += 1
-        
+
         return pd.DataFrame(enriched)
 
 
@@ -527,7 +527,7 @@ async def enrich_from_queue(
     """
     # Get batch from queue
     queue_items = get_import_queue_batch(
-        batch_size=batch_size,
+        limit=batch_size,
         content_type=content_type,
     )
     

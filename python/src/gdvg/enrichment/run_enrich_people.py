@@ -24,10 +24,7 @@ from gdvg.db.people import (
     update_people_enrichment_cycle,
     upsert_people_bulk,
 )
-from gdvg.db.queue import (
-    get_enrichment_queue_batch,
-    mark_enrichment_queue_completed,
-)
+
 
 
 # Configure logging

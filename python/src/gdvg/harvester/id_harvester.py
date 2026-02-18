@@ -366,51 +366,81 @@ class IDHarvester:
         self,
         content_type: Literal["movie", "tv"],
         strategies: Optional[list[str]] = None,
+        max_pages: int = 500,
+        regions: Optional[list[str]] = None,
+        days_back: int = 1,
+        start_id: int = 1,
+        end_id: Optional[int] = None,
+        dry_run: bool = False,
     ) -> dict[str, int]:
         """Run all harvesting strategies and queue results.
-        
+
         Args:
             content_type: 'movie' or 'tv'
             strategies: List of strategies to run
                         (default: ['discover', 'changes'])
                         Available: 'discover', 'sequential', 'changes'
-            
+            max_pages: Max pages per region/sort combo for discover strategy
+            regions: Specific regions to harvest (default: all from config)
+            days_back: Days to look back for changes strategy
+            start_id: Start ID for sequential strategy
+            end_id: End ID for sequential strategy (default: latest from API)
+            dry_run: If True, skip queueing and just log stats
+
         Returns:
             Statistics dict
         """
         if strategies is None:
             # Default: discover + changes (sequential is very slow)
             strategies = ["discover", "changes"]
-        
+
         all_ids: set[int] = set()
-        
+
         # Run strategies
         if "discover" in strategies:
             logger.info(f"Running DISCOVER strategy for {content_type}")
-            discover_ids = await self.harvest_discover(content_type)
+            discover_ids = await self.harvest_discover(
+                content_type,
+                regions=regions,
+                max_pages_per_combo=max_pages,
+            )
             all_ids.update(discover_ids)
             logger.info(f"Discover strategy found {len(discover_ids)} IDs")
-        
+
         if "sequential" in strategies:
             logger.info(f"Running SEQUENTIAL strategy for {content_type}")
-            sequential_ids = await self.harvest_sequential(content_type)
+            sequential_ids = await self.harvest_sequential(
+                content_type,
+                start_id=start_id,
+                end_id=end_id,
+            )
             all_ids.update(sequential_ids)
             logger.info(f"Sequential strategy found {len(sequential_ids)} IDs")
-        
+
         if "changes" in strategies:
             logger.info(f"Running CHANGES strategy for {content_type}")
-            changes_ids = await self.harvest_changes(content_type)
+            changes_ids = await self.harvest_changes(
+                content_type,
+                days_back=days_back,
+            )
             all_ids.update(changes_ids)
             logger.info(f"Changes strategy found {len(changes_ids)} IDs")
-        
-        # Deduplicate and queue
-        queued = await self.deduplicate_and_queue(all_ids, content_type)
-        
+
+        # Deduplicate and queue (skip if dry_run)
+        if dry_run:
+            logger.info(
+                f"[DRY RUN] Would queue {len(all_ids)} {content_type} IDs "
+                f"(deduplication skipped)"
+            )
+            queued = 0
+        else:
+            queued = await self.deduplicate_and_queue(all_ids, content_type)
+
         logger.info(
             f"Harvest complete for {content_type}: "
             f"{len(all_ids)} total IDs, {queued} new IDs queued"
         )
-        
+
         return {
             "total_harvested": len(all_ids),
             "new_queued": queued,
@@ -421,27 +451,45 @@ class IDHarvester:
 async def run_harvest(
     content_types: Optional[list[str]] = None,
     strategies: Optional[list[str]] = None,
+    max_pages: int = 500,
+    regions: Optional[list[str]] = None,
+    days_back: int = 1,
+    start_id: int = 1,
+    end_id: Optional[int] = None,
+    dry_run: bool = False,
 ) -> dict[str, dict[str, int]]:
     """Run ID harvesting for specified content types.
-    
+
     Args:
         content_types: Types to harvest (default: ['movie', 'tv'])
         strategies: Strategies to use (default: ['discover', 'changes'])
-        
+        max_pages: Max pages per region/sort combo for discover strategy
+        regions: Specific regions to harvest (default: all from config)
+        days_back: Days to look back for changes strategy
+        start_id: Start ID for sequential strategy
+        end_id: End ID for sequential strategy (default: latest from API)
+        dry_run: If True, skip queueing and just log stats
+
     Returns:
         Statistics per content type
     """
     if content_types is None:
         content_types = ["movie", "tv"]
-    
+
     results = {}
-    
+
     for content_type in content_types:
         harvester = IDHarvester()
         stats = await harvester.harvest_all_strategies(
             content_type,  # type: ignore
             strategies=strategies,
+            max_pages=max_pages,
+            regions=regions,
+            days_back=days_back,
+            start_id=start_id,
+            end_id=end_id,
+            dry_run=dry_run,
         )
         results[content_type] = stats
-    
+
     return results

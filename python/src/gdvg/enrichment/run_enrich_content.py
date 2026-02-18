@@ -165,7 +165,7 @@ async def enrich_from_enrichment_queue(
         
         try:
             # TMDB enrichment
-            tmdb_data = tmdb_enricher.enrich_content(tmdb_id, content_type_val)
+            tmdb_data = await tmdb_enricher.enrich_content(tmdb_id, content_type_val)
             
             if not tmdb_data:
                 stats["failed"] += 1
@@ -234,7 +234,7 @@ async def enrich_from_import_queue(
     """
     # Get batch from import queue
     queue_df = get_import_queue_batch(
-        batch_size=batch_size,
+        limit=batch_size,
         content_type=content_type,
     )
     
@@ -266,7 +266,7 @@ async def enrich_from_import_queue(
         
         try:
             # TMDB enrichment
-            tmdb_data = tmdb_enricher.enrich_content(tmdb_id, content_type_val)
+            tmdb_data = await tmdb_enricher.enrich_content(tmdb_id, content_type_val)
             
             if not tmdb_data:
                 stats["failed"] += 1
