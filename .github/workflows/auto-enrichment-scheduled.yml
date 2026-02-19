@@ -1,0 +1,129 @@
+name: Auto-Enrichment (Scheduled)
+
+on:
+  schedule:
+    # Run at 2:00 AM IST (20:30 UTC previous day)
+    - cron: '30 20 * * *'
+
+env:
+  SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+  TMDB_ACCESS_TOKEN: ${{ secrets.TMDB_ACCESS_TOKEN }}
+
+jobs:
+  quality-validation:
+    runs-on: ubuntu-latest
+    outputs:
+      should_proceed: ${{ steps.pause_check.outputs.should_proceed }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check Pause State
+        id: pause_check
+        run: |
+          RESPONSE=$(curl -s "${{ secrets.VERCEL_URL }}/api/sync/status" || echo '{"success":false}')
+          IS_PAUSED=$(echo $RESPONSE | jq -r '.is_paused // false')
+
+          if [ "$IS_PAUSED" = "true" ]; then
+            echo "⏸️ Auto-Enrichment is currently paused." >> $GITHUB_STEP_SUMMARY
+            echo "should_proceed=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "should_proceed=true" >> $GITHUB_OUTPUT
+          echo "✅ Auto-Enrichment is active." >> $GITHUB_STEP_SUMMARY
+
+      - name: Setup Node.js
+        if: steps.pause_check.outputs.should_proceed == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        if: steps.pause_check.outputs.should_proceed == 'true'
+        run: npm ci
+
+      - name: Validate Content
+        if: steps.pause_check.outputs.should_proceed == 'true'
+        run: npx tsx scripts/validate-content.ts
+
+      - name: Validate People
+        if: steps.pause_check.outputs.should_proceed == 'true'
+        run: npx tsx scripts/validate-people.ts
+
+  refresh-queue:
+    needs: quality-validation
+    if: needs.quality-validation.outputs.should_proceed == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Refresh Enrichment Queue
+        env:
+          INCLUDE_CONTENT: 'true'
+          INCLUDE_PEOPLE: 'true'
+        run: npx tsx scripts/refresh-queue.ts
+
+  enrich-content:
+    needs: refresh-queue
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Content Enrichment
+        env:
+          BATCH_SIZE: '10000'
+          DRY_RUN: 'false'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO_OWNER: ${{ github.repository_owner }}
+          GITHUB_REPO_NAME: ${{ github.event.repository.name }}
+        run: npx tsx scripts/enrich-queue.ts
+
+  enrich-people:
+    needs: refresh-queue
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run People Enrichment
+        env:
+          BATCH_SIZE: '2000'
+          DRY_RUN: 'false'
+        run: npx tsx scripts/enrich-people.ts

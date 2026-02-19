@@ -1,0 +1,46 @@
+name: Refresh Enrichment Queue
+
+on:
+  workflow_dispatch:
+    inputs:
+      include_content:
+        description: 'Include content gaps'
+        required: false
+        default: 'true'
+        type: boolean
+      include_people:
+        description: 'Include people gaps'
+        required: false
+        default: 'true'
+        type: boolean
+
+jobs:
+  refresh-queue:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Queue Refresh
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          INCLUDE_CONTENT: ${{ inputs.include_content }}
+          INCLUDE_PEOPLE: ${{ inputs.include_people }}
+        run: npx tsx scripts/refresh-queue.ts
+
+      - name: Summary
+        run: |
+          echo "## Queue Refresh Complete" >> $GITHUB_STEP_SUMMARY
+          echo "Queue has been refreshed with latest gaps from database" >> $GITHUB_STEP_SUMMARY

@@ -6,7 +6,18 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "script:validate-content": "tsx --tsconfig scripts/tsconfig.json scripts/validate-content.ts",
+    "script:validate-people": "tsx --tsconfig scripts/tsconfig.json scripts/validate-people.ts",
+    "script:data-quality-report": "tsx --tsconfig scripts/tsconfig.json scripts/data-quality-report.ts",
+    "script:enrich-content": "tsx --tsconfig scripts/tsconfig.json scripts/enrich-content.ts",
+    "script:enrich-people": "tsx --tsconfig scripts/tsconfig.json scripts/enrich-people.ts",
+    "script:enrich-queue": "tsx --tsconfig scripts/tsconfig.json scripts/enrich-queue.ts",
+    "script:refresh-queue": "tsx --tsconfig scripts/tsconfig.json scripts/refresh-queue.ts",
+    "script:sync-changes": "tsx --tsconfig scripts/tsconfig.json scripts/sync-changes.ts",
+    "script:auto-import": "tsx --tsconfig scripts/tsconfig.json scripts/auto-import.ts",
+    "script:bulk-import": "tsx --tsconfig scripts/tsconfig.json scripts/bulk-import.ts",
+    "script:process-imports": "tsx --tsconfig scripts/tsconfig.json scripts/process-imports.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

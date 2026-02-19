@@ -1,0 +1,55 @@
+name: Enrich Content Data
+
+on:
+  workflow_dispatch:
+    inputs:
+      batch_size:
+        description: 'Number of items to process (default: 10000 = effectively unlimited)'
+        required: false
+        default: '10000'
+      dry_run:
+        description: 'Dry run mode (no database updates)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  enrich-content:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Queue-Based Enrichment
+        env:
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TMDB_ACCESS_TOKEN: ${{ secrets.TMDB_ACCESS_TOKEN }}
+          BATCH_SIZE: ${{ github.event.inputs.batch_size || '10000' }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO_OWNER: ${{ github.repository_owner }}
+          GITHUB_REPO_NAME: ${{ github.event.repository.name }}
+        run: npx tsx scripts/enrich-queue.ts
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## 📊 Queue-Based Enrichment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Batch Size**: ${{ github.event.inputs.batch_size || 10000 }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Dry Run**: ${{ github.event.inputs.dry_run || false }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Max Runtime**: 300 minutes (5 hours)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Queue automatically resumes from pending items. Failed items retry up to 3 times." >> $GITHUB_STEP_SUMMARY

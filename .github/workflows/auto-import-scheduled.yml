@@ -1,0 +1,66 @@
+name: Auto-Import (Scheduled)
+
+on:
+  schedule:
+    # Run at 3:00 AM IST (21:30 UTC previous day)
+    - cron: '30 21 * * *'
+
+env:
+  NODE_VERSION: '20'
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+  TMDB_ACCESS_TOKEN: ${{ secrets.TMDB_ACCESS_TOKEN }}
+
+jobs:
+  auto-import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240  # 4 hour timeout
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check Sync Pause State
+        id: pause_check
+        run: |
+          RESPONSE=$(curl -s "${{ secrets.VERCEL_URL }}/api/sync/status" || echo '{"success":false}')
+          IS_PAUSED=$(echo $RESPONSE | jq -r '.is_paused // false')
+          
+          if [ "$IS_PAUSED" = "true" ]; then
+            echo "⏸️ Auto-Import is currently paused. Skipping workflow." >> $GITHUB_STEP_SUMMARY
+            echo "Paused at: $(echo $RESPONSE | jq -r '.paused_at // "unknown"')" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+          
+          echo "✅ Auto-Import is active. Proceeding." >> $GITHUB_STEP_SUMMARY
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Auto-Import Script
+        run: npx tsx scripts/auto-import.ts
+        env:
+          DRY_RUN: 'false'
+
+      - name: Report Results
+        if: always()
+        run: |
+          echo "## 🤖 Auto-Import Results (Scheduled)" >> $GITHUB_STEP_SUMMARY
+          echo "Run completed at $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Features" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Progressive filter relaxation" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Wikipedia/Wikidata enrichment" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Batch tracking" >> $GITHUB_STEP_SUMMARY
+
+  # Automatically trigger process-imports after auto-import completes
+  process-queue:
+    needs: auto-import
+    uses: ./.github/workflows/process-imports.yml
+    secrets: inherit
