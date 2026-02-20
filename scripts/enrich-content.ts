@@ -313,16 +313,23 @@ async function main() {
         const lastProcessedId = await getLastProcessedId();
 
         // Fetch content to enrich (prioritize items behind current cycle)
+        const specificTmdbIdStr = process.env.SPECIFIC_TMDB_ID;
+        const specificTmdbId = specificTmdbIdStr ? parseInt(specificTmdbIdStr, 10) : undefined;
+
         let query = supabase
             .from('content')
             .select('id, tmdb_id, title, content_type, enrichment_cycle')
-            .lt('enrichment_cycle', currentCycle)
             .order('enriched_at', { ascending: true, nullsFirst: true })
             .order('popularity', { ascending: false })
             .limit(BATCH_SIZE);
 
-        if (lastProcessedId) {
-            query = query.gt('id', lastProcessedId);
+        if (specificTmdbId) {
+            query = query.eq('tmdb_id', specificTmdbId);
+        } else {
+            query = query.lt('enrichment_cycle', currentCycle);
+            if (lastProcessedId) {
+                query = query.gt('id', lastProcessedId);
+            }
         }
 
         const { data: contentBatch, error } = await query;

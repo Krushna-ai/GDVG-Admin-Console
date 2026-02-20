@@ -12,9 +12,12 @@ import {
     deleteContentCast,
     deleteContentCrew,
     checkContentExists,
+    upsertAwards,
+    Award
 } from './database';
 import { getWikidataByTmdbId, getWikidataById } from './wikidata';
 import { getContentSummary, getPersonBioMultiVariant } from './wikipedia';
+import { parseArticleForContent, WikiArticleData } from './wiki-parser';
 
 // ============================================
 // CONSTANTS
@@ -79,6 +82,8 @@ function mapTmdbToContent(details: any, contentType: 'movie' | 'tv'): any {
         backdrop_path: details.backdrop_path || null,
         release_date: isMovie ? parseDate(details.release_date) : null,
         first_air_date: !isMovie ? parseDate(details.first_air_date) : null,
+        last_air_date: !isMovie ? parseDate(details.last_air_date) : null,
+        in_production: !isMovie ? details.in_production ?? null : null,
         original_language: details.original_language || null,
         origin_country: details.origin_country || [],
         genres: details.genres || [],
@@ -93,17 +98,34 @@ function mapTmdbToContent(details: any, contentType: 'movie' | 'tv'): any {
         budget: isMovie ? details.budget : null,
         revenue: isMovie ? details.revenue : null,
         production_companies: details.production_companies || [],
+        production_countries: details.production_countries ?? [],
+        spoken_languages: details.spoken_languages ?? [],
         networks: !isMovie ? details.networks : null,
         tmdb_status: details.status || null,
-        status: 'draft', // All imports start as draft
+        status: 'draft' as const,
         // Extended fields
         content_rating: extractContentRating(details, contentType),
         keywords: details.keywords?.keywords || details.keywords?.results || null,
         alternative_titles: details.alternative_titles?.titles || details.alternative_titles?.results || null,
         videos: details.videos?.results || null,
         watch_providers: details['watch/providers'] || null,
-        wikidata_id: externalIds.wikidata_id || null,
-        tvdb_id: externalIds.tvdb_id || null,
+        // External IDs
+        wikidata_id: externalIds?.wikidata_id || null,
+        tvdb_id: externalIds?.tvdb_id || null,
+        external_ids: externalIds ?? null,
+        social_ids: {
+            facebook: externalIds?.facebook_id,
+            instagram: externalIds?.instagram_id,
+            twitter: externalIds?.twitter_id
+        },
+        // Expanded data
+        translations: details.translations?.translations?.slice(0, 50) || null,
+        recommendations: details.recommendations?.results?.slice(0, 20) ?? [],
+        similar_content: details.similar?.results?.slice(0, 20) ?? [],
+        reviews_tmdb: details.reviews?.results?.slice(0, 10) ?? [],
+        belongs_to_collection: details.belongs_to_collection ?? null,
+        release_dates: details.release_dates?.results ?? null,
+        aggregate_credits: details.aggregate_credits ?? null,
     };
 }
 
@@ -325,7 +347,7 @@ function mergeKeywords(
 async function enrichOverviewFromWikipedia(
     tmdbDetails: any,
     contentType: 'movie' | 'tv'
-): Promise<{ overview: string | null; overview_source: string; wikipedia_url?: string }> {
+): Promise<{ overview: string | null; overview_source: string; wikipedia_url?: string } & WikiArticleData> {
     const tmdbOverview = tmdbDetails.overview || null;
 
     try {
@@ -350,6 +372,14 @@ async function enrichOverviewFromWikipedia(
         // Step 2: Try to fetch Wikipedia summary if we have a title
         if (wikipediaTitle) {
             const wikiSummary = await getContentSummary(wikipediaTitle, 'en');
+            let wikiData: WikiArticleData = {};
+
+            try {
+                console.log(`  🌐 Fetching full article sections for: ${wikipediaTitle}`);
+                wikiData = await parseArticleForContent(wikipediaTitle, 'en');
+            } catch (err) {
+                console.error(`  ❌ Error fetching article sections:`, err);
+            }
 
             if (wikiSummary && wikiSummary.extract) {
                 console.log(`  ✅ Using Wikipedia overview (${wikiSummary.extract.length} chars)`);
@@ -357,6 +387,17 @@ async function enrichOverviewFromWikipedia(
                     overview: wikiSummary.extract,
                     overview_source: 'wikipedia',
                     wikipedia_url: wikiSummary.page_url || wikipediaUrl,
+                    ...wikiData
+                };
+            }
+
+            // If we have parsed section data but no summary
+            if (Object.keys(wikiData).length > 0) {
+                return {
+                    overview: tmdbOverview,
+                    overview_source: tmdbOverview ? 'tmdb' : 'none',
+                    wikipedia_url: wikipediaUrl,
+                    ...wikiData
                 };
             }
         }
@@ -401,6 +442,14 @@ async function enrichFromWikidata(
     original_network?: string;
     screenwriters?: string[];
     genres?: string[];
+    awards?: Award[];
+    based_on?: string;
+    filming_location?: string;
+    narrative_location?: string;
+    box_office?: number;
+    rt_id?: string;
+    mc_id?: string;
+    mdl_id?: string;
 }> {
     try {
         // Query Wikidata for both TV and movies (genres apply to both)
@@ -424,6 +473,14 @@ async function enrichFromWikidata(
             original_network?: string;
             screenwriters?: string[];
             genres?: string[];
+            awards?: Award[];
+            based_on?: string;
+            filming_location?: string;
+            narrative_location?: string;
+            box_office?: number;
+            rt_id?: string;
+            mc_id?: string;
+            mdl_id?: string;
         } = {};
 
         // Network from Wikidata (P449) - TV only
@@ -443,6 +500,23 @@ async function enrichFromWikidata(
             enriched.genres = wikidataResult.genres;
             console.log(`  ✅ Wikidata genres: ${wikidataResult.genres.join(', ')}`);
         }
+
+        // Awards from Wikidata
+        if (wikidataResult.awards && wikidataResult.awards.length > 0) {
+            enriched.awards = wikidataResult.awards;
+            console.log(`  🏆 Wikidata awards: ${wikidataResult.awards.length} found`);
+        }
+
+        // Extended metadata
+        if (wikidataResult.based_on) enriched.based_on = wikidataResult.based_on;
+        if (wikidataResult.filming_location) enriched.filming_location = wikidataResult.filming_location;
+        if (wikidataResult.narrative_location) enriched.narrative_location = wikidataResult.narrative_location;
+        if (wikidataResult.box_office) enriched.box_office = wikidataResult.box_office;
+
+        // Extended IDs
+        if (wikidataResult.rt_id) enriched.rt_id = wikidataResult.rt_id;
+        if (wikidataResult.mc_id) enriched.mc_id = wikidataResult.mc_id;
+        if (wikidataResult.mdl_id) enriched.mdl_id = wikidataResult.mdl_id;
 
         return enriched;
 
@@ -551,8 +625,27 @@ export async function enrichAndSaveContent(
 
         // Override overview with Wikipedia-enriched data
         contentData.overview = overviewEnrichment.overview;
+        contentData.overview_source = overviewEnrichment.overview_source; // Assign overview_source
+
         if (overviewEnrichment.wikipedia_url) {
             contentData.wikipedia_url = overviewEnrichment.wikipedia_url;
+        }
+
+        // Merge WikiArticleData fields (safe merge)
+        const wikiFields: (keyof WikiArticleData)[] = [
+            'wiki_plot', 'wiki_production', 'wiki_cast_notes', 'wiki_accolades',
+            'wiki_reception', 'wiki_soundtrack', 'wiki_release', 'wiki_episode_guide'
+        ];
+
+        for (const field of wikiFields) {
+            const newValue = overviewEnrichment[field];
+            // Only update if new value is non-null and non-empty
+            if (newValue !== undefined && newValue !== null && newValue.trim() !== '') {
+                // Do NOT overwrite already-populated fields (if they happen to exist)
+                if (!contentData[field] || (typeof contentData[field] === 'string' && contentData[field].trim() === '')) {
+                    contentData[field] = newValue.trim();
+                }
+            }
         }
 
         // Merge Wikidata network (Wikidata first, TMDB fallback)
@@ -562,6 +655,18 @@ export async function enrichAndSaveContent(
             contentData.original_network = contentData.networks[0].name;
             console.log(`  ↩️  Using TMDB network: ${contentData.original_network}`);
         }
+
+        // Merge extended Wikidata metadata
+        if (wikidataEnrichment.based_on) contentData.based_on = wikidataEnrichment.based_on;
+        if (wikidataEnrichment.filming_location) contentData.filming_location = wikidataEnrichment.filming_location;
+        if (wikidataEnrichment.narrative_location) contentData.narrative_location = wikidataEnrichment.narrative_location;
+        if (wikidataEnrichment.box_office) contentData.box_office = wikidataEnrichment.box_office;
+
+        // Merge extended external IDs
+        contentData.external_ids = contentData.external_ids || {};
+        if (wikidataEnrichment.rt_id) contentData.external_ids.rotten_tomatoes_id = wikidataEnrichment.rt_id;
+        if (wikidataEnrichment.mc_id) contentData.external_ids.metacritic_id = wikidataEnrichment.mc_id;
+        if (wikidataEnrichment.mdl_id) contentData.external_ids.mydramalist_id = wikidataEnrichment.mdl_id;
 
         // Merge genres from Wikidata + TMDB (with deduplication)
         console.log(`\n🏷️  Merging genres and keywords...`);
@@ -597,6 +702,13 @@ export async function enrichAndSaveContent(
         }
 
         const contentId = content.id;
+
+        // 4.5 Save Awards
+        if (wikidataEnrichment.awards && wikidataEnrichment.awards.length > 0) {
+            console.log(`\n🏆 Saving awards to database...`);
+            await upsertAwards(contentId, null, wikidataEnrichment.awards);
+            console.log(`  ✅ Saved ${wikidataEnrichment.awards.length} awards`);
+        }
 
         // 4. Process cast (top 20 members)
         let peopleCount = 0;

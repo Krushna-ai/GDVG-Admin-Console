@@ -26,6 +26,26 @@ export interface WikidataResult {
   original_network?: string;
   screenwriters?: string[];
   genres?: string[];
+  awards?: Array<{ awardId: string; award: string; year?: number; category?: string; won: boolean }>;
+  based_on?: string;
+  filming_location?: string;
+  narrative_location?: string;
+  box_office?: number;
+  rt_id?: string;
+  mc_id?: string;
+  mdl_id?: string;
+}
+
+export interface WikidataPersonResult {
+  native_name?: string;
+  instagram?: string;
+  twitter?: string;
+  tiktok?: string;
+  height_cm?: number;
+  website?: string;
+  wikidata_id?: string;
+  awards?: Array<{ awardId: string; award: string; year?: number; category?: string; won: boolean }>;
+  image?: string;
 }
 
 interface WikidataBinding {
@@ -125,6 +145,18 @@ export async function getWikidataByTmdbId(
         ?screenwriterLabel
         ?genre 
         ?genreLabel
+        ?award
+        ?awardLabel
+        ?awardYear
+        ?awardWorkLabel
+        ?awardRank
+        ?basedOnLabel
+        ?filmingLocationLabel
+        ?narrativeLocationLabel
+        ?boxOffice
+        ?rtId
+        ?mcId
+        ?mdlId
       WHERE {
         # Find item by TMDB ID
         ?item wdt:${tmdbProperty} "${tmdbId}".
@@ -145,6 +177,24 @@ export async function getWikidataByTmdbId(
         # Get genre (P136)
         OPTIONAL { ?item wdt:P136 ?genre. }
         
+        # Awards (P166 with qualifiers)
+        OPTIONAL {
+          ?item p:P166 ?awardStatement.
+          ?awardStatement ps:P166 ?award.
+          OPTIONAL { ?awardStatement pq:P585 ?awardYear. }
+          OPTIONAL { ?awardStatement pq:P1686 ?awardWork. }
+          OPTIONAL { ?awardStatement pq:P1352 ?awardRank. }
+        }
+
+        # Extended metadata (OPTIONAL)
+        OPTIONAL { ?item wdt:P144 ?basedOn. }
+        OPTIONAL { ?item wdt:P915 ?filmingLocation. }
+        OPTIONAL { ?item wdt:P840 ?narrativeLocation. }
+        OPTIONAL { ?item wdt:P2142 ?boxOffice. }
+        OPTIONAL { ?item wdt:P1258 ?rtId. }
+        OPTIONAL { ?item wdt:P1712 ?mcId. }
+        OPTIONAL { ?item wdt:P3138 ?mdlId. }
+        
         # Get labels
         SERVICE wikibase:label { 
           bd:serviceParam wikibase:language "en,ko,ja,zh,th,tr,hi". 
@@ -152,6 +202,11 @@ export async function getWikidataByTmdbId(
           ?network rdfs:label ?networkLabel.
           ?screenwriter rdfs:label ?screenwriterLabel.
           ?genre rdfs:label ?genreLabel.
+          ?award rdfs:label ?awardLabel.
+          ?awardWork rdfs:label ?awardWorkLabel.
+          ?basedOn rdfs:label ?basedOnLabel.
+          ?filmingLocation rdfs:label ?filmingLocationLabel.
+          ?narrativeLocation rdfs:label ?narrativeLocationLabel.
         }
       }
       LIMIT 50
@@ -197,6 +252,35 @@ export async function getWikidataByTmdbId(
       }
     });
 
+    // Collect awards (deduplicated by ID+Year to avoid over-duplication from multi-bindings)
+    const awardsMap = new Map<string, { awardId: string; award: string; year?: number; category?: string; won: boolean }>();
+    bindings.forEach(b => {
+      if (b.award?.value && b.awardLabel?.value) {
+        const awardId = extractEntityId(b.award.value);
+        const year = b.awardYear?.value ? new Date(b.awardYear.value).getFullYear() : undefined;
+        // The default is usually 'winner' unless ranked as nominee (e.g., Q15007328 usually used for nominee rank)
+        // Check if awardRank contains preferred rank URL (http://wikiba.se/ontology#PreferredRank)
+        // or check if it specifies 'winner' vs 'nominee'
+        const rankUri = b.awardRank?.value || '';
+        const won = rankUri.includes('PreferredRank') || rankUri.includes('NormalRank') || !rankUri.includes('DeprecatedRank');
+
+        const key = `${awardId}-${year || 'no-year'}`;
+        if (!awardsMap.has(key)) {
+          awardsMap.set(key, {
+            awardId,
+            award: b.awardLabel.value,
+            year,
+            category: b.awardWorkLabel?.value,
+            won, // Simplification for now
+          });
+        }
+      }
+    });
+
+    // Find the first valid string for single-value metadata fields
+    const getValue = (key: string) => bindings.find(b => b[key]?.value)?.[key]?.value;
+    const boxOfficeStr = getValue('boxOffice');
+
     const result: WikidataResult = {
       wikidata_id: wikidataId,
       wikipedia_title: wikipediaTitle,
@@ -204,6 +288,14 @@ export async function getWikidataByTmdbId(
       original_network: networks.size > 0 ? Array.from(networks)[0] : undefined,
       screenwriters: Array.from(screenwriters),
       genres: Array.from(genres),
+      awards: awardsMap.size > 0 ? Array.from(awardsMap.values()) : undefined,
+      based_on: getValue('basedOnLabel'),
+      filming_location: getValue('filmingLocationLabel'),
+      narrative_location: getValue('narrativeLocationLabel'),
+      box_office: boxOfficeStr ? parseFloat(boxOfficeStr) : undefined,
+      rt_id: getValue('rtId'),
+      mc_id: getValue('mcId'),
+      mdl_id: getValue('mdlId'),
     };
 
     console.log(`  ✅ Wikidata result: ${wikidataId || 'N/A'}`);
@@ -238,6 +330,18 @@ export async function getWikidataById(wikidataId: string): Promise<WikidataResul
         ?screenwriterLabel
         ?genre 
         ?genreLabel
+        ?award
+        ?awardLabel
+        ?awardYear
+        ?awardWorkLabel
+        ?awardRank
+        ?basedOnLabel
+        ?filmingLocationLabel
+        ?narrativeLocationLabel
+        ?boxOffice
+        ?rtId
+        ?mcId
+        ?mdlId
       WHERE {
         # Use the provided Wikidata ID
         BIND(wd:${wikidataId} AS ?item)
@@ -258,6 +362,24 @@ export async function getWikidataById(wikidataId: string): Promise<WikidataResul
         # Get genre (P136)
         OPTIONAL { ?item wdt:P136 ?genre. }
         
+        # Awards (P166 with qualifiers)
+        OPTIONAL {
+          ?item p:P166 ?awardStatement.
+          ?awardStatement ps:P166 ?award.
+          OPTIONAL { ?awardStatement pq:P585 ?awardYear. }
+          OPTIONAL { ?awardStatement pq:P1686 ?awardWork. }
+          OPTIONAL { ?awardStatement pq:P1352 ?awardRank. }
+        }
+
+        # Extended metadata (OPTIONAL)
+        OPTIONAL { ?item wdt:P144 ?basedOn. }
+        OPTIONAL { ?item wdt:P915 ?filmingLocation. }
+        OPTIONAL { ?item wdt:P840 ?narrativeLocation. }
+        OPTIONAL { ?item wdt:P2142 ?boxOffice. }
+        OPTIONAL { ?item wdt:P1258 ?rtId. }
+        OPTIONAL { ?item wdt:P1712 ?mcId. }
+        OPTIONAL { ?item wdt:P3138 ?mdlId. }
+        
         # Get labels
         SERVICE wikibase:label { 
           bd:serviceParam wikibase:language "en,ko,ja,zh,th,tr,hi". 
@@ -265,6 +387,11 @@ export async function getWikidataById(wikidataId: string): Promise<WikidataResul
           ?network rdfs:label ?networkLabel.
           ?screenwriter rdfs:label ?screenwriterLabel.
           ?genre rdfs:label ?genreLabel.
+          ?award rdfs:label ?awardLabel.
+          ?awardWork rdfs:label ?awardWorkLabel.
+          ?basedOn rdfs:label ?basedOnLabel.
+          ?filmingLocation rdfs:label ?filmingLocationLabel.
+          ?narrativeLocation rdfs:label ?narrativeLocationLabel.
         }
       }
       LIMIT 50
@@ -287,12 +414,34 @@ export async function getWikidataById(wikidataId: string): Promise<WikidataResul
     const networks = new Set<string>();
     const screenwriters = new Set<string>();
     const genres = new Set<string>();
+    const awardsMap = new Map<string, { awardId: string; award: string; year?: number; category?: string; won: boolean }>();
 
     bindings.forEach(b => {
       if (b.networkLabel?.value) networks.add(b.networkLabel.value);
       if (b.screenwriterLabel?.value) screenwriters.add(b.screenwriterLabel.value);
       if (b.genreLabel?.value) genres.add(b.genreLabel.value);
+
+      if (b.award?.value && b.awardLabel?.value) {
+        const awardId = extractEntityId(b.award.value);
+        const year = b.awardYear?.value ? new Date(b.awardYear.value).getFullYear() : undefined;
+        const rankUri = b.awardRank?.value || '';
+        const won = rankUri.includes('PreferredRank') || rankUri.includes('NormalRank') || !rankUri.includes('DeprecatedRank');
+
+        const key = `${awardId}-${year || 'no-year'}`;
+        if (!awardsMap.has(key)) {
+          awardsMap.set(key, {
+            awardId,
+            award: b.awardLabel.value,
+            year,
+            category: b.awardWorkLabel?.value,
+            won,
+          });
+        }
+      }
     });
+
+    const getValue = (key: string) => bindings.find(b => b[key]?.value)?.[key]?.value;
+    const boxOfficeStr = getValue('boxOffice');
 
     const result: WikidataResult = {
       wikidata_id: wikidataId,
@@ -301,6 +450,14 @@ export async function getWikidataById(wikidataId: string): Promise<WikidataResul
       original_network: networks.size > 0 ? Array.from(networks)[0] : undefined,
       screenwriters: Array.from(screenwriters),
       genres: Array.from(genres),
+      awards: awardsMap.size > 0 ? Array.from(awardsMap.values()) : undefined,
+      based_on: getValue('basedOnLabel'),
+      filming_location: getValue('filmingLocationLabel'),
+      narrative_location: getValue('narrativeLocationLabel'),
+      box_office: boxOfficeStr ? parseFloat(boxOfficeStr) : undefined,
+      rt_id: getValue('rtId'),
+      mc_id: getValue('mcId'),
+      mdl_id: getValue('mdlId'),
     };
 
     console.log(`  ✅ Wikidata result for ${wikidataId}`);
@@ -905,4 +1062,139 @@ export async function findKoreanNetflixDramas(minRating: number = 8.0): Promise<
     title: binding.itemLabel?.value,
     rating: binding.rating ? parseFloat(binding.rating.value) : null,
   }));
+}
+
+/**
+ * Query Wikidata for a person by TMDB person ID (P4985).
+ * Fetches extended metadata (socials, website, native name, height, awards, image).
+ * 
+ * @param tmdbPersonId TMDB Person ID
+ * @param name Optional original name of the person
+ * @returns Object containing WikidataPersonResult metadata or null
+ */
+export async function getWikidataForPerson(
+  tmdbPersonId: number | string,
+  name?: string
+): Promise<WikidataPersonResult | null> {
+  try {
+    const query = `
+      SELECT DISTINCT 
+        ?item 
+        ?itemLabel 
+        ?nativeName 
+        ?instagram 
+        ?twitter 
+        ?tiktok 
+        ?height 
+        ?website 
+        ?image 
+        ?award 
+        ?awardLabel 
+        ?awardYear 
+        ?awardCategoryLabel 
+        ?awardRank
+      WHERE {
+        # Match item that has TMDB person ID
+        ?item wdt:P4985 "${tmdbPersonId}".
+        
+        # Basic properties (all optional)
+        OPTIONAL { ?item wdt:P1559 ?nativeName. }
+        OPTIONAL { ?item wdt:P2003 ?instagram. }
+        OPTIONAL { ?item wdt:P2002 ?twitter. }
+        OPTIONAL { ?item wdt:P4517 ?tiktok. }
+        OPTIONAL { 
+          ?item p:P2048 ?heightStmt.
+          ?heightStmt ps:P2048 ?height.
+          ?heightStmt pq:P1144 ?unit.
+          FILTER(?unit = wd:Q174728)
+        }
+        OPTIONAL { ?item wdt:P856 ?website. }
+        OPTIONAL { ?item wdt:P18 ?image. }
+
+        # Awards logic (similar to content awards)
+        OPTIONAL {
+          ?item p:P166 ?awardStatement.
+          ?awardStatement ps:P166 ?award.
+          OPTIONAL { ?awardStatement pq:P585 ?awardYear. }
+          OPTIONAL { ?awardStatement pq:P1686 ?awardCategory. }
+          OPTIONAL { ?awardStatement pq:P1352 ?awardRank. }
+        }
+
+        SERVICE wikibase:label { 
+          bd:serviceParam wikibase:language "en,ko,ja,zh,hi,th". 
+          ?item rdfs:label ?itemLabel.
+          ?award rdfs:label ?awardLabel.
+          ?awardCategory rdfs:label ?awardCategoryLabel.
+        }
+      }
+    `;
+
+    console.log(`  🔍 Querying Wikidata for TMDB Person ID: ${tmdbPersonId} ${name ? '(' + name + ')' : ''}`);
+    const data = await executeSparqlQuery(query);
+
+    if (!data.results.bindings.length) {
+      console.log(`  ℹ️  No Wikidata entry found for Person ID: ${tmdbPersonId}`);
+      return null;
+    }
+
+    const bindings = data.results.bindings;
+    const firstResult = bindings[0];
+
+    const result: WikidataPersonResult = {
+      wikidata_id: firstResult.item ? extractEntityId(firstResult.item.value) : undefined,
+    };
+
+    // Extract single-value properties
+    const getStringValue = (key: string): string | undefined => {
+      const binding = bindings.find(b => b[key]);
+      return binding ? binding[key].value : undefined;
+    };
+
+    result.native_name = getStringValue('nativeName');
+    result.instagram = getStringValue('instagram');
+    result.twitter = getStringValue('twitter');
+    result.tiktok = getStringValue('tiktok');
+    result.website = getStringValue('website');
+    result.image = getStringValue('image');
+
+    const heightStr = getStringValue('height');
+    if (heightStr) {
+      result.height_cm = parseFloat(heightStr);
+    }
+
+    // Collect and deduplicate awards
+    const awardsMap = new Map<string, { awardId: string; award: string; year?: number; category?: string; won: boolean }>();
+    bindings.forEach(b => {
+      if (b.award?.value && b.awardLabel?.value) {
+        const awardId = extractEntityId(b.award.value);
+        const year = b.awardYear?.value ? new Date(b.awardYear.value).getFullYear() : undefined;
+
+        const rankUri = b.awardRank?.value || '';
+        const won = rankUri.includes('PreferredRank') || rankUri.includes('NormalRank') || !rankUri.includes('DeprecatedRank');
+
+        const category = b.awardCategoryLabel?.value;
+        const mapKey = `${awardId}-${year || 'ANY'}`;
+
+        if (!awardsMap.has(mapKey)) {
+          awardsMap.set(mapKey, {
+            awardId,
+            award: b.awardLabel.value,
+            year,
+            category,
+            won
+          });
+        }
+      }
+    });
+
+    if (awardsMap.size > 0) {
+      result.awards = Array.from(awardsMap.values());
+    }
+
+    return result;
+
+  } catch (error) {
+    console.error(`  ❌ Error fetching Wikidata for TMDB Person ID ${tmdbPersonId}:`, error);
+    return null;
+  }
 }

@@ -34,7 +34,7 @@ on:
 
 env:
   NODE_VERSION: '20'
-  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
   SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
   TMDB_ACCESS_TOKEN: ${{ secrets.TMDB_ACCESS_TOKEN }}
 
@@ -113,9 +113,16 @@ jobs:
 
       - name: Enrich Content
         env:
+          WIKI_USER_AGENT: ${{ secrets.WIKI_USER_AGENT }}
           BATCH_SIZE: ${{ github.event.inputs.content_batch_size || '10000' }}
           DRY_RUN: 'false'
         run: npx tsx scripts/enrich-queue.ts
+
+      - name: Enrich Seasons and Episodes
+        env:
+          BATCH_SIZE: '100'
+          SKIP_EXISTING: 'true'
+        run: npm run script:enrich-seasons
 
   people-enrichment:
     needs: [queue-refresh]
@@ -140,6 +147,7 @@ jobs:
 
       - name: Enrich People
         env:
+          WIKI_USER_AGENT: ${{ secrets.WIKI_USER_AGENT }}
           BATCH_SIZE: ${{ github.event.inputs.people_batch_size || '2000' }}
           DRY_RUN: 'false'
         run: npx tsx scripts/enrich-people.ts

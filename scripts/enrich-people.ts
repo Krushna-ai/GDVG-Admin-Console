@@ -1,6 +1,8 @@
 import { supabase } from './lib/supabase';
 import { delay } from './lib/tmdb';
 import { getPersonBioMultiVariant } from './lib/wikipedia';
+import { getWikidataForPerson } from './lib/wikidata';
+import { upsertAwards } from './lib/database';
 import { getCurrentCycle, checkAndIncrementCycle, updateCycleStats } from './lib/cycle';
 
 const BATCH_SIZE = parseInt(process.env.BATCH_SIZE || '200', 10);
@@ -119,6 +121,20 @@ async function enrichPerson(personId: string, tmdbId: number, name: string): Pro
         };
     }
 
+    let wikidataData: any = null;
+    try {
+        console.log(`    🌐 Fetching Wikidata for ${name}...`);
+        await delay(1000); // 1 req/s Wikidata rate limit
+        wikidataData = await getWikidataForPerson(tmdbId);
+        if (wikidataData) {
+            console.log(`    ✅ Retrieved Wikidata for ${name}`);
+        } else {
+            console.log(`    ℹ️  No Wikidata found for ${name}`);
+        }
+    } catch (e: any) {
+        console.log(`    ⚠️  Wikidata fetch failed: ${e.message}`);
+    }
+
     const { error } = await supabase.from('people').update({
         name: details.name,
         biography,
@@ -137,12 +153,28 @@ async function enrichPerson(personId: string, tmdbId: number, name: string): Pro
         adult: details.adult,
         wikipedia_url,
         bio_source,
+        native_name: wikidataData?.native_name || null,
+        instagram: wikidataData?.instagram || null,
+        twitter: wikidataData?.twitter || null,
+        tiktok: wikidataData?.tiktok || null,
+        height_cm: wikidataData?.height_cm || null,
+        wikidata_id: wikidataData?.wikidata_id || null,
         updated_at: new Date().toISOString(),
         enriched_at: new Date().toISOString(),
         enrichment_cycle: await getCurrentCycle('people'),
     }).eq('id', personId);
 
     if (error) { console.log(`  ❌ Error updating person: ${error.message}`); return false; }
+
+    if (wikidataData?.awards && wikidataData.awards.length > 0) {
+        try {
+            await upsertAwards(null, personId, wikidataData.awards);
+            console.log(`  🏆 Saved ${wikidataData.awards.length} awards for ${name}`);
+        } catch (awardError: any) {
+            console.log(`  ⚠️  Error saving awards for ${name}: ${awardError.message}`);
+        }
+    }
+
     console.log(`  ✅ Person updated successfully`);
     return true;
 }

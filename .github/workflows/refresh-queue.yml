@@ -6,12 +6,12 @@ on:
       include_content:
         description: 'Include content gaps'
         required: false
-        default: 'true'
+        default: true
         type: boolean
       include_people:
         description: 'Include people gaps'
         required: false
-        default: 'true'
+        default: true
         type: boolean
 
 jobs:
@@ -34,7 +34,7 @@ jobs:
 
       - name: Run Queue Refresh
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           INCLUDE_CONTENT: ${{ inputs.include_content }}
           INCLUDE_PEOPLE: ${{ inputs.include_people }}

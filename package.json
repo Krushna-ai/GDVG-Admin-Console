@@ -17,7 +17,9 @@
     "script:sync-changes": "tsx --tsconfig scripts/tsconfig.json scripts/sync-changes.ts",
     "script:auto-import": "tsx --tsconfig scripts/tsconfig.json scripts/auto-import.ts",
     "script:bulk-import": "tsx --tsconfig scripts/tsconfig.json scripts/bulk-import.ts",
-    "script:process-imports": "tsx --tsconfig scripts/tsconfig.json scripts/process-imports.ts"
+    "script:process-imports": "tsx --tsconfig scripts/tsconfig.json scripts/process-imports.ts",
+    "script:enrich-seasons": "tsx --tsconfig scripts/tsconfig.json scripts/enrich-seasons.ts",
+    "script:enrich-collections": "tsx --tsconfig scripts/tsconfig.json scripts/enrich-collections.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

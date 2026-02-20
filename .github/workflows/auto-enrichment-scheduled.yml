@@ -98,12 +98,19 @@ jobs:
 
       - name: Run Content Enrichment
         env:
+          WIKI_USER_AGENT: ${{ secrets.WIKI_USER_AGENT }}
           BATCH_SIZE: '10000'
           DRY_RUN: 'false'
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPO_OWNER: ${{ github.repository_owner }}
           GITHUB_REPO_NAME: ${{ github.event.repository.name }}
         run: npx tsx scripts/enrich-queue.ts
+
+      - name: Enrich Seasons and Episodes
+        env:
+          BATCH_SIZE: '100'
+          SKIP_EXISTING: 'true'
+        run: npm run script:enrich-seasons
 
   enrich-people:
     needs: refresh-queue
@@ -124,6 +131,7 @@ jobs:
 
       - name: Run People Enrichment
         env:
+          WIKI_USER_AGENT: ${{ secrets.WIKI_USER_AGENT }}
           BATCH_SIZE: '2000'
           DRY_RUN: 'false'
         run: npx tsx scripts/enrich-people.ts

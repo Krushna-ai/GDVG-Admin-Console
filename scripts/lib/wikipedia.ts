@@ -9,7 +9,7 @@
  * - No authentication needed (free API)
  */
 
-const USER_AGENT = process.env.WIKI_USER_AGENT ||
+export const USER_AGENT = process.env.WIKI_USER_AGENT ||
     'GDVG-Admin/1.0 (github.com/Krushna-ai/GDVG-Admin-Console)';
 
 const RATE_LIMIT_DELAY_MS = 100; // 100ms = 10 req/sec (well under 200 limit)

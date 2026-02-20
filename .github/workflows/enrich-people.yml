@@ -39,6 +39,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           TMDB_ACCESS_TOKEN: ${{ secrets.TMDB_ACCESS_TOKEN }}
+          WIKI_USER_AGENT: ${{ secrets.WIKI_USER_AGENT }}
           BATCH_SIZE: ${{ github.event.inputs.batch_size || '200' }}
           START_FROM_ID: ${{ github.event.inputs.start_from_id }}
           DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
