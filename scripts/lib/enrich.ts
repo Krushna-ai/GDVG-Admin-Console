@@ -363,8 +363,9 @@ async function enrichOverviewFromWikipedia(
             wikipediaTitle = wikidataResult?.wikipedia_title;
             wikipediaUrl = wikidataResult?.wikipedia_url;
         } else {
-            // Query Wikidata by TMDB ID
-            const wikidataResult = await getWikidataByTmdbId(tmdbDetails.id, contentType);
+            // Query Wikidata by TMDB ID or fallback IMDB ID
+            const imdbId = tmdbDetails.external_ids?.imdb_id || tmdbDetails.imdb_id;
+            const wikidataResult = await getWikidataByTmdbId(tmdbDetails.id, contentType, imdbId);
             wikipediaTitle = wikidataResult?.wikipedia_title;
             wikipediaUrl = wikidataResult?.wikipedia_url;
         }
@@ -461,7 +462,8 @@ async function enrichFromWikidata(
             wikidataResult = await getWikidataById(wikidataId);
         } else {
             console.log(`  🔍 Querying Wikidata by TMDB ID for network/screenwriter/genres`);
-            wikidataResult = await getWikidataByTmdbId(tmdbDetails.id, contentType);
+            const imdbId = tmdbDetails.external_ids?.imdb_id || tmdbDetails.imdb_id;
+            wikidataResult = await getWikidataByTmdbId(tmdbDetails.id, contentType, imdbId);
         }
 
         if (!wikidataResult) {

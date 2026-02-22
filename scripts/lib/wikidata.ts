@@ -126,7 +126,8 @@ function extractEntityId(uri: string): string {
  */
 export async function getWikidataByTmdbId(
   tmdbId: number,
-  contentType: 'movie' | 'tv'
+  contentType: 'movie' | 'tv',
+  imdbId?: string | null
 ): Promise<WikidataResult | null> {
   try {
     // Determine which TMDB property to use
@@ -134,7 +135,7 @@ export async function getWikidataByTmdbId(
     // P4983 = TMDB TV series ID
     const tmdbProperty = contentType === 'movie' ? 'P4947' : 'P4983';
 
-    const query = `
+    const buildQuery = (propertyId: string, value: string | number) => `
       SELECT DISTINCT 
         ?item 
         ?itemLabel
@@ -158,26 +159,16 @@ export async function getWikidataByTmdbId(
         ?mcId
         ?mdlId
       WHERE {
-        # Find item by TMDB ID
-        ?item wdt:${tmdbProperty} "${tmdbId}".
+        ?item wdt:${propertyId} "${value}".
         
-        # Get Wikipedia sitelink (English)
         OPTIONAL {
           ?sitelink schema:about ?item;
                     schema:isPartOf <https://en.wikipedia.org/>;
                     schema:name ?sitelinkTitle.
         }
-        
-        # Get original broadcaster/network (P449)
         OPTIONAL { ?item wdt:P449 ?network. }
-        
-        # Get screenwriter (P58)
         OPTIONAL { ?item wdt:P58 ?screenwriter. }
-        
-        # Get genre (P136)
         OPTIONAL { ?item wdt:P136 ?genre. }
-        
-        # Awards (P166 with qualifiers)
         OPTIONAL {
           ?item p:P166 ?awardStatement.
           ?awardStatement ps:P166 ?award.
@@ -185,8 +176,6 @@ export async function getWikidataByTmdbId(
           OPTIONAL { ?awardStatement pq:P1686 ?awardWork. }
           OPTIONAL { ?awardStatement pq:P1352 ?awardRank. }
         }
-
-        # Extended metadata (OPTIONAL)
         OPTIONAL { ?item wdt:P144 ?basedOn. }
         OPTIONAL { ?item wdt:P915 ?filmingLocation. }
         OPTIONAL { ?item wdt:P840 ?narrativeLocation. }
@@ -195,7 +184,6 @@ export async function getWikidataByTmdbId(
         OPTIONAL { ?item wdt:P1712 ?mcId. }
         OPTIONAL { ?item wdt:P3138 ?mdlId. }
         
-        # Get labels
         SERVICE wikibase:label { 
           bd:serviceParam wikibase:language "en,ko,ja,zh,th,tr,hi". 
           ?item rdfs:label ?itemLabel.
@@ -213,10 +201,15 @@ export async function getWikidataByTmdbId(
     `;
 
     console.log(`  🔍 Querying Wikidata for TMDB ${contentType} ID: ${tmdbId}`);
-    const data = await executeSparqlQuery(query);
+    let data = await executeSparqlQuery(buildQuery(tmdbProperty, tmdbId));
+
+    if (!data.results.bindings.length && imdbId) {
+      console.log(`  🔄 TMDB ID missing on Wikidata. Falling back to IMDB ID: ${imdbId}`);
+      data = await executeSparqlQuery(buildQuery('P345', imdbId));
+    }
 
     if (!data.results.bindings.length) {
-      console.log(`  ℹ️  No Wikidata entry found for TMDB ID: ${tmdbId}`);
+      console.log(`  ℹ️  No Wikidata entry found for TMDB ID: ${tmdbId}${imdbId ? ` or IMDB ID: ${imdbId}` : ''}`);
       return null;
     }
 
