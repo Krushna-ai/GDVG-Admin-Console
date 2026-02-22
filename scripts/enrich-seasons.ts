@@ -20,21 +20,34 @@ async function main() {
     let lastId = START_FROM_ID || '00000000-0000-0000-0000-000000000000';
 
     while (hasMore) {
-        let query = supabase
-            .from('content')
-            .select('id, tmdb_id, title, number_of_seasons')
-            .eq('content_type', 'tv')
-            .gt('number_of_seasons', 0)
-            .order('id', { ascending: true })
-            .limit(BATCH_SIZE);
+        let shows: any[] | null = null;
+        let error: any = null;
 
-        if (START_FROM_ID && processedCount === 0) {
-            query = query.gte('id', START_FROM_ID);
-        } else if (processedCount > 0) {
-            query = query.gt('id', lastId);
+        if (SKIP_EXISTING) {
+            const result = await supabase.rpc('get_incomplete_tv_shows', {
+                limit_num: BATCH_SIZE,
+                start_id: (START_FROM_ID && processedCount === 0) ? START_FROM_ID : lastId
+            });
+            shows = result.data;
+            error = result.error;
+        } else {
+            let query = supabase
+                .from('content')
+                .select('id, tmdb_id, title, number_of_seasons')
+                .eq('content_type', 'tv')
+                .gt('number_of_seasons', 0)
+                .order('id', { ascending: true })
+                .limit(BATCH_SIZE);
+
+            if (START_FROM_ID && processedCount === 0) {
+                query = query.gte('id', START_FROM_ID);
+            } else if (processedCount > 0) {
+                query = query.gt('id', lastId);
+            }
+            const result = await query;
+            shows = result.data;
+            error = result.error;
         }
-
-        const { data: shows, error } = await query;
 
         if (error) {
             console.error('❌ Error fetching TV shows:', error);
