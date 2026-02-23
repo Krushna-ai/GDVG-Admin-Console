@@ -14,7 +14,7 @@ env:
 jobs:
   auto-import:
     runs-on: ubuntu-latest
-    timeout-minutes: 240  # 4 hour timeout
+    timeout-minutes: 360  # 6 hour timeout (GitHub maximum) — ID crawl can take 5+ hours
 
     steps:
       - name: Checkout repository

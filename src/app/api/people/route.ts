@@ -31,7 +31,17 @@ export async function GET(request: NextRequest) {
         }
 
         if (search) {
-            query = query.or(`name.ilike.%${search}%,tmdb_id.eq.${search}`);
+            const isNumeric = /^\d+$/.test(search.trim());
+            if (isNumeric) {
+                // If pure numbers, it could be a TMDB ID or part of a name (e.g. "2001")
+                query = query.or(`name.ilike.%${search}%,tmdb_id.eq.${search}`);
+            } else {
+                // For strings, split by space and ensure ALL terms match somewhere in the name
+                const terms = search.trim().split(/\s+/).filter(Boolean);
+                terms.forEach(term => {
+                    query = query.ilike('name', `%${term}%`);
+                });
+            }
         }
 
         // Apply pagination

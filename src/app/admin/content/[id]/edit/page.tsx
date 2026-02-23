@@ -33,6 +33,18 @@ interface Content {
     keywords?: any[];
     videos?: any[];
     watch_providers?: any;
+    wiki_plot?: string;
+    wiki_cast_notes?: string;
+    wiki_production?: string;
+    wiki_reception?: string;
+    wiki_release?: string;
+    wiki_soundtrack?: string;
+    wiki_synopsis?: string;
+    wiki_accolades?: string;
+    wiki_episode_guide?: string;
+    wikidata_id?: string;
+    wikipedia_url?: string;
+    overview_source?: string;
 }
 
 interface WatchLink {
@@ -254,6 +266,308 @@ function VideoEditor({ videos, onChange }: { videos: any[]; onChange: (videos: a
     );
 }
 
+// Person Search Modal for adding Cast
+function PersonSearchModal({ isOpen, onClose, onSelect }: { isOpen: boolean; onClose: () => void; onSelect: (person: any) => void }) {
+    const [query, setQuery] = useState('');
+    const [localResults, setLocalResults] = useState<any[]>([]);
+    const [tmdbResults, setTmdbResults] = useState<any[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [importingId, setImportingId] = useState<number | null>(null);
+
+    const [tmdbSearching, setTmdbSearching] = useState(false);
+    const [tmdbSearched, setTmdbSearched] = useState(false);
+
+    useEffect(() => {
+        if (!isOpen) {
+            setQuery('');
+            setLocalResults([]);
+            setTmdbResults([]);
+            setTmdbSearched(false);
+        }
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (!query.trim()) {
+            setLocalResults([]);
+            setTmdbResults([]);
+            setTmdbSearched(false);
+            return;
+        }
+
+        const delayDebounceFn = setTimeout(async () => {
+            setLoading(true);
+            try {
+                // 1. Search Local DB ONLY on type
+                const localRes = await fetch(`/api/people?search=${encodeURIComponent(query)}&pageSize=5`);
+                if (localRes.ok) {
+                    const data = await localRes.json();
+                    setLocalResults(data.people || []);
+                }
+            } catch (err) {
+                console.error("Failed to search people:", err);
+            } finally {
+                setLoading(false);
+            }
+        }, 500);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [query]);
+
+    const handleSearchTmdb = async () => {
+        if (!query.trim()) return;
+        setTmdbSearching(true);
+        setTmdbSearched(true);
+        try {
+            const tmdbRes = await fetch(`/api/tmdb/search?query=${encodeURIComponent(query)}`);
+            if (tmdbRes.ok) {
+                const data = await tmdbRes.json();
+                // Filter to only 'person' and limit to 5
+                const tmdbPeople = (data.results || [])
+                    .filter((r: any) => r.media_type === 'person')
+                    .slice(0, 5);
+                setTmdbResults(tmdbPeople);
+            }
+        } catch (err) {
+            console.error("Failed to search TMDB:", err);
+        } finally {
+            setTmdbSearching(false);
+        }
+    };
+
+    // Handle importing a purely TMDB profile into our local DB before selecting it
+    const handleTmdbSelect = async (tmdbPerson: any) => {
+        setImportingId(tmdbPerson.id);
+        try {
+            const res = await fetch('/api/people/import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tmdb_id: tmdbPerson.id })
+            });
+            const data = await res.json();
+            if (data.person) {
+                onSelect(data.person);
+            } else {
+                alert(data.error || 'Failed to import person');
+            }
+        } catch (error) {
+            console.error('Import failed', error);
+            alert('Failed to contact import endpoint');
+        } finally {
+            setImportingId(null);
+        }
+    };
+
+    if (!isOpen) return null;
+
+    // Remove local results from TMDB results visually
+    const localTmdbIds = new Set(localResults.map(p => p.tmdb_id));
+    const uniqueTmdbResults = tmdbResults.filter(p => !localTmdbIds.has(p.id));
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-slate-900 border border-slate-700 w-full max-w-lg rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                <div className="p-4 border-b border-slate-700 flex justify-between items-center shrink-0">
+                    <h3 className="text-white font-medium">Search & Import Person</h3>
+                    <button onClick={onClose} className="text-slate-400 hover:text-white">✕</button>
+                </div>
+                <div className="p-4 flex-1 overflow-hidden flex flex-col">
+                    <input
+                        type="text"
+                        autoFocus
+                        value={query}
+                        onChange={(e) => {
+                            setQuery(e.target.value);
+                            setTmdbSearched(false);
+                            setTmdbResults([]);
+                        }}
+                        placeholder="Search by name or TMDB ID..."
+                        className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white mb-4 focus:outline-none focus:border-blue-500 shrink-0"
+                    />
+
+                    <div className="overflow-y-auto space-y-4 pr-2 pb-2 flex-1">
+                        {loading ? (
+                            <p className="text-slate-400 text-center py-4">Searching Database...</p>
+                        ) : query && localResults.length === 0 && !tmdbSearched ? (
+                            <div className="text-center py-4 space-y-3">
+                                <p className="text-slate-400 text-sm">No exact matches in your database for "{query}".</p>
+                                <button
+                                    onClick={handleSearchTmdb}
+                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm transition-colors"
+                                >
+                                    Search TMDB Instead
+                                </button>
+                            </div>
+                        ) : (
+                            <>
+                                {/* Local Results */}
+                                {localResults.length > 0 && (
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">In Database</h4>
+                                            {!tmdbSearched && (
+                                                <button onClick={handleSearchTmdb} className="text-xs text-blue-400 hover:text-blue-300">
+                                                    Don't see them? Search TMDB
+                                                </button>
+                                            )}
+                                        </div>
+                                        {localResults.map(person => (
+                                            <button
+                                                key={`local-${person.id}`}
+                                                onClick={() => onSelect(person)}
+                                                className="w-full flex items-center gap-3 p-2 bg-slate-800/80 hover:bg-slate-700 rounded-lg text-left transition-colors border border-blue-900/30"
+                                            >
+                                                <div className="w-10 h-10 rounded-full bg-slate-700 overflow-hidden flex-shrink-0">
+                                                    {person.profile_path ? (
+                                                        <img src={`https://image.tmdb.org/t/p/w92${person.profile_path}`} alt="" className="w-full h-full object-cover" />
+                                                    ) : <div className="w-full h-full flex items-center justify-center">👤</div>}
+                                                </div>
+                                                <div>
+                                                    <p className="text-white text-sm font-medium">{person.name}</p>
+                                                    <p className="text-blue-400 text-xs">Local ID: {person.id.substring(0, 8)}...</p>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* TMDB Import Results */}
+                                {tmdbSearching ? (
+                                    <p className="text-slate-400 text-center py-4 text-sm mt-4">Searching Global TMDB...</p>
+                                ) : tmdbSearched && uniqueTmdbResults.length === 0 ? (
+                                    <p className="text-slate-400 text-center py-4 text-sm mt-4">No global TMDB results found for "{query}".</p>
+                                ) : uniqueTmdbResults.length > 0 && (
+                                    <div className="space-y-2">
+                                        <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-4">Import from TMDB</h4>
+                                        {uniqueTmdbResults.map(person => (
+                                            <button
+                                                key={`tmdb-${person.id}`}
+                                                onClick={() => handleTmdbSelect(person)}
+                                                disabled={importingId === person.id}
+                                                className="w-full flex items-center justify-between p-2 bg-slate-800/40 hover:bg-slate-700 rounded-lg text-left transition-colors disabled:opacity-50"
+                                            >
+                                                <div className="flex items-center gap-3 flex-1">
+                                                    <div className="w-10 h-10 rounded-full bg-slate-700 overflow-hidden flex-shrink-0 grayscale">
+                                                        {person.profile_path ? (
+                                                            <img src={`https://image.tmdb.org/t/p/w92${person.profile_path}`} alt="" className="w-full h-full object-cover" />
+                                                        ) : <div className="w-full h-full flex items-center justify-center">👤</div>}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-white text-sm font-medium">{person.name}</p>
+                                                        <p className="text-slate-500 text-xs">TMDB ID: {person.id}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="pr-2">
+                                                    {importingId === person.id ? (
+                                                        <span className="text-blue-400 text-xs">Importing...</span>
+                                                    ) : (
+                                                        <span className="text-slate-400 text-xs flex items-center gap-1">+ Import</span>
+                                                    )}
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// Cast Editor
+function CastEditor({ cast, onChange }: { cast: CastMember[]; onChange: (cast: CastMember[]) => void }) {
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+    const updateCast = (idx: number, field: string, value: any) => {
+        const updated = [...cast];
+        updated[idx] = { ...updated[idx], [field]: value };
+        onChange(updated);
+    };
+
+    const removeCast = (idx: number) => {
+        onChange(cast.filter((_, i) => i !== idx));
+    };
+
+    const handleAddPerson = (person: any) => {
+        const newCastMember: CastMember = {
+            id: `temp-${Date.now()}`,
+            person_id: person.id,
+            character_name: '',
+            order_index: cast.length,
+            role_type: 'support',
+            person: {
+                id: person.id,
+                name: person.name,
+                profile_path: person.profile_path
+            }
+        };
+        onChange([...cast, newCastMember]);
+        setIsSearchOpen(false);
+    };
+
+    return (
+        <div className="space-y-3">
+            {cast.map((member, idx) => (
+                <div key={member.id || idx} className="flex items-center gap-3 bg-slate-900/50 p-2 rounded-lg">
+                    <div className="w-10 h-10 rounded-full bg-slate-700 overflow-hidden flex-shrink-0">
+                        {member.person?.profile_path ? (
+                            <img src={`https://image.tmdb.org/t/p/w92${member.person.profile_path}`} alt="" className="w-full h-full object-cover" />
+                        ) : <div className="w-full h-full flex items-center justify-center">👤</div>}
+                    </div>
+
+                    <div className="flex-1 grid grid-cols-12 gap-2">
+                        <div className="col-span-12 md:col-span-4">
+                            <p className="text-white text-sm font-medium">{member.person?.name}</p>
+                            <p className="text-slate-500 text-xs">ID: {member.person?.id || member.person_id}</p>
+                        </div>
+                        <input
+                            type="text"
+                            value={member.character_name}
+                            onChange={(e) => updateCast(idx, 'character_name', e.target.value)}
+                            placeholder="Character Name"
+                            className="col-span-12 md:col-span-5 px-3 py-1 bg-slate-800 border border-slate-600 rounded text-white text-sm"
+                        />
+                        <select
+                            value={member.role_type}
+                            onChange={(e) => updateCast(idx, 'role_type', e.target.value)}
+                            className="col-span-8 md:col-span-2 px-3 py-1 bg-slate-800 border border-slate-600 rounded text-white text-sm"
+                        >
+                            <option value="main">Main</option>
+                            <option value="support">Support</option>
+                            <option value="guest">Guest</option>
+                            <option value="cameo">Cameo</option>
+                        </select>
+                        <button onClick={() => removeCast(idx)} className="col-span-4 md:col-span-1 text-red-400 hover:text-red-300 flex justify-center items-center">
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+            ))}
+            {cast.length === 0 && (
+                <p className="text-slate-500 text-sm p-4 text-center border border-dashed border-slate-700 rounded-lg">No cast members assigned.</p>
+            )}
+
+            <button
+                onClick={() => setIsSearchOpen(true)}
+                className="w-full py-2 border-2 border-dashed border-slate-600 text-slate-400 hover:border-blue-500 hover:text-blue-400 rounded-lg text-sm transition-colors mt-2"
+            >
+                + Add Cast Member
+            </button>
+            <p className="text-slate-500 text-xs text-center pt-2">
+                * Note: If the person doesn't exist in the database yet, please use the <b>TMDB Import</b> or <b>People Manager</b> first.
+            </p>
+
+            <PersonSearchModal
+                isOpen={isSearchOpen}
+                onClose={() => setIsSearchOpen(false)}
+                onSelect={handleAddPerson}
+            />
+        </div>
+    );
+}
+
 export default function ContentEditPage() {
     const router = useRouter();
     const params = useParams();
@@ -266,6 +580,9 @@ export default function ContentEditPage() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [saveMessage, setSaveMessage] = useState<string | null>(null);
+
+    // Wikipedia enrichment state
+    const [enrichingWiki, setEnrichingWiki] = useState(false);
 
     // Parse genres/keywords to string arrays for editing
     const [genreNames, setGenreNames] = useState<string[]>([]);
@@ -333,6 +650,55 @@ export default function ContentEditPage() {
         if (contentId) fetchData();
     }, [contentId]);
 
+    // Handle Wikipedia Enrichment
+    const handleWikipediaEnrich = async () => {
+        if (!content || !content.wikipedia_url) {
+            alert('Please enter a Wikipedia URL first.');
+            return;
+        }
+
+        setEnrichingWiki(true);
+        try {
+            const res = await fetch('/api/wikipedia/extract', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: content.wikipedia_url }),
+            });
+
+            const result = await res.json();
+
+            if (!res.ok) {
+                throw new Error(result.error || 'Failed to extract Wikipedia data');
+            }
+
+            if (result.data) {
+                // Update editable text areas in the UI immediately without firing a db save
+                // This lets them review before clicking Update All Changes
+                setContent(prev => {
+                    if (!prev) return prev;
+                    return {
+                        ...prev,
+                        wiki_plot: result.data.wiki_plot || prev.wiki_plot || '',
+                        wiki_production: result.data.wiki_production || prev.wiki_production || '',
+                        wiki_cast_notes: result.data.wiki_cast_notes || prev.wiki_cast_notes || '',
+                        wiki_accolades: result.data.wiki_accolades || prev.wiki_accolades || '',
+                        wiki_reception: result.data.wiki_reception || prev.wiki_reception || '',
+                        wiki_soundtrack: result.data.wiki_soundtrack || prev.wiki_soundtrack || '',
+                        wiki_release: result.data.wiki_release || prev.wiki_release || '',
+                        wiki_episode_guide: result.data.wiki_episode_guide || prev.wiki_episode_guide || '',
+                        wiki_synopsis: prev.wiki_synopsis || '' // Unmodified by enricher, kept for embeddings
+                    };
+                });
+                alert('Wikipedia data extracted successfully! Please review the fields and click Save All Changes to persist to database.');
+            }
+        } catch (err: any) {
+            console.error('Wikipedia Enrichment Error:', err);
+            alert(`Extraction failed: ${err.message}`);
+        } finally {
+            setEnrichingWiki(false);
+        }
+    };
+
     // Handle save
     const handleSave = async () => {
         if (!content) return;
@@ -359,6 +725,13 @@ export default function ContentEditPage() {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ links: watchLinks }),
+            });
+
+            // Save cast assignments
+            await fetch(`/api/content/${contentId}/cast`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cast }), // The modified cast state
             });
 
             setSaveMessage('✓ Changes saved successfully!');
@@ -615,32 +988,92 @@ export default function ContentEditPage() {
                     </EditSection>
 
                     {/* Cast */}
-                    <EditSection title="Cast & Crew" icon="👥" defaultOpen={false}>
+                    <EditSection title="Cast & Crew (Editable Roles)" icon="👥" defaultOpen={false}>
                         <div className="pt-4">
-                            {cast.length > 0 ? (
-                                <div className="space-y-2">
-                                    {cast.map((member) => (
-                                        <div key={member.id} className="flex items-center gap-3 bg-slate-900/50 p-2 rounded-lg">
-                                            <div className="w-10 h-10 rounded-full bg-slate-700 overflow-hidden">
-                                                {member.person?.profile_path ? (
-                                                    <img src={`https://image.tmdb.org/t/p/w92${member.person.profile_path}`} alt="" className="w-full h-full object-cover" />
-                                                ) : <div className="w-full h-full flex items-center justify-center">👤</div>}
-                                            </div>
-                                            <div className="flex-1">
-                                                <p className="text-white text-sm">{member.person?.name}</p>
-                                                <p className="text-slate-500 text-xs">{member.character_name}</p>
-                                            </div>
-                                            <span className={`text-xs px-2 py-1 rounded ${member.role_type === 'main' ? 'bg-green-600/30 text-green-300' :
-                                                member.role_type === 'support' ? 'bg-blue-600/30 text-blue-300' :
-                                                    'bg-slate-600/30 text-slate-300'
-                                                }`}>
-                                                {member.role_type}
-                                            </span>
-                                        </div>
-                                    ))}
+                            <CastEditor cast={cast} onChange={setCast} />
+                        </div>
+                    </EditSection>
+
+                    {/* Wikipedia & Deep Enrichment Data */}
+                    <EditSection title="Wikipedia Data & Deep Lore" icon="🌐" defaultOpen={false}>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+                            <div className="md:col-span-2">
+                                <label className="block text-slate-400 text-sm mb-1">Wikipedia URL</label>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="url"
+                                        value={content.wikipedia_url || ''}
+                                        onChange={(e) => updateField('wikipedia_url', e.target.value)}
+                                        placeholder="https://en.wikipedia.org/wiki/..."
+                                        className="flex-1 px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white"
+                                    />
+                                    <button
+                                        onClick={handleWikipediaEnrich}
+                                        disabled={enrichingWiki || !content.wikipedia_url}
+                                        className="px-6 py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-purple-800 disabled:opacity-50 text-white rounded-lg transition-colors flex items-center justify-center gap-2 font-medium"
+                                        title="Manually fetch plot, production, and reception details from this Wikipedia URL"
+                                    >
+                                        {enrichingWiki ? '⏳ Extracting...' : '✨ Enrich'}
+                                    </button>
                                 </div>
-                            ) : (
-                                <p className="text-slate-500 text-sm">No cast members. Import from TMDB to populate.</p>
+                                <p className="text-xs text-slate-500 mt-1">Paste a full Wikipedia URL and click Enrich to instantly extract data sections into the text boxes below.</p>
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-slate-400 text-sm mb-1">Wiki Plot / Synopsis</label>
+                                <textarea
+                                    value={content.wiki_plot || ''}
+                                    onChange={(e) => updateField('wiki_plot', e.target.value)}
+                                    rows={5}
+                                    className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white resize-y"
+                                />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-slate-400 text-sm mb-1">Detailed Plot</label>
+                                <textarea
+                                    value={content.wiki_synopsis || ''}
+                                    onChange={(e) => updateField('wiki_synopsis', e.target.value)}
+                                    rows={8}
+                                    className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white resize-y"
+                                    placeholder="Leave blank for now. Used for vector search embeddings."
+                                />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-slate-400 text-sm mb-1">Wiki Production Notes</label>
+                                <textarea
+                                    value={content.wiki_production || ''}
+                                    onChange={(e) => updateField('wiki_production', e.target.value)}
+                                    rows={5}
+                                    className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white resize-y"
+                                />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-slate-400 text-sm mb-1">Wiki Reception / Reviews</label>
+                                <textarea
+                                    value={content.wiki_reception || ''}
+                                    onChange={(e) => updateField('wiki_reception', e.target.value)}
+                                    rows={5}
+                                    className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white resize-y"
+                                />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-slate-400 text-sm mb-1">Wiki Accolades & Awards</label>
+                                <textarea
+                                    value={content.wiki_accolades || ''}
+                                    onChange={(e) => updateField('wiki_accolades', e.target.value)}
+                                    rows={3}
+                                    className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white resize-y"
+                                />
+                            </div>
+                            {content.content_type === 'tv' && (
+                                <div className="md:col-span-2">
+                                    <label className="block text-slate-400 text-sm mb-1">Wiki Episode Guide / Series Overview</label>
+                                    <textarea
+                                        value={content.wiki_episode_guide || ''}
+                                        onChange={(e) => updateField('wiki_episode_guide', e.target.value)}
+                                        rows={5}
+                                        className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white resize-y"
+                                    />
+                                </div>
                             )}
                         </div>
                     </EditSection>
@@ -699,7 +1132,17 @@ export default function ContentEditPage() {
                                     type="text"
                                     value={content.tmdb_id || ''}
                                     readOnly
-                                    className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-slate-400"
+                                    className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-slate-400 cursor-not-allowed"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-slate-400 text-sm mb-1">Wikidata ID</label>
+                                <input
+                                    type="text"
+                                    value={content.wikidata_id || ''}
+                                    onChange={(e) => updateField('wikidata_id', e.target.value)}
+                                    placeholder="Q12345"
+                                    className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white"
                                 />
                             </div>
                         </div>
