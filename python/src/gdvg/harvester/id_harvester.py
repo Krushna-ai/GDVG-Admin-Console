@@ -4,6 +4,7 @@ This replaces the limited auto-import.ts with a comprehensive approach
 that harvests ALL TMDB IDs without quality filters.
 """
 
+import os
 import asyncio
 import logging
 from typing import Literal, Optional
@@ -13,7 +14,8 @@ import pandas as pd
 
 from gdvg.clients.tmdb import create_tmdb_client
 from gdvg.db.content import get_all_content_tmdb_ids
-from gdvg.db.queue import add_to_import_queue
+from gdvg.db.queue import add_to_import_queue, add_to_ai_validation_queue
+from gdvg.clients.supabase_client import get_supabase
 from gdvg.config import (
     REGION_CONFIGS,
     TMDB_SORT_ORDERS,
@@ -40,7 +42,12 @@ class IDHarvester:
             "sequential_ids": 0,
             "changes_ids": 0,
             "duplicates_skipped": 0,
+            "duplicates_skipped_content": 0,
+            "duplicates_skipped_import_queue": 0,
+            "duplicates_skipped_ai_queue": 0,
             "new_ids_queued": 0,
+            "import_queue_additions": 0,
+            "ai_validation_queue_additions": 0,
         }
     
     # ============================================
@@ -333,30 +340,104 @@ class IDHarvester:
         # Get all existing TMDB IDs from DB
         existing_ids = get_all_content_tmdb_ids(content_type)
         
-        # Find new IDs
-        new_ids = harvested_ids - existing_ids
+        # Get pending IDs from queues so we don't query TMDB for them unnecessarily
+        supabase = get_supabase()
         
+        import_q_res = supabase.table("import_queue").select("tmdb_id").eq("content_type", content_type).execute()
+        pending_import = {row["tmdb_id"] for row in import_q_res.data} if import_q_res.data else set()
+
+        ai_q_res = supabase.table("ai_validation_queue").select("tmdb_id").eq("content_type", content_type).execute()
+        pending_ai = {row["tmdb_id"] for row in ai_q_res.data} if ai_q_res.data else set()
+
+        # Calculate exact overlap for logging
+        in_content = harvested_ids & existing_ids
+        in_import = (harvested_ids - existing_ids) & pending_import
+        in_ai = (harvested_ids - existing_ids - pending_import) & pending_ai
+
+        existing_and_pending = existing_ids | pending_import | pending_ai
+
+        # Find new IDs
+        new_ids = harvested_ids - existing_and_pending
+        
+        # Update granular stats
+        self.stats["duplicates_skipped_content"] += len(in_content)
+        self.stats["duplicates_skipped_import_queue"] += len(in_import)
+        self.stats["duplicates_skipped_ai_queue"] += len(in_ai)
         self.stats["duplicates_skipped"] += len(harvested_ids) - len(new_ids)
         
+        logger.info(
+            f"Deduplication breakdown for {len(harvested_ids)} {content_type} items:\n"
+            f"  - Already in content: {len(in_content)}\n"
+            f"  - Already in import_queue: {len(in_import)}\n"
+            f"  - Already in ai_validation_queue: {len(in_ai)}\n"
+            f"  - Net new IDs to process: {len(new_ids)}"
+        )
+
         if not new_ids:
             logger.info("No new IDs to queue")
             return 0
-        
+            
         logger.info(
-            f"Found {len(new_ids)} new {content_type} IDs to queue "
-            f"(skipped {len(existing_ids & harvested_ids)} duplicates)"
+            f"Found {len(new_ids)} new {content_type} IDs to fetch details for"
         )
+        
+        # Batch fetch basic details to route to appropriate queue
+        high_confidence = []
+        low_confidence = []
+        vote_threshold = int(os.getenv("VOTE_COUNT_THRESHOLD", "10"))
+        
+        async with create_tmdb_client() as tmdb:
+            items_to_fetch = [(id_val, content_type) for id_val in new_ids]
+            
+            # Use chunks to avoid passing a massive list to gather at once, though get_content_details_batch has concurrency limit
+            results = await tmdb.get_content_details_batch(items_to_fetch, max_concurrent=20)
+            
+            for result in results:
+                if not result or not result.get("id"):
+                    continue
+                    
+                tmdb_id = result["id"]
+                vote_count = result.get("vote_count", 0)
+                
+                if vote_count >= vote_threshold:
+                    high_confidence.append(tmdb_id)
+                else:
+                    low_confidence.append({
+                        "tmdb_id": tmdb_id,
+                        "vote_count": vote_count,
+                        "vote_average": result.get("vote_average", 0.0),
+                        "popularity": result.get("popularity", 0.0)
+                    })
         
         # Queue in database
-        queued = add_to_import_queue(
-            tmdb_ids=list(new_ids),
-            content_type=content_type,
-            priority=priority,
+        queued_high = 0
+        if high_confidence:
+            queued_high = add_to_import_queue(
+                tmdb_ids=high_confidence,
+                content_type=content_type,
+                priority=priority,
+            )
+            
+        queued_low = 0
+        if low_confidence:
+            queued_low = add_to_ai_validation_queue(
+                items=low_confidence,
+                content_type=content_type,
+            )
+        
+        total_queued = queued_high + queued_low
+        
+        self.stats["new_ids_queued"] += total_queued
+        self.stats["import_queue_additions"] += queued_high
+        self.stats["ai_validation_queue_additions"] += queued_low
+        
+        logger.info(
+            f"Routing stats: {total_queued} total harvested newly "
+            f"-> {queued_high} to import_queue (>={vote_threshold} votes), "
+            f"{queued_low} to ai_validation_queue (<{vote_threshold} votes)"
         )
         
-        self.stats["new_ids_queued"] += queued
-        
-        return queued
+        return total_queued
     
     # ============================================
     # ORCHESTRATION

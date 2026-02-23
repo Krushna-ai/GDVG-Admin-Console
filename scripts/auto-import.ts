@@ -1,43 +1,22 @@
 /**
  * Auto-Import Script for GitHub Actions
- * Runs daily at 3 AM IST to discover and import new content
+ * Runs daily to process pending items from the import_queue.
  * 
- * Priority Order: KR > CN > TH > TR > JP > IN > Western
- * Daily Quota: 1000 items
+ * Uses BATCH_SIZE environment variable (default 4000).
  */
 
 import supabase from './lib/supabase';
-import { discoverTv, discoverMovies, delay } from './lib/tmdb';
-import { enrichAndSaveContent, checkContentExists } from './lib/enrich';
+import { delay } from './lib/tmdb';
+import { enrichAndSaveContent } from './lib/enrich';
+import * as fs from 'fs';
 
 // ============================================
 // CONFIGURATION
 // ============================================
 
-const DAILY_QUOTA = 1000;
-const MAX_PAGES_PER_REGION = 50; // Safety limit
+const BATCH_SIZE = process.env.BATCH_SIZE ? parseInt(process.env.BATCH_SIZE, 10) : 4000;
 const DRY_RUN = process.env.DRY_RUN === 'true';
-
-// Priority: Higher = imported first
-const COUNTRY_PRIORITY: Record<string, number> = {
-    'KR': 10, 'CN': 9, 'TW': 9, 'HK': 9, 'TH': 8, 'TR': 7,
-    'JP': 6, 'IN': 4, 'US': 2, 'GB': 2, 'CA': 2, 'AU': 2,
-};
-
-const CONTENT_TYPE_PRIORITY: Record<string, number> = {
-    'drama': 10, 'tv': 8, 'movie': 6, 'anime': 5,
-};
-
-// Regions to discover (in priority order)
-const REGION_CONFIGS = [
-    { code: 'KR', countries: ['KR'] },
-    { code: 'CN', countries: ['CN', 'TW', 'HK'] },
-    { code: 'TH', countries: ['TH'] },
-    { code: 'TR', countries: ['TR'] },
-    { code: 'JP', countries: ['JP'] },
-    { code: 'IN', countries: ['IN'] },
-    { code: 'WESTERN', countries: ['US', 'GB'] },
-];
+const MAX_ATTEMPTS = 3;
 
 // ============================================
 // PAUSE STATUS CHECK
@@ -80,325 +59,147 @@ async function checkSyncPauseStatus() {
 // ============================================
 
 async function main() {
-    console.log('🚀 Starting Auto-Import...');
+    console.log('🚀 Starting Auto-Import (Queue Drainer)...');
 
     // Check if sync is paused - exit if paused
     await checkSyncPauseStatus();
 
     console.log(`📅 Date: ${new Date().toISOString()}`);
     console.log(`🧪 Dry Run: ${DRY_RUN}`);
-    console.log(`📊 Daily Quota: ${DAILY_QUOTA}`);
-
-    // Create sync job
-    const jobId = await createSyncJob();
-    console.log(`📋 Created job: ${jobId}`);
+    console.log(`📊 Batch Size: ${BATCH_SIZE}`);
 
     try {
-        let imported = 0;
-        let skipped = 0;
-        let failed = 0;
-        let totalPeople = 0;
-        let discovered = 0;
+        // Step 1: Fetch pending items from queue
+        console.log(`\n📡 Fetching up to ${BATCH_SIZE} pending items from import_queue...`);
+        const { data: queueItems, error: fetchError } = await supabase
+            .from('import_queue')
+            .select('*')
+            .eq('status', 'pending')
+            .order('priority', { ascending: false })
+            .order('created_at', { ascending: true })
+            .limit(BATCH_SIZE);
 
-        console.log('\n📡 Starting adaptive discovery and import...\n');
-
-        // Adaptive discovery: keep fetching until quota met
-        for (const region of REGION_CONFIGS) {
-            if (imported >= DAILY_QUOTA) break;
-
-            console.log(`\n🌍 Region: ${region.code}`);
-
-            for (const country of region.countries) {
-                if (imported >= DAILY_QUOTA) break;
-
-                // Process TV shows
-                const tvResult = await processContentType(
-                    'tv',
-                    country,
-                    DAILY_QUOTA - imported,
-                    jobId
-                );
-
-                imported += tvResult.imported;
-                skipped += tvResult.skipped;
-                failed += tvResult.failed;
-                totalPeople += tvResult.people;
-                discovered += tvResult.discovered;
-
-                if (imported >= DAILY_QUOTA) break;
-
-                // Process movies (1-2 pages max)
-                const movieResult = await processContentType(
-                    'movie',
-                    country,
-                    DAILY_QUOTA - imported,
-                    jobId,
-                    2 // Max 2 pages for movies
-                );
-
-                imported += movieResult.imported;
-                skipped += movieResult.skipped;
-                failed += movieResult.failed;
-                totalPeople += movieResult.people;
-                discovered += movieResult.discovered;
-            }
+        if (fetchError) {
+            throw new Error(`Failed to fetch from import_queue: ${fetchError.message}`);
         }
 
-        // Update final job stats
-        if (!DRY_RUN) {
-            await updateJobStats(jobId, {
-                status: 'completed',
-                total_discovered: discovered,
-                total_imported: imported,
-                total_failed: failed,
-                total_skipped: skipped,
-                total_people_imported: totalPeople,
-                completed_at: new Date().toISOString(),
-            });
+        if (!queueItems || queueItems.length === 0) {
+            console.log('🤷‍♂️ No pending items in queue. Job completed.');
+            return;
+        }
+
+        console.log(`📦 Found ${queueItems.length} items to process.`);
+
+        let successCount = 0;
+        let failCount = 0;
+        let peopleImported = 0;
+
+        // Step 2: Process each item
+        for (const item of queueItems) {
+            console.log(`\n⏳ Processing ID: ${item.tmdb_id} (${item.content_type})`);
+
+            if (DRY_RUN) {
+                console.log(`    [DRY RUN] Would import ${item.content_type} ${item.tmdb_id}`);
+                successCount++;
+                continue;
+            }
+
+            try {
+                // Import and Enrich
+                const result = await enrichAndSaveContent(item.tmdb_id, item.content_type as 'movie' | 'tv');
+
+                if (result.success) {
+                    // Update queue status to completed
+                    const { error: updateError } = await supabase
+                        .from('import_queue')
+                        .update({
+                            status: 'completed',
+                            processed_at: new Date().toISOString()
+                        })
+                        .eq('id', item.id);
+
+                    if (updateError) {
+                        console.error(`    ❌ Failed to mark as completed in DB: ${updateError.message}`);
+                    } else {
+                        console.log(`    ✅ Successfully imported and enriched.`);
+                        successCount++;
+                        peopleImported += result.peopleImported || 0;
+                    }
+                } else {
+                    // Import failed
+                    const newAttempts = (item.attempts || 0) + 1;
+                    const newStatus = newAttempts >= MAX_ATTEMPTS ? 'failed' : 'pending';
+
+                    console.error(`    ❌ Import failed: ${result.error}`);
+                    if (newStatus === 'failed') {
+                        console.error(`    ⚠️ Max attempts reached. Marking queue item as failed.`);
+                    }
+
+                    const { error: updateError } = await supabase
+                        .from('import_queue')
+                        .update({
+                            status: newStatus,
+                            attempts: newAttempts,
+                            error_message: result.error,
+                            processed_at: new Date().toISOString()
+                        })
+                        .eq('id', item.id);
+
+                    if (updateError) {
+                        console.error(`    ❌ Failed to update error status in DB: ${updateError.message}`);
+                    }
+
+                    failCount++;
+                }
+
+            } catch (error: any) {
+                console.error(`    ❌ Unexpected error processing ${item.tmdb_id}:`, error);
+
+                const newAttempts = (item.attempts || 0) + 1;
+                const newStatus = newAttempts >= MAX_ATTEMPTS ? 'failed' : 'pending';
+
+                await supabase
+                    .from('import_queue')
+                    .update({
+                        status: newStatus,
+                        attempts: newAttempts,
+                        error_message: String(error),
+                        processed_at: new Date().toISOString()
+                    })
+                    .eq('id', item.id);
+
+                failCount++;
+            }
+
+            // Rate limit: 300ms between items
+            await delay(300);
         }
 
         console.log('\n\n🎉 Auto-Import completed successfully!');
         console.log(`📊 Final Stats:`);
-        console.log(`  ✅ Imported: ${imported} content`);
-        console.log(`  👥 People: ${totalPeople}`);
-        console.log(`  ⏭️  Skipped: ${skipped} (duplicates)`);
-        console.log(`  ❌ Failed: ${failed}`);
-        console.log(`  📡 Discovered: ${discovered} total items`);
+        console.log(`  ✅ Processed Successfully: ${successCount}`);
+        console.log(`  ❌ Failed: ${failCount}`);
+        console.log(`  👥 People Imported: ${peopleImported}`);
+
+        // Write to GitHub Step Summary if running in Actions
+        if (process.env.GITHUB_STEP_SUMMARY) {
+            const summary = `
+### 📥 Auto-Import Run Summary
+- **Items Processed:** \`${successCount}\` successfully, \`${failCount}\` failed.
+- **People Imported:** \`${peopleImported}\`
+- **Batch Size Limit:** \`${BATCH_SIZE}\`
+            `;
+            try {
+                fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary.trim() + '\n');
+            } catch (err) {
+                console.warn('Failed to write GITHUB_STEP_SUMMARY', err);
+            }
+        }
 
     } catch (error) {
-        console.error('❌ Auto-Import failed:', error);
-        await updateJobStats(jobId, { status: 'failed', error_message: String(error) });
+        console.error('❌ Auto-Import failed with fatal error:', error);
         process.exit(1);
     }
-}
-
-// ============================================
-// ADAPTIVE DISCOVERY
-// ============================================
-
-interface ProcessResult {
-    imported: number;
-    skipped: number;
-    failed: number;
-    people: number;
-    discovered: number;
-}
-
-/**
- * Get progressive discovery filters based on page number
- * Filters relax as pages increase to discover more content
- * 
- * - Pages 1-20: Strict (high quality only)
- * - Pages 21-50: Medium (good quality)
- * - Pages 51-100: Relaxed (acceptable quality)
- * - Pages 101+: Region-only (no quality filters)
- */
-function getProgressiveFilters(page: number): Record<string, string | number> {
-    const filters: Record<string, string | number> = {};
-
-    if (page <= 20) {
-        // Tier 1: High quality only
-        filters['vote_average.gte'] = 6;
-        filters['vote_count.gte'] = 100;
-        filters['popularity.gte'] = 10;
-    } else if (page <= 50) {
-        // Tier 2: Good quality
-        filters['vote_average.gte'] = 5;
-        filters['vote_count.gte'] = 50;
-        filters['popularity.gte'] = 5;
-    } else if (page <= 100) {
-        // Tier 3: Acceptable quality
-        filters['vote_average.gte'] = 4;
-        filters['vote_count.gte'] = 20;
-        filters['popularity.gte'] = 1;
-    }
-    // Tier 4 (page 101+): No quality filters, region-only
-
-    return filters;
-}
-
-/**
- * Get filter tier name for logging
- */
-function getFilterTierName(page: number): string {
-    if (page <= 20) return 'Tier 1 (High Quality)';
-    if (page <= 50) return 'Tier 2 (Good Quality)';
-    if (page <= 100) return 'Tier 3 (Acceptable)';
-    return 'Tier 4 (Region-Only)';
-}
-
-/**
- * Process content type for a country with adaptive page fetching
- * Keeps fetching pages until quota met or max pages reached
- */
-async function processContentType(
-    contentType: 'movie' | 'tv',
-    country: string,
-    remainingQuota: number,
-    jobId: string,
-    maxPages: number = MAX_PAGES_PER_REGION
-): Promise<ProcessResult> {
-    let imported = 0;
-    let skipped = 0;
-    let failed = 0;
-    let totalPeople = 0;
-    let discovered = 0;
-    let page = 1;
-    let consecutiveEmptyPages = 0;
-
-    const filterTier = getFilterTierName(page);
-    console.log(`  ${contentType.toUpperCase()} (${country}) - Starting with ${filterTier}:`);
-
-    while (imported < remainingQuota && page <= maxPages) {
-        try {
-            // Get progressive filters for current page
-            const progressiveFilters = getProgressiveFilters(page);
-
-            // Log filter tier changes
-            const currentTier = getFilterTierName(page);
-            const previousTier = getFilterTierName(page - 1);
-            if (page > 1 && currentTier !== previousTier) {
-                console.log(`    → Switching to ${currentTier} (page ${page})`);
-            }
-
-            // Fetch page from TMDB with progressive filters
-            const data = contentType === 'tv'
-                ? await discoverTv({
-                    with_origin_country: country,
-                    sort_by: 'popularity.desc',
-                    page,
-                    ...progressiveFilters
-                })
-                : await discoverMovies({
-                    with_origin_country: country,
-                    sort_by: 'popularity.desc',
-                    page,
-                    ...progressiveFilters
-                });
-
-            const items = data.results || [];
-            discovered += items.length;
-
-            if (items.length === 0) {
-                consecutiveEmptyPages++;
-                if (consecutiveEmptyPages >= 2) {
-                    console.log(`    No more content available`);
-                    break;
-                }
-                page++;
-                continue;
-            }
-
-            consecutiveEmptyPages = 0;
-            let pageNewItems = 0;
-
-            // Process each item
-            for (const item of items) {
-                if (imported >= remainingQuota) break;
-
-                const tmdbId = item.id;
-
-                // Check if already exists
-                const exists = await checkContentExists(tmdbId, contentType);
-
-                if (exists) {
-                    skipped++;
-                    continue;
-                }
-
-                // Import with enrichment (content + cast/crew)
-                if (!DRY_RUN) {
-                    try {
-                        const result = await enrichAndSaveContent(tmdbId, contentType);
-
-                        if (result.success) {
-                            imported++;
-                            pageNewItems++;
-                            totalPeople += result.peopleImported || 0;
-
-                            // Progress log every 10 items
-                            if (imported % 10 === 0) {
-                                console.log(`    ✓ ${imported}/${remainingQuota} (${skipped} skipped, ${totalPeople} people)`);
-                            }
-                        } else {
-                            failed++;
-                            console.error(`    Failed ${tmdbId}: ${result.error}`);
-                        }
-
-                        // Rate limiting delay
-                        await delay(300);
-                    } catch (error) {
-                        failed++;
-                        console.error(`    Error importing ${tmdbId}:`, error);
-                    }
-                } else {
-                    // DRY RUN mode
-                    imported++;
-                    pageNewItems++;
-                    console.log(`    [DRY RUN] Would import: ${item.title || item.name} (${tmdbId})`);
-                }
-            }
-
-            // If no new items in this page, we might be hitting mostly duplicates
-            if (pageNewItems === 0 && page > 3) {
-                console.log(`    Page ${page}: all duplicates, continuing...`);
-            }
-
-            page++;
-            await delay(100); // Delay between pages
-
-        } catch (error) {
-            console.error(`    Error on page ${page}:`, error);
-            page++;
-        }
-    }
-
-    if (imported > 0) {
-        console.log(`    ✅ ${contentType}: ${imported} imported, ${skipped} skipped, ${totalPeople} people`);
-    }
-
-    return {
-        imported,
-        skipped,
-        failed,
-        people: totalPeople,
-        discovered,
-    };
-}
-
-// ============================================
-// JOB MANAGEMENT
-// ============================================
-
-async function createSyncJob(): Promise<string> {
-    const { data, error } = await supabase
-        .from('sync_jobs')
-        .insert({
-            sync_type: 'auto',
-            status: 'running',
-            daily_quota: DAILY_QUOTA,
-            started_at: new Date().toISOString(),
-        })
-        .select('id')
-        .single();
-
-    if (error) throw new Error(`Failed to create job: ${error.message}`);
-    return data.id;
-}
-
-async function updateJobStats(jobId: string, stats: Record<string, any>) {
-    await supabase.from('sync_jobs').update(stats).eq('id', jobId);
-}
-
-// ============================================
-// HELPERS
-// ============================================
-
-function logSampleItems(items: any[]) {
-    console.log('\n📋 Sample items that would be imported:');
-    items.forEach((item, i) => {
-        console.log(`  ${i + 1}. [${item.content_type}] ${item.title} (${item.origin_country.join(', ')}) - Priority: ${item.priority_score}`);
-    });
 }
 
 // Run

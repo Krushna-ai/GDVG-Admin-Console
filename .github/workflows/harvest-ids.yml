@@ -1,0 +1,86 @@
+name: ID Harvester (Monthly)
+
+on:
+  schedule:
+    # 1st of month, 2 AM UTC
+    - cron: '0 2 1 * *'
+  workflow_dispatch:
+    inputs:
+      max_pages:
+        description: 'Max pages per region/sort combo'
+        required: false
+        default: '500'
+      strategies:
+        description: 'Comma separated strategies (e.g. discover,changes)'
+        required: false
+        default: 'discover,changes'
+      regions:
+        description: 'Comma separated regions (empty = all)'
+        required: false
+        default: ''
+      content_types:
+        description: 'Comma separated types (e.g. movie,tv)'
+        required: false
+        default: 'movie,tv'
+      dry_run:
+        description: 'Dry run (no actual database inserts)'
+        type: boolean
+        required: false
+        default: false
+      vote_count_threshold:
+        description: 'Vote count threshold for AI validation queue routing'
+        required: false
+        default: '10'
+
+env:
+  PYTHON_VERSION: '3.11'
+  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+  TMDB_ACCESS_TOKEN: ${{ secrets.TMDB_ACCESS_TOKEN }}
+
+jobs:
+  harvest-ids:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: 'python/pyproject.toml'
+
+      - name: Install dependencies
+        working-directory: python
+        run: pip install -e .
+
+      - name: Run Harvester
+        working-directory: python
+        run: |
+          python -m gdvg.harvester.run_harvest
+        env:
+          MAX_PAGES: ${{ github.event.inputs.max_pages || '500' }}
+          STRATEGIES: ${{ github.event.inputs.strategies || 'discover,changes' }}
+          REGIONS: ${{ github.event.inputs.regions || '' }}
+          CONTENT_TYPES: ${{ github.event.inputs.content_types || 'movie,tv' }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+          VOTE_COUNT_THRESHOLD: ${{ github.event.inputs.vote_count_threshold || '10' }}
+
+      - name: Report Results
+        if: always()
+        run: |
+          echo "## 🌾 Monthly ID Harvester Results" >> $GITHUB_STEP_SUMMARY
+          echo "Triggered by: @${{ github.actor || 'cron schedule' }}" >> $GITHUB_STEP_SUMMARY
+          echo "Run completed at $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Configuration Used:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Dry Run: \`${{ github.event.inputs.dry_run || 'false' }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Vote Count Threshold: \`${{ github.event.inputs.vote_count_threshold || '10' }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Max Pages: \`${{ github.event.inputs.max_pages || '500' }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Strategies: \`${{ github.event.inputs.strategies || 'discover,changes' }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check the detailed step logs to see the routing stats reflecting how many IDs were sent to \`import_queue\` versus \`ai_validation_queue\`." >> $GITHUB_STEP_SUMMARY

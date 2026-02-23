@@ -3,7 +3,7 @@
  * Handles content import with cast and crew processing
  */
 
-import { getMovieDetails, getTvDetails, delay } from './tmdb';
+import { getMovieDetails, getTvDetails, getSeasonDetails, delay } from './tmdb';
 import {
     upsertContent,
     upsertPerson,
@@ -12,28 +12,15 @@ import {
     deleteContentCast,
     deleteContentCrew,
     checkContentExists,
-    upsertAwards,
-    Award
+    upsertSeason,
+    upsertEpisode,
 } from './database';
-import { getWikidataByTmdbId, getWikidataById } from './wikidata';
-import { getContentSummary, getPersonBioMultiVariant } from './wikipedia';
-import { parseArticleForContent, WikiArticleData } from './wiki-parser';
+import { addToEnrichmentQueue } from './queue';
+import { supabase } from './supabase';
 
 // ============================================
 // CONSTANTS
 // ============================================
-
-const MAX_CAST = 20; // Top 20 cast members
-const IMPORTANT_CREW_JOBS = [
-    'Director',
-    'Writer',
-    'Screenplay',
-    'Producer',
-    'Executive Producer',
-    'Creator',
-    'Novel',
-    'Story',
-];
 
 // ============================================
 // TYPES
@@ -80,6 +67,7 @@ function mapTmdbToContent(details: any, contentType: 'movie' | 'tv'): any {
         overview: details.overview || null,
         poster_path: details.poster_path || null,
         backdrop_path: details.backdrop_path || null,
+        images: details.images || null,
         release_date: isMovie ? parseDate(details.release_date) : null,
         first_air_date: !isMovie ? parseDate(details.first_air_date) : null,
         last_air_date: !isMovie ? parseDate(details.last_air_date) : null,
@@ -119,10 +107,10 @@ function mapTmdbToContent(details: any, contentType: 'movie' | 'tv'): any {
             twitter: externalIds?.twitter_id
         },
         // Expanded data
-        translations: details.translations?.translations?.slice(0, 50) || null,
-        recommendations: details.recommendations?.results?.slice(0, 20) ?? [],
-        similar_content: details.similar?.results?.slice(0, 20) ?? [],
-        reviews_tmdb: details.reviews?.results?.slice(0, 10) ?? [],
+        translations: details.translations?.translations || null,
+        recommendations: details.recommendations?.results ?? [],
+        similar_content: details.similar?.results ?? [],
+        reviews_tmdb: details.reviews?.results ?? [],
         belongs_to_collection: details.belongs_to_collection ?? null,
         release_dates: details.release_dates?.results ?? null,
         aggregate_credits: details.aggregate_credits ?? null,
@@ -266,9 +254,9 @@ function normalizeGenre(genre: string): string {
  * @param tmdbGenres Genres from TMDB
  * @returns Merged and deduplicated genre list
  */
-function mergeGenres(
+export function mergeGenres(
     wikidataGenres: string[] = [],
-    tmdbGenres: Array<{ id: number; name: string }> = []
+    tmdbGenres: Array<{ id?: number; name: string }> = []
 ): Array<{ id?: number; name: string }> {
     const seenNormalized = new Set<string>();
     const merged: Array<{ id?: number; name: string }> = [];
@@ -332,253 +320,9 @@ function mergeKeywords(
 
 
 
-// ============================================
-// WIKIPEDIA-FIRST ENRICHMENT
-// ============================================
-
 /**
- * Enrich content overview with Wikipedia-first strategy
- * Tries Wikipedia first, falls back to TMDB if not available
- * 
- * @param tmdbDetails TMDB details object
- * @param contentType Type of content
- * @returns Enriched overview and metadata
+ * Clean bio sources that we remove
  */
-async function enrichOverviewFromWikipedia(
-    tmdbDetails: any,
-    contentType: 'movie' | 'tv'
-): Promise<{ overview: string | null; overview_source: string; wikipedia_url?: string } & WikiArticleData> {
-    const tmdbOverview = tmdbDetails.overview || null;
-
-    try {
-        // Step 1: Get Wikipedia title from Wikidata or TMDB
-        const wikidataId = tmdbDetails.external_ids?.wikidata_id;
-        let wikipediaTitle: string | undefined;
-        let wikipediaUrl: string | undefined;
-
-        if (wikidataId) {
-            // Use existing Wikidata ID from TMDB
-            console.log(`  🔍 Using Wikidata ID from TMDB: ${wikidataId}`);
-            const wikidataResult = await getWikidataById(wikidataId);
-            wikipediaTitle = wikidataResult?.wikipedia_title;
-            wikipediaUrl = wikidataResult?.wikipedia_url;
-        } else {
-            // Query Wikidata by TMDB ID or fallback IMDB ID
-            const imdbId = tmdbDetails.external_ids?.imdb_id || tmdbDetails.imdb_id;
-            const wikidataResult = await getWikidataByTmdbId(tmdbDetails.id, contentType, imdbId);
-            wikipediaTitle = wikidataResult?.wikipedia_title;
-            wikipediaUrl = wikidataResult?.wikipedia_url;
-        }
-
-        // Step 2: Try to fetch Wikipedia summary if we have a title
-        if (wikipediaTitle) {
-            const wikiSummary = await getContentSummary(wikipediaTitle, 'en');
-            let wikiData: WikiArticleData = {};
-
-            try {
-                console.log(`  🌐 Fetching full article sections for: ${wikipediaTitle}`);
-                wikiData = await parseArticleForContent(wikipediaTitle, 'en');
-            } catch (err) {
-                console.error(`  ❌ Error fetching article sections:`, err);
-            }
-
-            if (wikiSummary && wikiSummary.extract) {
-                console.log(`  ✅ Using Wikipedia overview (${wikiSummary.extract.length} chars)`);
-                return {
-                    overview: wikiSummary.extract,
-                    overview_source: 'wikipedia',
-                    wikipedia_url: wikiSummary.page_url || wikipediaUrl,
-                    ...wikiData
-                };
-            }
-
-            // If we have parsed section data but no summary
-            if (Object.keys(wikiData).length > 0) {
-                return {
-                    overview: tmdbOverview,
-                    overview_source: tmdbOverview ? 'tmdb' : 'none',
-                    wikipedia_url: wikipediaUrl,
-                    ...wikiData
-                };
-            }
-        }
-
-        // Step 3: Fallback to TMDB
-        if (tmdbOverview) {
-            console.log(`  ℹ️  Wikipedia not available, using TMDB overview`);
-            return {
-                overview: tmdbOverview,
-                overview_source: 'tmdb',
-            };
-        }
-
-        console.log(`  ⚠️  No overview available from Wikipedia or TMDB`);
-        return {
-            overview: null,
-            overview_source: 'none',
-        };
-
-    } catch (error) {
-        console.error(`  ❌ Error enriching overview: ${error instanceof Error ? error.message : String(error)}`);
-        console.log(`  ↩️  Falling back to TMDB overview`);
-        return {
-            overview: tmdbOverview,
-            overview_source: 'tmdb',
-        };
-    }
-}
-
-/**
- * Enrich network and screenwriter data from Wikidata
- * Queries Wikidata for P449 (network) and P58 (screenwriter)
- * 
- * @param tmdbDetails TMDB details object
- * @param contentType Type of content
- * @returns Enriched network and screenwriter data
- */
-async function enrichFromWikidata(
-    tmdbDetails: any,
-    contentType: 'movie' | 'tv'
-): Promise<{
-    original_network?: string;
-    screenwriters?: string[];
-    genres?: string[];
-    awards?: Award[];
-    based_on?: string;
-    filming_location?: string;
-    narrative_location?: string;
-    box_office?: number;
-    rt_id?: string;
-    mc_id?: string;
-    mdl_id?: string;
-}> {
-    try {
-        // Query Wikidata for both TV and movies (genres apply to both)
-        const wikidataId = tmdbDetails.external_ids?.wikidata_id;
-        let wikidataResult;
-
-        if (wikidataId) {
-            console.log(`  🔍 Querying Wikidata ID ${wikidataId} for network/screenwriter/genres`);
-            wikidataResult = await getWikidataById(wikidataId);
-        } else {
-            console.log(`  🔍 Querying Wikidata by TMDB ID for network/screenwriter/genres`);
-            const imdbId = tmdbDetails.external_ids?.imdb_id || tmdbDetails.imdb_id;
-            wikidataResult = await getWikidataByTmdbId(tmdbDetails.id, contentType, imdbId);
-        }
-
-        if (!wikidataResult) {
-            console.log(`  ℹ️  No Wikidata result found`);
-            return {};
-        }
-
-        const enriched: {
-            original_network?: string;
-            screenwriters?: string[];
-            genres?: string[];
-            awards?: Award[];
-            based_on?: string;
-            filming_location?: string;
-            narrative_location?: string;
-            box_office?: number;
-            rt_id?: string;
-            mc_id?: string;
-            mdl_id?: string;
-        } = {};
-
-        // Network from Wikidata (P449) - TV only
-        if (contentType === 'tv' && wikidataResult.original_network) {
-            enriched.original_network = wikidataResult.original_network;
-            console.log(`  ✅ Wikidata network: ${wikidataResult.original_network}`);
-        }
-
-        // Screenwriters from Wikidata (P58)
-        if (wikidataResult.screenwriters && wikidataResult.screenwriters.length > 0) {
-            enriched.screenwriters = wikidataResult.screenwriters;
-            console.log(`  ✅ Wikidata screenwriters: ${wikidataResult.screenwriters.join(', ')}`);
-        }
-
-        // Genres from Wikidata (P136)
-        if (wikidataResult.genres && wikidataResult.genres.length > 0) {
-            enriched.genres = wikidataResult.genres;
-            console.log(`  ✅ Wikidata genres: ${wikidataResult.genres.join(', ')}`);
-        }
-
-        // Awards from Wikidata
-        if (wikidataResult.awards && wikidataResult.awards.length > 0) {
-            enriched.awards = wikidataResult.awards;
-            console.log(`  🏆 Wikidata awards: ${wikidataResult.awards.length} found`);
-        }
-
-        // Extended metadata
-        if (wikidataResult.based_on) enriched.based_on = wikidataResult.based_on;
-        if (wikidataResult.filming_location) enriched.filming_location = wikidataResult.filming_location;
-        if (wikidataResult.narrative_location) enriched.narrative_location = wikidataResult.narrative_location;
-        if (wikidataResult.box_office) enriched.box_office = wikidataResult.box_office;
-
-        // Extended IDs
-        if (wikidataResult.rt_id) enriched.rt_id = wikidataResult.rt_id;
-        if (wikidataResult.mc_id) enriched.mc_id = wikidataResult.mc_id;
-        if (wikidataResult.mdl_id) enriched.mdl_id = wikidataResult.mdl_id;
-
-        return enriched;
-
-    } catch (error) {
-        console.error(`  ❌ Error enriching from Wikidata: ${error instanceof Error ? error.message : String(error)}`);
-        return {};
-    }
-}
-
-/**
- * Enrich person biography with Wikipedia-first strategy
- * Tries Wikipedia first, falls back to TMDB biography
- * 
- * @param personName Person's name
- * @param tmdbBio Biography from TMDB (fallback)
- * @returns Enriched biography and metadata
- */
-async function enrichPersonBio(
-    personName: string,
-    tmdbBio: string | null = null
-): Promise<{
-    biography: string | null;
-    bio_source: string;
-    wikipedia_url?: string;
-}> {
-    try {
-        // Try Wikipedia first with name variants
-        const wikiSummary = await getPersonBioMultiVariant(personName, 'en');
-
-        if (wikiSummary && wikiSummary.extract) {
-            console.log(`    ✅ Wikipedia bio for ${personName} (${wikiSummary.extract.length} chars)`);
-            return {
-                biography: wikiSummary.extract,
-                bio_source: 'wikipedia',
-                wikipedia_url: wikiSummary.page_url,
-            };
-        }
-
-        // Fallback to TMDB
-        if (tmdbBio) {
-            console.log(`    ↩️  Using TMDB bio for ${personName}`);
-            return {
-                biography: tmdbBio,
-                bio_source: 'tmdb',
-            };
-        }
-
-        return {
-            biography: null,
-            bio_source: 'none',
-        };
-
-    } catch (error) {
-        console.error(`    ❌ Error enriching bio for ${personName}:`, error);
-        return {
-            biography: tmdbBio,
-            bio_source: tmdbBio ? 'tmdb' : 'none',
-        };
-    }
-}
 
 
 
@@ -614,89 +358,28 @@ export async function enrichAndSaveContent(
             return { success: false, error: 'Failed to fetch from TMDB' };
         }
 
-        // 2. Enrich overview with Wikipedia (Wikipedia-first strategy)
-        console.log(`\n🌐 Enriching overview with Wikipedia...`);
-        const overviewEnrichment = await enrichOverviewFromWikipedia(details, contentType);
-
-        // 2b. Enrich network, screenwriter, and genres from Wikidata
-        console.log(`\n📊 Enriching from Wikidata...`);
-        const wikidataEnrichment = await enrichFromWikidata(details, contentType);
-
-        // 3. Map TMDB data to our content format (with Wikipedia-enriched overview)
+        // 2. Map TMDB data to our content format
         const contentData = mapTmdbToContent(details, contentType);
+        contentData.overview_source = contentData.overview ? 'tmdb' : 'none';
 
-        // Override overview with Wikipedia-enriched data
-        contentData.overview = overviewEnrichment.overview;
-        contentData.overview_source = overviewEnrichment.overview_source; // Assign overview_source
-
-        if (overviewEnrichment.wikipedia_url) {
-            contentData.wikipedia_url = overviewEnrichment.wikipedia_url;
-        }
-
-        // Merge WikiArticleData fields (safe merge)
-        const wikiFields: (keyof WikiArticleData)[] = [
-            'wiki_plot', 'wiki_production', 'wiki_cast_notes', 'wiki_accolades',
-            'wiki_reception', 'wiki_soundtrack', 'wiki_release', 'wiki_episode_guide'
-        ];
-
-        for (const field of wikiFields) {
-            const newValue = overviewEnrichment[field];
-            // Only update if new value is non-null and non-empty
-            if (newValue !== undefined && newValue !== null && newValue.trim() !== '') {
-                // Do NOT overwrite already-populated fields (if they happen to exist)
-                if (!contentData[field] || (typeof contentData[field] === 'string' && contentData[field].trim() === '')) {
-                    contentData[field] = newValue.trim();
-                }
-            }
-        }
-
-        // Merge Wikidata network (Wikidata first, TMDB fallback)
-        if (wikidataEnrichment.original_network) {
-            contentData.original_network = wikidataEnrichment.original_network;
-        } else if (contentData.networks && contentData.networks.length > 0) {
+        // Use TMDB network as default
+        if (contentData.networks && contentData.networks.length > 0) {
             contentData.original_network = contentData.networks[0].name;
-            console.log(`  ↩️  Using TMDB network: ${contentData.original_network}`);
+            console.log(`  🎬 Using TMDB network: ${contentData.original_network}`);
         }
 
-        // Merge extended Wikidata metadata
-        if (wikidataEnrichment.based_on) contentData.based_on = wikidataEnrichment.based_on;
-        if (wikidataEnrichment.filming_location) contentData.filming_location = wikidataEnrichment.filming_location;
-        if (wikidataEnrichment.narrative_location) contentData.narrative_location = wikidataEnrichment.narrative_location;
-        if (wikidataEnrichment.box_office) contentData.box_office = wikidataEnrichment.box_office;
-
-        // Merge extended external IDs
-        contentData.external_ids = contentData.external_ids || {};
-        if (wikidataEnrichment.rt_id) contentData.external_ids.rotten_tomatoes_id = wikidataEnrichment.rt_id;
-        if (wikidataEnrichment.mc_id) contentData.external_ids.metacritic_id = wikidataEnrichment.mc_id;
-        if (wikidataEnrichment.mdl_id) contentData.external_ids.mydramalist_id = wikidataEnrichment.mdl_id;
-
-        // Merge genres from Wikidata + TMDB (with deduplication)
-        console.log(`\n🏷️  Merging genres and keywords...`);
+        // Merge genres from TMDB only, leaving Wikidata for later
+        console.log(`  🏷️  Processing TMDB genres and keywords...`);
         const tmdbGenres = contentData.genres || [];
-        const wikidataGenres = wikidataEnrichment.genres || [];
-        const mergedGenres = mergeGenres(wikidataGenres, tmdbGenres);
+        const mergedGenres = mergeGenres([], tmdbGenres);
         contentData.genres = mergedGenres;
 
-        if (wikidataGenres.length > 0) {
-            console.log(`  ✅ Merged ${mergedGenres.length} genres (${wikidataGenres.length} from Wikidata, ${tmdbGenres.length} from TMDB)`);
-        } else {
-            console.log(`  ℹ️  Using ${tmdbGenres.length} TMDB genres`);
-        }
-
-        // Merge keywords from TMDB (Wikipedia categories future)
+        // Merge keywords from TMDB
         const tmdbKeywords = contentData.keywords || [];
         const mergedKeywords = mergeKeywords(tmdbKeywords, []);
         contentData.keywords = mergedKeywords;
-        console.log(`  ✅ ${mergedKeywords.length} keywords processed`);
 
-        // Log screenwriters for crew processing
-        if (wikidataEnrichment.screenwriters && wikidataEnrichment.screenwriters.length > 0) {
-            console.log(`  📝 Screenwriters from Wikidata: ${wikidataEnrichment.screenwriters.join(', ')}`);
-        }
-
-        // Note: overview_source will be added to database schema in Phase 6
-
-        // 4. Insert/update content
+        // 3. Insert/update content
         const content = await upsertContent(contentData);
 
         if (!content.id) {
@@ -705,17 +388,25 @@ export async function enrichAndSaveContent(
 
         const contentId = content.id;
 
-        // 4.5 Save Awards
-        if (wikidataEnrichment.awards && wikidataEnrichment.awards.length > 0) {
-            console.log(`\n🏆 Saving awards to database...`);
-            await upsertAwards(contentId, null, wikidataEnrichment.awards);
-            console.log(`  ✅ Saved ${wikidataEnrichment.awards.length} awards`);
+        // Push to enrichment queue for async Wikidata/Wikipedia parsing
+        try {
+            const added = await addToEnrichmentQueue(contentId, 'content', 10);
+            if (added) {
+                console.log(`  📥 Enqueued for Wikidata/Wikipedia enrichment`);
+            } else {
+                console.log(`  ℹ️  Already in enrichment queue`);
+            }
+        } catch (e) {
+            console.error(`  ⚠️ Failed to enqueue for enrichment`, e);
         }
 
-        // 4. Process cast (top 20 members)
+        // 4. Process cast (ALL members - no limit)
         let peopleCount = 0;
-        const castMembers = details.credits?.cast?.slice(0, MAX_CAST) || [];
+        const castMembers = details.credits?.cast || [];
 
+        console.log(`  👥 Processing ${castMembers.length} cast members unconditionally...`);
+
+        // Batch upsert optimizations can be applied later, using serial for now to match interface
         for (const cast of castMembers) {
             try {
                 // Upsert person
@@ -745,10 +436,9 @@ export async function enrichAndSaveContent(
             }
         }
 
-        // 5. Process crew (important jobs only)
-        const crewMembers = details.credits?.crew?.filter(
-            (crew: any) => IMPORTANT_CREW_JOBS.includes(crew.job)
-        ) || [];
+        // 5. Process crew (ALL members - no limit)
+        const crewMembers = details.credits?.crew || [];
+        console.log(`  👥 Processing ${crewMembers.length} crew members unconditionally...`);
 
         for (const crew of crewMembers) {
             try {
@@ -776,6 +466,11 @@ export async function enrichAndSaveContent(
             } catch (error) {
                 console.error(`  Failed to process crew member ${crew.id}:`, error);
             }
+        }
+
+        // 6. Inline Seasons/Episodes Processing for TV Shows
+        if (contentType === 'tv' && contentData.number_of_seasons && contentData.number_of_seasons > 0) {
+            await enrichAndSaveSeasons(contentId, tmdbId, contentData.number_of_seasons);
         }
 
         return {
@@ -832,9 +527,9 @@ export async function updateContentWithCredits(
         await deleteContentCast(contentId);
         await deleteContentCrew(contentId);
 
-        // 5. Re-import cast
+        // 5. Re-import cast (ALL members - no limit)
         let peopleCount = 0;
-        const castMembers = details.credits?.cast?.slice(0, MAX_CAST) || [];
+        const castMembers = details.credits?.cast || [];
 
         for (const cast of castMembers) {
             try {
@@ -863,10 +558,8 @@ export async function updateContentWithCredits(
             }
         }
 
-        // 6. Re-import crew
-        const crewMembers = details.credits?.crew?.filter(
-            (crew: any) => IMPORTANT_CREW_JOBS.includes(crew.job)
-        ) || [];
+        // 6. Re-import crew (ALL members - no limit)
+        const crewMembers = details.credits?.crew || [];
 
         for (const crew of crewMembers) {
             try {
@@ -894,6 +587,11 @@ export async function updateContentWithCredits(
             }
         }
 
+        // 7. Inline Seasons/Episodes Processing for TV Shows (Update mode)
+        if (contentType === 'tv' && contentData.number_of_seasons && contentData.number_of_seasons > 0) {
+            await enrichAndSaveSeasons(contentId, tmdbId, contentData.number_of_seasons);
+        }
+
         return {
             success: true,
             peopleUpdated: peopleCount,
@@ -905,6 +603,70 @@ export async function updateContentWithCredits(
             error: error instanceof Error ? error.message : 'Unknown error',
         };
     }
+}
+
+// ============================================
+// SEASONS ENRICHMENT
+// ============================================
+
+/**
+ * Fetch and upsert all seasons and episodes for a TV Show
+ */
+export async function enrichAndSaveSeasons(contentId: string, tmdbId: number, numSeasons: number): Promise<void> {
+    if (!numSeasons || numSeasons <= 0) return;
+
+    console.log(`  📺 Processing ${numSeasons} seasons for TV show TMDB:${tmdbId}...`);
+    let savedSeasons = 0;
+    let savedEpisodes = 0;
+
+    for (let s = 1; s <= numSeasons; s++) {
+        try {
+            console.log(`    ⬇️ Fetching Season ${s}...`);
+            const seasonData = await getSeasonDetails(tmdbId, s);
+            if (!seasonData) continue;
+
+            // Insert Season
+            const seasonId = await upsertSeason({
+                content_id: contentId,
+                tmdb_id: seasonData.id || 0,
+                season_number: seasonData.season_number,
+                name: seasonData.name,
+                overview: seasonData.overview,
+                air_date: seasonData.air_date,
+                episode_count: seasonData.episodes ? seasonData.episodes.length : 0,
+                poster_path: seasonData.poster_path
+            });
+
+            savedSeasons++;
+
+            // Insert Episodes
+            if (seasonData.episodes && seasonData.episodes.length > 0) {
+                for (const ep of seasonData.episodes) {
+                    await upsertEpisode({
+                        content_id: contentId,
+                        season_id: seasonId,
+                        tmdb_id: ep.id,
+                        season_number: seasonData.season_number,
+                        episode_number: ep.episode_number,
+                        name: ep.name,
+                        overview: ep.overview,
+                        air_date: ep.air_date,
+                        runtime: ep.runtime,
+                        still_path: ep.still_path,
+                        vote_average: ep.vote_average,
+                        vote_count: ep.vote_count,
+                        production_code: ep.production_code,
+                        guest_stars: ep.guest_stars, // Stores native array as JSONB
+                        crew: ep.crew                // Stores native array as JSONB
+                    });
+                    savedEpisodes++;
+                }
+            }
+        } catch (error: any) {
+            console.error(`    ❌ Error processing Season ${s}:`, error.message);
+        }
+    }
+    console.log(`  ✅ Successfully saved ${savedSeasons} seasons and ${savedEpisodes} episodes.`);
 }
 
 // Re-export for convenience

@@ -34,6 +34,14 @@ export interface WikidataResult {
   rt_id?: string;
   mc_id?: string;
   mdl_id?: string;
+  production_companies?: string[];
+  country_of_origin?: string[];
+  original_language?: string[];
+  duration?: number;
+  filming_start?: string;
+  filming_end?: string;
+  aspect_ratio?: string;
+  distributors?: string[];
 }
 
 export interface WikidataPersonResult {
@@ -158,6 +166,14 @@ export async function getWikidataByTmdbId(
         ?rtId
         ?mcId
         ?mdlId
+        ?productionCompanyLabel
+        ?countryOfOriginLabel
+        ?originalLanguageLabel
+        ?duration
+        ?filmingStart
+        ?filmingEnd
+        ?aspectRatioLabel
+        ?distributorLabel
       WHERE {
         ?item wdt:${propertyId} "${value}".
         
@@ -183,6 +199,14 @@ export async function getWikidataByTmdbId(
         OPTIONAL { ?item wdt:P1258 ?rtId. }
         OPTIONAL { ?item wdt:P1712 ?mcId. }
         OPTIONAL { ?item wdt:P3138 ?mdlId. }
+        OPTIONAL { ?item wdt:P272 ?productionCompany. }
+        OPTIONAL { ?item wdt:P495 ?countryOfOrigin. }
+        OPTIONAL { ?item wdt:P364 ?originalLanguage. }
+        OPTIONAL { ?item wdt:P2047 ?duration. }
+        OPTIONAL { ?item wdt:P580 ?filmingStart. }
+        OPTIONAL { ?item wdt:P582 ?filmingEnd. }
+        OPTIONAL { ?item wdt:P2061 ?aspectRatio. }
+        OPTIONAL { ?item wdt:P750 ?distributor. }
         
         SERVICE wikibase:label { 
           bd:serviceParam wikibase:language "en,ko,ja,zh,th,tr,hi". 
@@ -195,6 +219,11 @@ export async function getWikidataByTmdbId(
           ?basedOn rdfs:label ?basedOnLabel.
           ?filmingLocation rdfs:label ?filmingLocationLabel.
           ?narrativeLocation rdfs:label ?narrativeLocationLabel.
+          ?productionCompany rdfs:label ?productionCompanyLabel.
+          ?countryOfOrigin rdfs:label ?countryOfOriginLabel.
+          ?originalLanguage rdfs:label ?originalLanguageLabel.
+          ?aspectRatio rdfs:label ?aspectRatioLabel.
+          ?distributor rdfs:label ?distributorLabel.
         }
       }
       LIMIT 50
@@ -221,28 +250,23 @@ export async function getWikidataByTmdbId(
     const wikipediaTitle = firstResult.sitelinkTitle?.value;
     const wikipediaUrl = firstResult.sitelink?.value;
 
-    // Collect networks (may be multiple)
+    // Collect multi-valued items
     const networks = new Set<string>();
-    bindings.forEach(b => {
-      if (b.networkLabel?.value) {
-        networks.add(b.networkLabel.value);
-      }
-    });
-
-    // Collect screenwriters (may be multiple)
     const screenwriters = new Set<string>();
-    bindings.forEach(b => {
-      if (b.screenwriterLabel?.value) {
-        screenwriters.add(b.screenwriterLabel.value);
-      }
-    });
-
-    // Collect genres (may be multiple)
     const genres = new Set<string>();
+    const productionCompanies = new Set<string>();
+    const countriesOfOrigin = new Set<string>();
+    const originalLanguages = new Set<string>();
+    const distributors = new Set<string>();
+
     bindings.forEach(b => {
-      if (b.genreLabel?.value) {
-        genres.add(b.genreLabel.value);
-      }
+      if (b.networkLabel?.value) networks.add(b.networkLabel.value);
+      if (b.screenwriterLabel?.value) screenwriters.add(b.screenwriterLabel.value);
+      if (b.genreLabel?.value) genres.add(b.genreLabel.value);
+      if (b.productionCompanyLabel?.value) productionCompanies.add(b.productionCompanyLabel.value);
+      if (b.countryOfOriginLabel?.value) countriesOfOrigin.add(b.countryOfOriginLabel.value);
+      if (b.originalLanguageLabel?.value) originalLanguages.add(b.originalLanguageLabel.value);
+      if (b.distributorLabel?.value) distributors.add(b.distributorLabel.value);
     });
 
     // Collect awards (deduplicated by ID+Year to avoid over-duplication from multi-bindings)
@@ -273,6 +297,7 @@ export async function getWikidataByTmdbId(
     // Find the first valid string for single-value metadata fields
     const getValue = (key: string) => bindings.find(b => b[key]?.value)?.[key]?.value;
     const boxOfficeStr = getValue('boxOffice');
+    const durationStr = getValue('duration');
 
     const result: WikidataResult = {
       wikidata_id: wikidataId,
@@ -289,6 +314,14 @@ export async function getWikidataByTmdbId(
       rt_id: getValue('rtId'),
       mc_id: getValue('mcId'),
       mdl_id: getValue('mdlId'),
+      production_companies: productionCompanies.size > 0 ? Array.from(productionCompanies) : undefined,
+      country_of_origin: countriesOfOrigin.size > 0 ? Array.from(countriesOfOrigin) : undefined,
+      original_language: originalLanguages.size > 0 ? Array.from(originalLanguages) : undefined,
+      duration: durationStr ? parseFloat(durationStr) : undefined,
+      filming_start: getValue('filmingStart'),
+      filming_end: getValue('filmingEnd'),
+      aspect_ratio: getValue('aspectRatioLabel'),
+      distributors: distributors.size > 0 ? Array.from(distributors) : undefined,
     };
 
     console.log(`  ✅ Wikidata result: ${wikidataId || 'N/A'}`);
@@ -335,6 +368,14 @@ export async function getWikidataById(wikidataId: string): Promise<WikidataResul
         ?rtId
         ?mcId
         ?mdlId
+        ?productionCompanyLabel
+        ?countryOfOriginLabel
+        ?originalLanguageLabel
+        ?duration
+        ?filmingStart
+        ?filmingEnd
+        ?aspectRatioLabel
+        ?distributorLabel
       WHERE {
         # Use the provided Wikidata ID
         BIND(wd:${wikidataId} AS ?item)
@@ -372,6 +413,14 @@ export async function getWikidataById(wikidataId: string): Promise<WikidataResul
         OPTIONAL { ?item wdt:P1258 ?rtId. }
         OPTIONAL { ?item wdt:P1712 ?mcId. }
         OPTIONAL { ?item wdt:P3138 ?mdlId. }
+        OPTIONAL { ?item wdt:P272 ?productionCompany. }
+        OPTIONAL { ?item wdt:P495 ?countryOfOrigin. }
+        OPTIONAL { ?item wdt:P364 ?originalLanguage. }
+        OPTIONAL { ?item wdt:P2047 ?duration. }
+        OPTIONAL { ?item wdt:P580 ?filmingStart. }
+        OPTIONAL { ?item wdt:P582 ?filmingEnd. }
+        OPTIONAL { ?item wdt:P2061 ?aspectRatio. }
+        OPTIONAL { ?item wdt:P750 ?distributor. }
         
         # Get labels
         SERVICE wikibase:label { 
@@ -385,6 +434,11 @@ export async function getWikidataById(wikidataId: string): Promise<WikidataResul
           ?basedOn rdfs:label ?basedOnLabel.
           ?filmingLocation rdfs:label ?filmingLocationLabel.
           ?narrativeLocation rdfs:label ?narrativeLocationLabel.
+          ?productionCompany rdfs:label ?productionCompanyLabel.
+          ?countryOfOrigin rdfs:label ?countryOfOriginLabel.
+          ?originalLanguage rdfs:label ?originalLanguageLabel.
+          ?aspectRatio rdfs:label ?aspectRatioLabel.
+          ?distributor rdfs:label ?distributorLabel.
         }
       }
       LIMIT 50
@@ -407,12 +461,20 @@ export async function getWikidataById(wikidataId: string): Promise<WikidataResul
     const networks = new Set<string>();
     const screenwriters = new Set<string>();
     const genres = new Set<string>();
+    const productionCompanies = new Set<string>();
+    const countriesOfOrigin = new Set<string>();
+    const originalLanguages = new Set<string>();
+    const distributors = new Set<string>();
     const awardsMap = new Map<string, { awardId: string; award: string; year?: number; category?: string; won: boolean }>();
 
     bindings.forEach(b => {
       if (b.networkLabel?.value) networks.add(b.networkLabel.value);
       if (b.screenwriterLabel?.value) screenwriters.add(b.screenwriterLabel.value);
       if (b.genreLabel?.value) genres.add(b.genreLabel.value);
+      if (b.productionCompanyLabel?.value) productionCompanies.add(b.productionCompanyLabel.value);
+      if (b.countryOfOriginLabel?.value) countriesOfOrigin.add(b.countryOfOriginLabel.value);
+      if (b.originalLanguageLabel?.value) originalLanguages.add(b.originalLanguageLabel.value);
+      if (b.distributorLabel?.value) distributors.add(b.distributorLabel.value);
 
       if (b.award?.value && b.awardLabel?.value) {
         const awardId = extractEntityId(b.award.value);
@@ -435,6 +497,7 @@ export async function getWikidataById(wikidataId: string): Promise<WikidataResul
 
     const getValue = (key: string) => bindings.find(b => b[key]?.value)?.[key]?.value;
     const boxOfficeStr = getValue('boxOffice');
+    const durationStr = getValue('duration');
 
     const result: WikidataResult = {
       wikidata_id: wikidataId,
@@ -451,8 +514,15 @@ export async function getWikidataById(wikidataId: string): Promise<WikidataResul
       rt_id: getValue('rtId'),
       mc_id: getValue('mcId'),
       mdl_id: getValue('mdlId'),
+      production_companies: productionCompanies.size > 0 ? Array.from(productionCompanies) : undefined,
+      country_of_origin: countriesOfOrigin.size > 0 ? Array.from(countriesOfOrigin) : undefined,
+      original_language: originalLanguages.size > 0 ? Array.from(originalLanguages) : undefined,
+      duration: durationStr ? parseFloat(durationStr) : undefined,
+      filming_start: getValue('filmingStart'),
+      filming_end: getValue('filmingEnd'),
+      aspect_ratio: getValue('aspectRatioLabel'),
+      distributors: distributors.size > 0 ? Array.from(distributors) : undefined,
     };
-
     console.log(`  ✅ Wikidata result for ${wikidataId}`);
     if (wikipediaTitle) console.log(`     Wikipedia: ${wikipediaTitle}`);
 

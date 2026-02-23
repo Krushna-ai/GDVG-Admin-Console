@@ -1,5 +1,5 @@
 import { supabase } from './lib/supabase';
-import { enrichAndSaveContent } from './lib/enrich';
+import { enrichContentWithWiki } from './lib/enrich-wiki';
 import { getCurrentCycle } from './lib/cycle';
 import {
     getNextQueueItems,
@@ -140,22 +140,19 @@ async function main() {
                 continue;
             }
 
-            const result = await enrichAndSaveContent(
-                content.tmdb_id,
-                toTmdbType(content.content_type)
-            );
-
+            // Execute Wikidata enrichment pipeline
+            // Wikipedia logic inside this function has already been disabled
+            const result = await enrichContentWithWiki(content.id);
             if (!result.success) {
-                throw new Error(result.error || 'enrichAndSaveContent returned failure');
+                throw new Error(result.error || 'enrichContentWithWiki returned failure');
             }
 
             await markQueueItemCompleted(queueItem.id);
 
             // Stamp enrichment timestamp and cycle on the content row
-            const targetId = result.contentId || content.id;
-            await stampEnriched(targetId);
+            await stampEnriched(content.id);
 
-            console.log(`  ✅ Enriched (${result.peopleImported ?? 0} people linked)`);
+            console.log(`  ✅ Wiki Enrichment Completed`);
             enriched++;
 
         } catch (error) {

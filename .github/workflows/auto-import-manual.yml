@@ -8,10 +8,10 @@ on:
         required: false
         default: false
         type: boolean
-      quota:
-        description: 'Import quota (default: 1000)'
+      batch_size:
+        description: 'Batch size limit (default: 4000)'
         required: false
-        default: '1000'
+        default: '4000'
 
 env:
   NODE_VERSION: '20'
@@ -41,7 +41,7 @@ jobs:
         run: npx tsx scripts/auto-import.ts
         env:
           DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
-          DAILY_QUOTA: ${{ github.event.inputs.quota || '1000' }}
+          BATCH_SIZE: ${{ github.event.inputs.batch_size || '4000' }}
 
       - name: Report Results
         if: always()
@@ -53,9 +53,3 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Run completed at $(date -u)" >> $GITHUB_STEP_SUMMARY
 
-  # Automatically trigger process-imports after manual import completes
-  process-queue:
-    needs: manual-import
-    if: github.event.inputs.dry_run != 'true' # Only if not dry run
-    uses: ./.github/workflows/process-imports.yml
-    secrets: inherit

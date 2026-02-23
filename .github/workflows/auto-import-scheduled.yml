@@ -47,6 +47,7 @@ jobs:
         run: npx tsx scripts/auto-import.ts
         env:
           DRY_RUN: 'false'
+          BATCH_SIZE: '4000'
 
       - name: Report Results
         if: always()
@@ -59,8 +60,4 @@ jobs:
           echo "- ✅ Wikipedia/Wikidata enrichment" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Batch tracking" >> $GITHUB_STEP_SUMMARY
 
-  # Automatically trigger process-imports after auto-import completes
-  process-queue:
-    needs: auto-import
-    uses: ./.github/workflows/process-imports.yml
-    secrets: inherit
+

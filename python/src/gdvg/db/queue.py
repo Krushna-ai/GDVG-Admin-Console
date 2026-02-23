@@ -61,6 +61,56 @@ def add_to_import_queue(
     return total_queued
 
 
+def add_to_ai_validation_queue(
+    items: list[dict],
+    content_type: str,
+) -> int:
+    """Add low-confidence TMDB items to AI validation queue in bulk.
+
+    Args:
+        items: List of dictionaries with tmdb_id, vote_count, vote_average, popularity
+        content_type: Type of content ('movie' or 'tv')
+
+    Returns:
+        Number of items queued
+    """
+    if not items:
+        return 0
+
+    supabase = get_supabase()
+
+    # Create records
+    now = datetime.utcnow().isoformat()
+    records = []
+    for item in items:
+        records.append({
+            "tmdb_id": item["tmdb_id"],
+            "content_type": content_type,
+            "vote_count": item.get("vote_count", 0),
+            "vote_average": item.get("vote_average", 0.0),
+            "popularity": item.get("popularity", 0.0),
+            "priority": 5,
+            "status": "pending",
+            "created_at": now,
+        })
+
+    total_queued = 0
+
+    # Insert in batches, ignore conflicts (already queued)
+    for i in range(0, len(records), DB_BATCH_SIZE_UPSERT):
+        batch = records[i:i + DB_BATCH_SIZE_UPSERT]
+
+        # Upsert to avoid duplicates, update existing
+        supabase.table("ai_validation_queue").upsert(
+            batch,
+            on_conflict="tmdb_id,content_type"
+        ).execute()
+
+        total_queued += len(batch)
+
+    return total_queued
+
+
 def get_import_queue_batch(
     content_type: Optional[Literal["movie", "tv"]] = None,
     limit: int = 500
@@ -294,10 +344,16 @@ def get_queue_stats() -> dict:
         "id", count="exact"
     ).eq("queue_type", "people").eq("status", "pending").execute()
 
+    # AI validation queue stats
+    ai_validation_pending = supabase.table("ai_validation_queue").select(
+        "id", count="exact"
+    ).eq("status", "pending").execute()
+
     return {
         "import_queue_pending": import_pending.count or 0,
         "enrichment_queue_content_pending": enrich_content_pending.count or 0,
         "enrichment_queue_people_pending": enrich_people_pending.count or 0,
+        "ai_validation_queue_pending": ai_validation_pending.count or 0,
     }
 
 
