@@ -1,40 +1,32 @@
 /**
  * Auto-Import Script for GitHub Actions
- * 
- * PURPOSE: Discovery only — collect TMDB IDs and push to import_queue.
- * NO enrichment happens here. Enrichment is handled by process-queue.
- * 
- * Architecture:
- *   auto-import (this) → import_queue table → process-queue (separate job)
- * 
- * Strategy:
- *   - Crawl ALL TMDB discover pages for every region/content-type
- *   - For each result, check if already in `content` table or `import_queue`
- *   - If new: INSERT into import_queue with `status = 'pending'`
- *   - No API calls beyond TMDB discover. Fast crawl only.
- *   - Runs for up to 5+ hours against GitHub's 6h limit
+ * Runs daily at 3 AM IST to discover and import new content
  * 
  * Priority Order: KR > CN > TH > TR > JP > IN > Western
+ * Daily Quota: 1000 items
  */
 
 import supabase from './lib/supabase';
 import { discoverTv, discoverMovies, delay } from './lib/tmdb';
+import { enrichAndSaveContent, checkContentExists } from './lib/enrich';
 
 // ============================================
 // CONFIGURATION
 // ============================================
 
+const DAILY_QUOTA = 1000;
+const MAX_PAGES_PER_REGION = 50; // Safety limit
 const DRY_RUN = process.env.DRY_RUN === 'true';
 
-// TMDB allows up to 500 pages per discover endpoint
-const MAX_PAGES_PER_QUERY = 500;
+// Priority: Higher = imported first
+const COUNTRY_PRIORITY: Record<string, number> = {
+    'KR': 10, 'CN': 9, 'TW': 9, 'HK': 9, 'TH': 8, 'TR': 7,
+    'JP': 6, 'IN': 4, 'US': 2, 'GB': 2, 'CA': 2, 'AU': 2,
+};
 
-// Stop after this many consecutive pages where every ID is already known
-// Keeps crawl efficient but won't exit early when most content is new
-const MAX_CONSECUTIVE_ALL_KNOWN_PAGES = 3000;
-
-// Delay between TMDB page fetches (ms) - keeps us inside rate limits
-const PAGE_DELAY_MS = 250;
+const CONTENT_TYPE_PRIORITY: Record<string, number> = {
+    'drama': 10, 'tv': 8, 'movie': 6, 'anime': 5,
+};
 
 // Regions to discover (in priority order)
 const REGION_CONFIGS = [
@@ -51,6 +43,10 @@ const REGION_CONFIGS = [
 // PAUSE STATUS CHECK
 // ============================================
 
+/**
+ * Check if sync is paused in dashboard
+ * Exits gracefully if paused
+ */
 async function checkSyncPauseStatus() {
     try {
         const { data, error } = await supabase
@@ -84,81 +80,90 @@ async function checkSyncPauseStatus() {
 // ============================================
 
 async function main() {
-    console.log('🚀 Starting Auto-Import (ID Collection Mode)...');
+    console.log('🚀 Starting Auto-Import...');
+
+    // Check if sync is paused - exit if paused
     await checkSyncPauseStatus();
 
     console.log(`📅 Date: ${new Date().toISOString()}`);
     console.log(`🧪 Dry Run: ${DRY_RUN}`);
-    console.log(`📄 Max pages per query: ${MAX_PAGES_PER_QUERY}`);
-    console.log('');
-    console.log('📋 This job ONLY collects TMDB IDs → import_queue');
-    console.log('📋 Actual enrichment is done by the process-queue job');
-    console.log('');
+    console.log(`📊 Daily Quota: ${DAILY_QUOTA}`);
 
+    // Create sync job
     const jobId = await createSyncJob();
     console.log(`📋 Created job: ${jobId}`);
 
-    let totalQueued = 0;
-    let totalSkipped = 0;
-    let totalDiscovered = 0;
-    let totalFailed = 0;
-
     try {
-        // Pre-load known TMDB IDs from content and queue to minimize DB round-trips
-        // We'll use a Set for O(1) lookups. Load in batches.
-        console.log('\n📥 Pre-loading known TMDB IDs from database...');
-        const knownContentIds = await loadKnownContentIds();
-        const knownQueueIds = await loadKnownQueueIds();
-        console.log(`  Known content IDs: ${knownContentIds.size}`);
-        console.log(`  Known queue IDs: ${knownQueueIds.size}`);
-        console.log('');
+        let imported = 0;
+        let skipped = 0;
+        let failed = 0;
+        let totalPeople = 0;
+        let discovered = 0;
 
+        console.log('\n📡 Starting adaptive discovery and import...\n');
+
+        // Adaptive discovery: keep fetching until quota met
         for (const region of REGION_CONFIGS) {
+            if (imported >= DAILY_QUOTA) break;
+
             console.log(`\n🌍 Region: ${region.code}`);
 
             for (const country of region.countries) {
-                for (const contentType of ['tv', 'movie'] as const) {
-                    const result = await crawlAndQueue(
-                        contentType,
-                        country,
-                        knownContentIds,
-                        knownQueueIds,
-                        region.code
-                    );
+                if (imported >= DAILY_QUOTA) break;
 
-                    totalQueued += result.queued;
-                    totalSkipped += result.skipped;
-                    totalDiscovered += result.discovered;
-                    totalFailed += result.failed;
+                // Process TV shows
+                const tvResult = await processContentType(
+                    'tv',
+                    country,
+                    DAILY_QUOTA - imported,
+                    jobId
+                );
 
-                    console.log(
-                        `  ✅ ${contentType.toUpperCase()} (${country}): ` +
-                        `${result.queued} queued, ${result.skipped} already known, ` +
-                        `${result.discovered} discovered`
-                    );
-                }
+                imported += tvResult.imported;
+                skipped += tvResult.skipped;
+                failed += tvResult.failed;
+                totalPeople += tvResult.people;
+                discovered += tvResult.discovered;
+
+                if (imported >= DAILY_QUOTA) break;
+
+                // Process movies (1-2 pages max)
+                const movieResult = await processContentType(
+                    'movie',
+                    country,
+                    DAILY_QUOTA - imported,
+                    jobId,
+                    2 // Max 2 pages for movies
+                );
+
+                imported += movieResult.imported;
+                skipped += movieResult.skipped;
+                failed += movieResult.failed;
+                totalPeople += movieResult.people;
+                discovered += movieResult.discovered;
             }
         }
 
+        // Update final job stats
         if (!DRY_RUN) {
             await updateJobStats(jobId, {
                 status: 'completed',
-                total_discovered: totalDiscovered,
-                total_imported: totalQueued,
-                total_failed: totalFailed,
-                total_skipped: totalSkipped,
+                total_discovered: discovered,
+                total_imported: imported,
+                total_failed: failed,
+                total_skipped: skipped,
+                total_people_imported: totalPeople,
                 completed_at: new Date().toISOString(),
             });
         }
 
-        console.log('\n\n🎉 Auto-Import (ID Collection) completed!');
-        console.log('📊 Final Stats:');
-        console.log(`  📡 Discovered: ${totalDiscovered} total TMDB items`);
-        console.log(`  ➕ Newly queued: ${totalQueued}`);
-        console.log(`  ⏭️  Already known: ${totalSkipped}`);
-        console.log(`  ❌ Failed to queue: ${totalFailed}`);
-        console.log('');
-        console.log('📋 The process-queue job will now handle enrichment.');
+        console.log('\n\n🎉 Auto-Import completed successfully!');
+        console.log(`📊 Final Stats:`);
+        console.log(`  ✅ Imported: ${imported} content`);
+        console.log(`  👥 People: ${totalPeople}`);
+        console.log(`  ⏭️  Skipped: ${skipped} (duplicates)`);
+        console.log(`  ❌ Failed: ${failed}`);
+        console.log(`  📡 Discovered: ${discovered} total items`);
 
     } catch (error) {
         console.error('❌ Auto-Import failed:', error);
@@ -168,218 +173,197 @@ async function main() {
 }
 
 // ============================================
-// CORE CRAWL FUNCTION
+// ADAPTIVE DISCOVERY
 // ============================================
 
-interface CrawlResult {
-    queued: number;
+interface ProcessResult {
+    imported: number;
     skipped: number;
-    discovered: number;
     failed: number;
+    people: number;
+    discovered: number;
 }
 
-async function crawlAndQueue(
+/**
+ * Get progressive discovery filters based on page number
+ * Filters relax as pages increase to discover more content
+ * 
+ * - Pages 1-20: Strict (high quality only)
+ * - Pages 21-50: Medium (good quality)
+ * - Pages 51-100: Relaxed (acceptable quality)
+ * - Pages 101+: Region-only (no quality filters)
+ */
+function getProgressiveFilters(page: number): Record<string, string | number> {
+    const filters: Record<string, string | number> = {};
+
+    if (page <= 20) {
+        // Tier 1: High quality only
+        filters['vote_average.gte'] = 6;
+        filters['vote_count.gte'] = 100;
+        filters['popularity.gte'] = 10;
+    } else if (page <= 50) {
+        // Tier 2: Good quality
+        filters['vote_average.gte'] = 5;
+        filters['vote_count.gte'] = 50;
+        filters['popularity.gte'] = 5;
+    } else if (page <= 100) {
+        // Tier 3: Acceptable quality
+        filters['vote_average.gte'] = 4;
+        filters['vote_count.gte'] = 20;
+        filters['popularity.gte'] = 1;
+    }
+    // Tier 4 (page 101+): No quality filters, region-only
+
+    return filters;
+}
+
+/**
+ * Get filter tier name for logging
+ */
+function getFilterTierName(page: number): string {
+    if (page <= 20) return 'Tier 1 (High Quality)';
+    if (page <= 50) return 'Tier 2 (Good Quality)';
+    if (page <= 100) return 'Tier 3 (Acceptable)';
+    return 'Tier 4 (Region-Only)';
+}
+
+/**
+ * Process content type for a country with adaptive page fetching
+ * Keeps fetching pages until quota met or max pages reached
+ */
+async function processContentType(
     contentType: 'movie' | 'tv',
     country: string,
-    knownContentIds: Set<string>,
-    knownQueueIds: Set<string>,
-    regionCode: string,
-): Promise<CrawlResult> {
-    let queued = 0;
+    remainingQuota: number,
+    jobId: string,
+    maxPages: number = MAX_PAGES_PER_REGION
+): Promise<ProcessResult> {
+    let imported = 0;
     let skipped = 0;
-    let discovered = 0;
     let failed = 0;
-    let consecutiveAllKnownPages = 0;
+    let totalPeople = 0;
+    let discovered = 0;
+    let page = 1;
+    let consecutiveEmptyPages = 0;
 
-    console.log(`  ${contentType.toUpperCase()} (${country}) - crawling up to ${MAX_PAGES_PER_QUERY} pages...`);
+    const filterTier = getFilterTierName(page);
+    console.log(`  ${contentType.toUpperCase()} (${country}) - Starting with ${filterTier}:`);
 
-    for (let page = 1; page <= MAX_PAGES_PER_QUERY; page++) {
+    while (imported < remainingQuota && page <= maxPages) {
         try {
+            // Get progressive filters for current page
+            const progressiveFilters = getProgressiveFilters(page);
+
+            // Log filter tier changes
+            const currentTier = getFilterTierName(page);
+            const previousTier = getFilterTierName(page - 1);
+            if (page > 1 && currentTier !== previousTier) {
+                console.log(`    → Switching to ${currentTier} (page ${page})`);
+            }
+
+            // Fetch page from TMDB with progressive filters
             const data = contentType === 'tv'
                 ? await discoverTv({
                     with_origin_country: country,
                     sort_by: 'popularity.desc',
                     page,
+                    ...progressiveFilters
                 })
                 : await discoverMovies({
                     with_origin_country: country,
                     sort_by: 'popularity.desc',
                     page,
+                    ...progressiveFilters
                 });
 
             const items = data.results || [];
-            const totalPages = data.total_pages || 1;
-
-            if (items.length === 0) {
-                break; // TMDB returned nothing, end of results
-            }
-
             discovered += items.length;
 
-            // Collect new IDs from this page
-            const batch: Array<{ tmdb_id: number; content_type: string; priority: number; source: string; batch_name: string; metadata: any }> = [];
+            if (items.length === 0) {
+                consecutiveEmptyPages++;
+                if (consecutiveEmptyPages >= 2) {
+                    console.log(`    No more content available`);
+                    break;
+                }
+                page++;
+                continue;
+            }
 
-            let pageNewCount = 0;
+            consecutiveEmptyPages = 0;
+            let pageNewItems = 0;
+
+            // Process each item
             for (const item of items) {
-                const key = `${contentType}:${item.id}`;
-                if (knownContentIds.has(key) || knownQueueIds.has(key)) {
+                if (imported >= remainingQuota) break;
+
+                const tmdbId = item.id;
+
+                // Check if already exists
+                const exists = await checkContentExists(tmdbId, contentType);
+
+                if (exists) {
                     skipped++;
                     continue;
                 }
 
-                pageNewCount++;
-                knownQueueIds.add(key); // Prevent duplicates within this run
-
+                // Import with enrichment (content + cast/crew)
                 if (!DRY_RUN) {
-                    batch.push({
-                        tmdb_id: item.id,
-                        content_type: contentType,
-                        priority: getPriority(country),
-                        source: 'auto-import',
-                        batch_name: `auto-${new Date().toISOString().slice(0, 10)}-${regionCode}`,
-                        metadata: {
-                            title: item.title || item.name,
-                            origin_country: country,
-                            region: regionCode,
-                            popularity: item.popularity,
-                            vote_average: item.vote_average,
-                        },
-                    });
+                    try {
+                        const result = await enrichAndSaveContent(tmdbId, contentType);
+
+                        if (result.success) {
+                            imported++;
+                            pageNewItems++;
+                            totalPeople += result.peopleImported || 0;
+
+                            // Progress log every 10 items
+                            if (imported % 10 === 0) {
+                                console.log(`    ✓ ${imported}/${remainingQuota} (${skipped} skipped, ${totalPeople} people)`);
+                            }
+                        } else {
+                            failed++;
+                            console.error(`    Failed ${tmdbId}: ${result.error}`);
+                        }
+
+                        // Rate limiting delay
+                        await delay(300);
+                    } catch (error) {
+                        failed++;
+                        console.error(`    Error importing ${tmdbId}:`, error);
+                    }
                 } else {
-                    console.log(`    [DRY RUN] Would queue: ${item.title || item.name} (${item.id})`);
-                    pageNewCount++;
+                    // DRY RUN mode
+                    imported++;
+                    pageNewItems++;
+                    console.log(`    [DRY RUN] Would import: ${item.title || item.name} (${tmdbId})`);
                 }
             }
 
-            // Bulk insert the batch
-            if (batch.length > 0) {
-                const { error } = await supabase
-                    .from('import_queue')
-                    .insert(batch);
-
-                if (error) {
-                    console.error(`    ⚠️ Queue insert error (page ${page}):`, error.message);
-                    failed += batch.length;
-                } else {
-                    queued += batch.length;
-                }
-            } else if (!DRY_RUN) {
-                queued += 0; // nothing new
+            // If no new items in this page, we might be hitting mostly duplicates
+            if (pageNewItems === 0 && page > 3) {
+                console.log(`    Page ${page}: all duplicates, continuing...`);
             }
 
-            if (DRY_RUN) {
-                queued += pageNewCount;
-            }
-
-            // Track consecutive all-known pages to detect completion gracefully
-            if (pageNewCount === 0) {
-                consecutiveAllKnownPages++;
-                if (consecutiveAllKnownPages >= MAX_CONSECUTIVE_ALL_KNOWN_PAGES) {
-                    console.log(`    → ${MAX_CONSECUTIVE_ALL_KNOWN_PAGES} consecutive pages all known, skipping rest`);
-                    break;
-                }
-                if (page % 10 === 0) {
-                    console.log(`    Page ${page}/${totalPages}: all known (${consecutiveAllKnownPages}/${MAX_CONSECUTIVE_ALL_KNOWN_PAGES} threshold)`);
-                }
-            } else {
-                consecutiveAllKnownPages = 0;
-                if (page % 50 === 0) {
-                    console.log(`    Page ${page}/${totalPages}: +${queued} queued so far`);
-                }
-            }
-
-            // Stop if TMDB has no more pages
-            if (page >= totalPages) {
-                console.log(`    → Reached last TMDB page (${totalPages})`);
-                break;
-            }
-
-            await delay(PAGE_DELAY_MS);
+            page++;
+            await delay(100); // Delay between pages
 
         } catch (error) {
             console.error(`    Error on page ${page}:`, error);
-            failed++;
-            await delay(PAGE_DELAY_MS * 2); // Back off on error
+            page++;
         }
     }
 
-    return { queued, skipped, discovered, failed };
-}
-
-// ============================================
-// KNOWN ID LOADERS
-// ============================================
-
-async function loadKnownContentIds(): Promise<Set<string>> {
-    const knownIds = new Set<string>();
-    let page = 0;
-    const pageSize = 10000;
-
-    while (true) {
-        const { data, error } = await supabase
-            .from('content')
-            .select('tmdb_id, content_type')
-            .range(page * pageSize, (page + 1) * pageSize - 1);
-
-        if (error) {
-            console.warn('  ⚠️ Could not load known content IDs:', error.message);
-            break;
-        }
-
-        if (!data || data.length === 0) break;
-
-        for (const row of data) {
-            knownIds.add(`${row.content_type}:${row.tmdb_id}`);
-        }
-
-        if (data.length < pageSize) break; // Last page
-        page++;
+    if (imported > 0) {
+        console.log(`    ✅ ${contentType}: ${imported} imported, ${skipped} skipped, ${totalPeople} people`);
     }
 
-    return knownIds;
-}
-
-async function loadKnownQueueIds(): Promise<Set<string>> {
-    const knownIds = new Set<string>();
-    let page = 0;
-    const pageSize = 10000;
-
-    while (true) {
-        const { data, error } = await supabase
-            .from('import_queue')
-            .select('tmdb_id, content_type')
-            .in('status', ['pending', 'processing'])
-            .range(page * pageSize, (page + 1) * pageSize - 1);
-
-        if (error) {
-            console.warn('  ⚠️ Could not load known queue IDs:', error.message);
-            break;
-        }
-
-        if (!data || data.length === 0) break;
-
-        for (const row of data) {
-            knownIds.add(`${row.content_type}:${row.tmdb_id}`);
-        }
-
-        if (data.length < pageSize) break;
-        page++;
-    }
-
-    return knownIds;
-}
-
-// ============================================
-// HELPERS
-// ============================================
-
-function getPriority(country: string): number {
-    const priorities: Record<string, number> = {
-        'KR': 10, 'CN': 9, 'TW': 9, 'HK': 9,
-        'TH': 8, 'TR': 7, 'JP': 6,
-        'IN': 4, 'US': 2, 'GB': 2,
+    return {
+        imported,
+        skipped,
+        failed,
+        people: totalPeople,
+        discovered,
     };
-    return priorities[country] ?? 1;
 }
 
 // ============================================
@@ -387,14 +371,12 @@ function getPriority(country: string): number {
 // ============================================
 
 async function createSyncJob(): Promise<string> {
-    if (DRY_RUN) return 'dry-run-job';
-
     const { data, error } = await supabase
         .from('sync_jobs')
         .insert({
             sync_type: 'auto',
             status: 'running',
-            daily_quota: 0, // No quota for ID collection
+            daily_quota: DAILY_QUOTA,
             started_at: new Date().toISOString(),
         })
         .select('id')
@@ -405,8 +387,18 @@ async function createSyncJob(): Promise<string> {
 }
 
 async function updateJobStats(jobId: string, stats: Record<string, any>) {
-    if (DRY_RUN) return;
     await supabase.from('sync_jobs').update(stats).eq('id', jobId);
+}
+
+// ============================================
+// HELPERS
+// ============================================
+
+function logSampleItems(items: any[]) {
+    console.log('\n📋 Sample items that would be imported:');
+    items.forEach((item, i) => {
+        console.log(`  ${i + 1}. [${item.content_type}] ${item.title} (${item.origin_country.join(', ')}) - Priority: ${item.priority_score}`);
+    });
 }
 
 // Run
