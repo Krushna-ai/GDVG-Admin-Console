@@ -49,7 +49,7 @@ jobs:
           echo "## 👤 Manual Import Results" >> $GITHUB_STEP_SUMMARY
           echo "Triggered by: @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
           echo "Dry run: ${{ inputs.dry_run || false }}" >> $GITHUB_STEP_SUMMARY
-          echo "Quota: ${{ inputs.quota || 1000 }}" >> $GITHUB_STEP_SUMMARY
+          echo "Batch Size: ${{ inputs.batch_size || 4000 }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Run completed at $(date -u)" >> $GITHUB_STEP_SUMMARY
 
