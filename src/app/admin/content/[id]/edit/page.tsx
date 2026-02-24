@@ -45,6 +45,11 @@ interface Content {
     wikidata_id?: string;
     wikipedia_url?: string;
     overview_source?: string;
+    budget?: number;
+    revenue?: number;
+    box_office?: number;
+    seasons?: any[];
+    wikidata_metadata?: any;
 }
 
 interface WatchLink {
@@ -568,6 +573,71 @@ function CastEditor({ cast, onChange }: { cast: CastMember[]; onChange: (cast: C
     );
 }
 
+// TV Show Seasons & Episodes Guide Viewer
+function SeasonsViewer({ seasons = [] }: { seasons: any[] }) {
+    if (!seasons || seasons.length === 0) {
+        return <p className="text-slate-500 text-sm p-4 text-center border border-dashed border-slate-700 rounded-lg">No season data available for this TV show.</p>;
+    }
+
+    // Sort seasons by season_number
+    const sortedSeasons = [...seasons].sort((a, b) => (a.season_number || 0) - (b.season_number || 0));
+
+    return (
+        <div className="space-y-4">
+            {sortedSeasons.map((season, idx) => {
+                const episodes = season.episodes ? [...season.episodes].sort((a, b) => (a.episode_number || 0) - (b.episode_number || 0)) : [];
+
+                return (
+                    <div key={season.id || idx} className="bg-slate-900/50 border border-slate-700 rounded-lg overflow-hidden">
+                        <div className="p-4 bg-slate-800/30 flex justify-between items-center border-b border-slate-700/50">
+                            <div className="flex gap-4 items-center">
+                                {season.poster_path ? (
+                                    <img src={`https://image.tmdb.org/t/p/w92${season.poster_path}`} className="w-12 h-18 rounded object-cover" alt="" />
+                                ) : <div className="w-12 h-18 bg-slate-800 rounded flex items-center justify-center text-xs text-slate-500 text-center">No Image</div>}
+
+                                <div>
+                                    <h4 className="text-white font-medium">{season.name || `Season ${season.season_number}`}</h4>
+                                    <p className="text-xs text-slate-400 mt-1">
+                                        {season.air_date ? new Date(season.air_date).getFullYear() : 'Unknown Year'} • {season.episode_count || episodes.length} Episodes
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {episodes.length > 0 && (
+                            <div className="p-0 max-h-96 overflow-y-auto custom-scrollbar">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="bg-slate-800/20 text-xs text-slate-400 uppercase sticky top-0 backdrop-blur-md">
+                                        <tr>
+                                            <th className="px-4 py-2 font-medium w-16">Ep</th>
+                                            <th className="px-4 py-2 font-medium">Title</th>
+                                            <th className="px-4 py-2 font-medium w-24">Air Date</th>
+                                            <th className="px-4 py-2 font-medium w-16 text-right">Rating</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-700/30">
+                                        {episodes.map((ep, eIdx) => (
+                                            <tr key={ep.id || eIdx} className="hover:bg-slate-800/20">
+                                                <td className="px-4 py-3 font-medium text-slate-300">S{season.season_number} E{ep.episode_number}</td>
+                                                <td className="px-4 py-3">
+                                                    <p className="text-white">{ep.name || `Episode ${ep.episode_number}`}</p>
+                                                    {ep.overview && <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">{ep.overview}</p>}
+                                                </td>
+                                                <td className="px-4 py-3 text-slate-400">{ep.air_date || '-'}</td>
+                                                <td className="px-4 py-3 text-slate-400 text-right">{ep.vote_average ? ep.vote_average.toFixed(1) : '-'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                )
+            })}
+        </div>
+    );
+}
+
 export default function ContentEditPage() {
     const router = useRouter();
     const params = useParams();
@@ -994,6 +1064,15 @@ export default function ContentEditPage() {
                         </div>
                     </EditSection>
 
+                    {/* TV Seasons & Episodes */}
+                    {content.content_type === 'tv' && (
+                        <EditSection title="Episodes & Season Guide" icon="📺" defaultOpen={false}>
+                            <div className="pt-4">
+                                <SeasonsViewer seasons={content.seasons || []} />
+                            </div>
+                        </EditSection>
+                    )}
+
                     {/* Wikipedia & Deep Enrichment Data */}
                     <EditSection title="Wikipedia Data & Deep Lore" icon="🌐" defaultOpen={false}>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
@@ -1143,6 +1222,82 @@ export default function ContentEditPage() {
                                     onChange={(e) => updateField('wikidata_id', e.target.value)}
                                     placeholder="Q12345"
                                     className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white"
+                                />
+                            </div>
+                        </div>
+                    </EditSection>
+
+                    {/* Financials & Deep Metadata */}
+                    <EditSection title="Financial & Production Data" icon="📊" defaultOpen={false}>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
+                            {content.content_type === 'movie' && (
+                                <>
+                                    <div>
+                                        <label className="block text-slate-400 text-sm mb-1">Budget ($)</label>
+                                        <input
+                                            type="number"
+                                            value={content.budget || ''}
+                                            onChange={(e) => updateField('budget', parseInt(e.target.value) || null)}
+                                            className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-slate-400 text-sm mb-1">Revenue ($)</label>
+                                        <input
+                                            type="number"
+                                            value={content.revenue || content.box_office || ''}
+                                            onChange={(e) => updateField('revenue', parseInt(e.target.value) || null)}
+                                            className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white"
+                                        />
+                                    </div>
+                                </>
+                            )}
+                            <div>
+                                <label className="block text-slate-400 text-sm mb-1">Runtime (mins)</label>
+                                <input
+                                    type="number"
+                                    value={content.wikidata_metadata?.duration || ''}
+                                    readOnly
+                                    className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-slate-400 cursor-not-allowed"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-slate-400 text-sm mb-1">Filming Dates</label>
+                                <div className="flex gap-2 text-sm text-slate-400 bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 items-center">
+                                    {content.wikidata_metadata?.filming_start || '?'} <span className="text-slate-600">→</span> {content.wikidata_metadata?.filming_end || '?'}
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-slate-400 text-sm mb-1">Aspect Ratio</label>
+                                <input
+                                    type="text"
+                                    value={content.wikidata_metadata?.aspect_ratio || ''}
+                                    readOnly
+                                    className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-slate-400 cursor-not-allowed"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-slate-400 text-sm mb-1">Distributors</label>
+                                <input
+                                    type="text"
+                                    value={content.wikidata_metadata?.distributors?.join(', ') || ''}
+                                    readOnly
+                                    className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-slate-400 cursor-not-allowed"
+                                />
+                            </div>
+                            <div className="md:col-span-3">
+                                <label className="block text-slate-400 text-sm mb-1">Production Companies (Wikidata)</label>
+                                <div className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-slate-400 text-sm">
+                                    {content.wikidata_metadata?.production_companies?.join(', ') || 'No companies linked'}
+                                </div>
+                            </div>
+                            <div className="md:col-span-3">
+                                <label className="block text-slate-400 text-sm mb-1">Raw Wikidata JSON</label>
+                                <textarea
+                                    value={JSON.stringify(content.wikidata_metadata || {}, null, 2)}
+                                    readOnly
+                                    rows={4}
+                                    className="w-full px-3 py-2 bg-slate-950 font-mono text-xs border border-slate-800 rounded-lg text-slate-500 resize-none cursor-not-allowed"
                                 />
                             </div>
                         </div>

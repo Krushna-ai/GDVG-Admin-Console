@@ -12,7 +12,13 @@ export async function GET(
 
         const { data, error } = await supabase
             .from('content')
-            .select('*')
+            .select(`
+                *,
+                seasons:seasons(
+                    *,
+                    episodes:episodes(*)
+                )
+            `)
             .eq('id', id)
             .single();
 

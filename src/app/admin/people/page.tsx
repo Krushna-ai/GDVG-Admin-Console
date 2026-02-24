@@ -22,6 +22,14 @@ interface Person {
     popularity?: number;
     gender?: number;
     also_known_as?: string[];
+    native_name?: string;
+    instagram?: string;
+    twitter?: string;
+    tiktok?: string;
+    height_cm?: number;
+    wikidata_id?: string;
+    social_ids?: any;
+    external_ids?: any;
     homepage?: string;
     created_at: string;
     imported_at?: string;
@@ -565,6 +573,28 @@ export default function PeopleManagerPage() {
                                                 <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Place of Birth</p>
                                                 <p className="font-medium">{selectedPerson.place_of_birth || 'Unknown'}</p>
                                             </div>
+                                            {selectedPerson.height_cm && (
+                                                <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
+                                                    <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Height</p>
+                                                    <p className="font-medium">{selectedPerson.height_cm} cm</p>
+                                                </div>
+                                            )}
+                                            {selectedPerson.deathday && (
+                                                <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
+                                                    <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Died</p>
+                                                    <p className="font-medium">{selectedPerson.deathday}</p>
+                                                </div>
+                                            )}
+                                            {selectedPerson.wikidata_id && (
+                                                <a
+                                                    href={`https://www.wikidata.org/wiki/${selectedPerson.wikidata_id}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="block text-center w-full py-2 bg-slate-200 hover:bg-white text-slate-900 font-bold rounded-lg transition-colors"
+                                                >
+                                                    View on Wikidata
+                                                </a>
+                                            )}
                                             {selectedPerson.imdb_id && (
                                                 <a
                                                     href={`https://www.imdb.com/name/${selectedPerson.imdb_id}`}
@@ -574,6 +604,14 @@ export default function PeopleManagerPage() {
                                                 >
                                                     View on IMDB
                                                 </a>
+                                            )}
+                                            {/* Social Links */}
+                                            {((selectedPerson.social_ids && Object.keys(selectedPerson.social_ids).length > 0) || selectedPerson.instagram || selectedPerson.twitter) && (
+                                                <div className="flex gap-4 justify-center pt-2">
+                                                    {(selectedPerson.instagram || selectedPerson.social_ids?.instagram_id) && <a href={`https://instagram.com/${selectedPerson.instagram || selectedPerson.social_ids?.instagram_id}`} target="_blank" className="text-slate-400 hover:text-pink-500 font-medium">Instagram</a>}
+                                                    {(selectedPerson.twitter || selectedPerson.social_ids?.twitter_id) && <a href={`https://twitter.com/${selectedPerson.twitter || selectedPerson.social_ids?.twitter_id}`} target="_blank" className="text-slate-400 hover:text-blue-400 font-medium">X (Twitter)</a>}
+                                                    {(selectedPerson.tiktok || selectedPerson.social_ids?.tiktok_id) && <a href={`https://tiktok.com/@${selectedPerson.tiktok || selectedPerson.social_ids?.tiktok_id}`} target="_blank" className="text-slate-400 hover:text-white font-medium">TikTok</a>}
+                                                </div>
                                             )}
                                         </div>
                                     </div>
