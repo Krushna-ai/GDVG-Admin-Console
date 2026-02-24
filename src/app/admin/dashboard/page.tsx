@@ -7,21 +7,25 @@ export default async function DashboardPage() {
     // Get counts
     const { count: contentCount } = await supabase
         .from('content')
-        .select('*', { count: 'exact', head: true });
+        .select('id', { count: 'exact' })
+        .limit(1);
 
     const { count: peopleCount } = await supabase
         .from('people')
-        .select('*', { count: 'exact', head: true });
+        .select('id', { count: 'exact' })
+        .limit(1);
 
     const { count: publishedCount } = await supabase
         .from('content')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'published');
+        .select('id', { count: 'exact' })
+        .eq('status', 'published')
+        .limit(1);
 
     const { count: draftCount } = await supabase
         .from('content')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'draft');
+        .select('id', { count: 'exact' })
+        .eq('status', 'draft')
+        .limit(1);
 
     // Get recent imports
     const { data: recentContent } = await supabase
