@@ -25,6 +25,9 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+# Mute overly verbose third-party loggers
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
 
 def parse_args():
     """Parse command-line arguments."""
