@@ -29,6 +29,8 @@ logger = logging.getLogger(__name__)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
+import os
+
 def parse_args():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
@@ -50,11 +52,17 @@ Examples:
         """,
     )
     
+    env_content_types = [x.strip() for x in os.environ.get("CONTENT_TYPES", "movie,tv").split(",") if x.strip()]
+    env_strats = [x.strip() for x in os.environ.get("STRATEGIES", "discover,changes").split(",") if x.strip()]
+    env_regions = [x.strip() for x in os.environ.get("REGIONS", "").split(",") if x.strip()] or None
+    env_max_pages = int(os.environ.get("MAX_PAGES", "500"))
+    env_dry_run = os.environ.get("DRY_RUN", "false").lower() == "true"
+    
     parser.add_argument(
         "--content-type",
         nargs="+",
         choices=["movie", "tv"],
-        default=["movie", "tv"],
+        default=env_content_types,
         help="Content types to harvest (default: movie tv)",
     )
     
@@ -62,20 +70,21 @@ Examples:
         "--strategy",
         nargs="+",
         choices=["discover", "sequential", "changes"],
-        default=["discover", "changes"],
+        default=env_strats,
         help="Harvesting strategies to use (default: discover changes)",
     )
     
     parser.add_argument(
         "--regions",
         nargs="+",
+        default=env_regions,
         help="Specific regions to harvest (default: all from config)",
     )
     
     parser.add_argument(
         "--max-pages",
         type=int,
-        default=500,
+        default=env_max_pages,
         help="Max pages per region/sort combo for discover strategy (default: 500)",
     )
     
@@ -102,6 +111,7 @@ Examples:
     parser.add_argument(
         "--dry-run",
         action="store_true",
+        default=env_dry_run,
         help="Don't queue IDs, just show stats",
     )
     
