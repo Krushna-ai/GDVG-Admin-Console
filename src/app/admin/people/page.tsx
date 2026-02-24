@@ -130,6 +130,7 @@ export default function PeopleManagerPage() {
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     // Fetch people with pagination
     const fetchPeople = async () => {
@@ -204,6 +205,36 @@ export default function PeopleManagerPage() {
         setSelectedPerson(person);
         setIsDetailModalOpen(true);
         await fetchPersonCredits(person.id);
+    };
+
+    // Handle Save Person
+    const handleSavePerson = async () => {
+        if (!selectedPerson) return;
+        setIsSaving(true);
+        try {
+            const response = await fetch(`/api/people/${selectedPerson.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(selectedPerson)
+            });
+            if (response.ok) {
+                // Update in local list
+                setPeople(prev => prev.map(p => p.id === selectedPerson.id ? selectedPerson : p));
+                setIsDetailModalOpen(false);
+            } else {
+                alert('Failed to save person');
+            }
+        } catch (error) {
+            console.error('Failed to save person:', error);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const updatePersonField = (field: keyof Person, value: any) => {
+        if (selectedPerson) {
+            setSelectedPerson({ ...selectedPerson, [field]: value });
+        }
     };
 
     // Handle delete
@@ -533,13 +564,30 @@ export default function PeopleManagerPage() {
                     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                         <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
                             <div className="sticky top-0 bg-slate-900/95 backdrop-blur border-b border-slate-700 p-6 flex justify-between items-center z-10">
-                                <h2 className="text-2xl font-bold">{selectedPerson.name}</h2>
-                                <button
-                                    onClick={() => setIsDetailModalOpen(false)}
-                                    className="text-slate-400 hover:text-white w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-800"
-                                >
-                                    ✕
-                                </button>
+                                <div className="flex-1 mr-4">
+                                    <input
+                                        type="text"
+                                        value={selectedPerson.name || ''}
+                                        onChange={(e) => updatePersonField('name', e.target.value)}
+                                        className="text-2xl font-bold bg-transparent border-b border-transparent hover:border-slate-600 focus:border-blue-500 outline-none w-full text-white"
+                                        placeholder="Person Name"
+                                    />
+                                </div>
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={handleSavePerson}
+                                        disabled={isSaving}
+                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:opacity-50 text-white rounded-lg transition-colors font-medium flex items-center gap-2"
+                                    >
+                                        {isSaving ? '⏳ Saving...' : '💾 Save'}
+                                    </button>
+                                    <button
+                                        onClick={() => setIsDetailModalOpen(false)}
+                                        className="text-slate-400 hover:text-white w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-800"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="p-8">
@@ -563,70 +611,147 @@ export default function PeopleManagerPage() {
                                             </div>
                                             <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
                                                 <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Known For</p>
-                                                <p className="font-medium">{selectedPerson.known_for_department}</p>
+                                                <select
+                                                    value={selectedPerson.known_for_department || ''}
+                                                    onChange={(e) => updatePersonField('known_for_department', e.target.value)}
+                                                    className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white"
+                                                >
+                                                    <option value="">Select...</option>
+                                                    <option value="Acting">Acting</option>
+                                                    <option value="Directing">Directing</option>
+                                                    <option value="Writing">Writing</option>
+                                                    <option value="Production">Production</option>
+                                                </select>
                                             </div>
                                             <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
                                                 <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Birthday</p>
-                                                <p className="font-medium">{selectedPerson.birthday || 'Unknown'}</p>
+                                                <input
+                                                    type="date"
+                                                    value={selectedPerson.birthday || ''}
+                                                    onChange={(e) => updatePersonField('birthday', e.target.value)}
+                                                    className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white"
+                                                />
                                             </div>
                                             <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
                                                 <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Place of Birth</p>
-                                                <p className="font-medium">{selectedPerson.place_of_birth || 'Unknown'}</p>
+                                                <input
+                                                    type="text"
+                                                    value={selectedPerson.place_of_birth || ''}
+                                                    onChange={(e) => updatePersonField('place_of_birth', e.target.value)}
+                                                    className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white"
+                                                    placeholder="e.g. London, UK"
+                                                />
                                             </div>
-                                            {selectedPerson.height_cm && (
-                                                <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
-                                                    <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Height</p>
-                                                    <p className="font-medium">{selectedPerson.height_cm} cm</p>
+                                            <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
+                                                <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Height (cm)</p>
+                                                <input
+                                                    type="number"
+                                                    value={selectedPerson.height_cm || ''}
+                                                    onChange={(e) => updatePersonField('height_cm', parseInt(e.target.value) || null)}
+                                                    className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white"
+                                                    placeholder="180"
+                                                />
+                                            </div>
+                                            <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
+                                                <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Deathday</p>
+                                                <input
+                                                    type="date"
+                                                    value={selectedPerson.deathday || ''}
+                                                    onChange={(e) => updatePersonField('deathday', e.target.value)}
+                                                    className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white"
+                                                />
+                                            </div>
+
+                                            <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
+                                                <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Wikidata ID</p>
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        type="text"
+                                                        value={selectedPerson.wikidata_id || ''}
+                                                        onChange={(e) => updatePersonField('wikidata_id', e.target.value)}
+                                                        className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white"
+                                                        placeholder="Q1234"
+                                                    />
+                                                    {selectedPerson.wikidata_id && (
+                                                        <a
+                                                            href={`https://www.wikidata.org/wiki/${selectedPerson.wikidata_id}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="flex items-center justify-center px-3 py-1 bg-slate-200 hover:bg-white text-slate-900 font-bold rounded text-xs transition-colors shrink-0"
+                                                            title="View on Wikidata"
+                                                        >
+                                                            ↗
+                                                        </a>
+                                                    )}
                                                 </div>
-                                            )}
-                                            {selectedPerson.deathday && (
-                                                <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
-                                                    <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Died</p>
-                                                    <p className="font-medium">{selectedPerson.deathday}</p>
+                                            </div>
+
+                                            <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
+                                                <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">IMDB ID</p>
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        type="text"
+                                                        value={selectedPerson.imdb_id || ''}
+                                                        onChange={(e) => updatePersonField('imdb_id', e.target.value)}
+                                                        className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white"
+                                                        placeholder="nm12345"
+                                                    />
+                                                    {selectedPerson.imdb_id && (
+                                                        <a
+                                                            href={`https://www.imdb.com/name/${selectedPerson.imdb_id}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="flex items-center justify-center px-3 py-1 bg-[#F5C518] hover:bg-[#E2B616] text-black font-bold rounded text-xs transition-colors shrink-0"
+                                                            title="View on IMDB"
+                                                        >
+                                                            ↗
+                                                        </a>
+                                                    )}
                                                 </div>
-                                            )}
-                                            {selectedPerson.wikidata_id && (
-                                                <a
-                                                    href={`https://www.wikidata.org/wiki/${selectedPerson.wikidata_id}`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="block text-center w-full py-2 bg-slate-200 hover:bg-white text-slate-900 font-bold rounded-lg transition-colors"
-                                                >
-                                                    View on Wikidata
-                                                </a>
-                                            )}
-                                            {selectedPerson.imdb_id && (
-                                                <a
-                                                    href={`https://www.imdb.com/name/${selectedPerson.imdb_id}`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="block text-center w-full py-2 bg-[#F5C518] hover:bg-[#E2B616] text-black font-bold rounded-lg transition-colors"
-                                                >
-                                                    View on IMDB
-                                                </a>
-                                            )}
-                                            {/* Social Links */}
-                                            {((selectedPerson.social_ids && Object.keys(selectedPerson.social_ids).length > 0) || selectedPerson.instagram || selectedPerson.twitter) && (
-                                                <div className="flex gap-4 justify-center pt-2">
-                                                    {(selectedPerson.instagram || selectedPerson.social_ids?.instagram_id) && <a href={`https://instagram.com/${selectedPerson.instagram || selectedPerson.social_ids?.instagram_id}`} target="_blank" className="text-slate-400 hover:text-pink-500 font-medium">Instagram</a>}
-                                                    {(selectedPerson.twitter || selectedPerson.social_ids?.twitter_id) && <a href={`https://twitter.com/${selectedPerson.twitter || selectedPerson.social_ids?.twitter_id}`} target="_blank" className="text-slate-400 hover:text-blue-400 font-medium">X (Twitter)</a>}
-                                                    {(selectedPerson.tiktok || selectedPerson.social_ids?.tiktok_id) && <a href={`https://tiktok.com/@${selectedPerson.tiktok || selectedPerson.social_ids?.tiktok_id}`} target="_blank" className="text-slate-400 hover:text-white font-medium">TikTok</a>}
+                                            </div>
+
+                                            <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
+                                                <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Social Accounts</p>
+                                                <div className="space-y-2">
+                                                    <input
+                                                        type="text"
+                                                        value={selectedPerson.instagram || selectedPerson.social_ids?.instagram_id || ''}
+                                                        onChange={(e) => updatePersonField('instagram', e.target.value)}
+                                                        className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white"
+                                                        placeholder="Instagram Username"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={selectedPerson.twitter || selectedPerson.social_ids?.twitter_id || ''}
+                                                        onChange={(e) => updatePersonField('twitter', e.target.value)}
+                                                        className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white"
+                                                        placeholder="Twitter Username"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={selectedPerson.tiktok || selectedPerson.social_ids?.tiktok_id || ''}
+                                                        onChange={(e) => updatePersonField('tiktok', e.target.value)}
+                                                        className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white"
+                                                        placeholder="TikTok Username"
+                                                    />
                                                 </div>
-                                            )}
+                                            </div>
                                         </div>
                                     </div>
 
                                     <div className="flex-1 space-y-8">
-                                        {selectedPerson.biography && (
-                                            <section>
-                                                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                                                    <span className="text-blue-400">📝</span> Biography
-                                                </h3>
-                                                <p className="text-slate-300 leading-relaxed whitespace-pre-wrap">
-                                                    {selectedPerson.biography}
-                                                </p>
-                                            </section>
-                                        )}
+                                        <section>
+                                            <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                                                <span className="text-blue-400">📝</span> Biography
+                                            </h3>
+                                            <textarea
+                                                value={selectedPerson.biography || ''}
+                                                onChange={(e) => updatePersonField('biography', e.target.value)}
+                                                rows={8}
+                                                className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-300 leading-relaxed resize-y focus:outline-none focus:border-blue-500 transition-colors"
+                                                placeholder="Biography..."
+                                            />
+                                        </section>
 
                                         <section>
                                             <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">

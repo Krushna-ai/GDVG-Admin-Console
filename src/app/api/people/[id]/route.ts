@@ -26,6 +26,38 @@ export async function GET(
     }
 }
 
+// PATCH - Update person
+export async function PATCH(
+    request: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const { id } = await params;
+        const body = await request.json();
+        const supabase = await createClient();
+
+        // Prevent updating ID
+        const { id: _, ...updateData } = body;
+
+        const { data, error } = await supabase
+            .from('people')
+            .update(updateData)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error updating person:', error);
+            return NextResponse.json({ error: error.message }, { status: 500 });
+        }
+
+        return NextResponse.json({ person: data });
+    } catch (error) {
+        console.error('Failed to update person:', error);
+        return NextResponse.json({ error: 'Failed to update person' }, { status: 500 });
+    }
+}
+
 // DELETE - Delete person
 export async function DELETE(
     request: Request,

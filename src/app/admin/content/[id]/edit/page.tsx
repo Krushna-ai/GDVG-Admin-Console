@@ -573,67 +573,305 @@ function CastEditor({ cast, onChange }: { cast: CastMember[]; onChange: (cast: C
     );
 }
 
-// TV Show Seasons & Episodes Guide Viewer
-function SeasonsViewer({ seasons = [] }: { seasons: any[] }) {
+// TV Show Seasons & Episodes Guide Viewer (Tabbed & Editable)
+function SeasonsViewer({ initialSeasons = [], contentId }: { initialSeasons: any[], contentId: string }) {
+    const [seasons, setSeasons] = useState<any[]>(() => {
+        const sorted = [...initialSeasons].sort((a, b) => (a.season_number || 0) - (b.season_number || 0));
+        return sorted.map(s => ({
+            ...s,
+            episodes: s.episodes ? [...s.episodes].sort((a, b) => (a.episode_number || 0) - (b.episode_number || 0)) : []
+        }));
+    });
+    const [activeSeasonIdx, setActiveSeasonIdx] = useState(0);
+    const [isSaving, setIsSaving] = useState(false);
+
     if (!seasons || seasons.length === 0) {
-        return <p className="text-slate-500 text-sm p-4 text-center border border-dashed border-slate-700 rounded-lg">No season data available for this TV show.</p>;
+        return (
+            <div className="space-y-4 text-center border border-dashed border-slate-700 rounded-lg p-6">
+                <p className="text-slate-500 text-sm mb-4">No season data available for this TV show.</p>
+                <button
+                    onClick={() => {
+                        setSeasons([{
+                            id: `new-season-${Date.now()}`,
+                            content_id: contentId,
+                            season_number: 1,
+                            name: `Season 1`,
+                            overview: '',
+                            air_date: null,
+                            poster_path: '',
+                            episodes: []
+                        }]);
+                        setActiveSeasonIdx(0);
+                    }}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm transition-colors"
+                >
+                    + Add First Season
+                </button>
+            </div>
+        );
     }
 
-    // Sort seasons by season_number
-    const sortedSeasons = [...seasons].sort((a, b) => (a.season_number || 0) - (b.season_number || 0));
+    const activeSeason = seasons[activeSeasonIdx];
+
+    const handleAddSeason = () => {
+        const nextSeasonNum = seasons.length > 0 ? Math.max(...seasons.map(s => s.season_number || 0)) + 1 : 1;
+        setSeasons([...seasons, {
+            id: `new-season-${Date.now()}`,
+            content_id: contentId,
+            season_number: nextSeasonNum,
+            name: `Season ${nextSeasonNum}`,
+            overview: '',
+            air_date: null,
+            poster_path: '',
+            episodes: []
+        }]);
+        setActiveSeasonIdx(seasons.length);
+    };
+
+    const handleUpdateSeason = (field: string, value: any) => {
+        const newSeasons = [...seasons];
+        newSeasons[activeSeasonIdx] = { ...newSeasons[activeSeasonIdx], [field]: value };
+        setSeasons(newSeasons);
+    };
+
+    const handleAddEpisode = () => {
+        const newSeasons = [...seasons];
+        const targetSeason = newSeasons[activeSeasonIdx];
+        const episodes = targetSeason.episodes || [];
+        const nextEpNum = episodes.length > 0 ? Math.max(...episodes.map((e: any) => e.episode_number || 0)) + 1 : 1;
+        targetSeason.episodes = [...episodes, {
+            id: `new-episode-${Date.now()}`,
+            season_id: targetSeason.id,
+            episode_number: nextEpNum,
+            name: `Episode ${nextEpNum}`,
+            overview: '',
+            air_date: null,
+            still_path: '',
+            vote_average: 0
+        }];
+        setSeasons(newSeasons);
+    };
+
+    const handleUpdateEpisode = (epIdx: number, field: string, value: any) => {
+        const newSeasons = [...seasons];
+        const targetSeason = newSeasons[activeSeasonIdx];
+        targetSeason.episodes[epIdx] = { ...targetSeason.episodes[epIdx], [field]: value };
+        setSeasons(newSeasons);
+    };
+
+    const handleRemoveEpisode = (epIdx: number) => {
+        if (!confirm('Remove this episode?')) return;
+        const newSeasons = [...seasons];
+        newSeasons[activeSeasonIdx].episodes.splice(epIdx, 1);
+        setSeasons(newSeasons);
+    };
+
+    const handleRemoveSeason = () => {
+        if (!confirm('Remove this entire season and all its episodes?')) return;
+        const newSeasons = [...seasons];
+        newSeasons.splice(activeSeasonIdx, 1);
+        setSeasons(newSeasons);
+        setActiveSeasonIdx(Math.max(0, activeSeasonIdx - 1));
+    };
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        try {
+            const res = await fetch(`/api/content/${contentId}/seasons`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ seasons }),
+            });
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.error || 'Failed to save');
+            }
+            alert('Season Guide saved successfully!');
+        } catch (e: any) {
+            alert(`Save failed: ${e.message}`);
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     return (
-        <div className="space-y-4">
-            {sortedSeasons.map((season, idx) => {
-                const episodes = season.episodes ? [...season.episodes].sort((a, b) => (a.episode_number || 0) - (b.episode_number || 0)) : [];
+        <div className="flex flex-col border border-slate-700 rounded-xl overflow-hidden bg-slate-900/50">
+            {/* Header / Tabs */}
+            <div className="flex items-center gap-1 border-b border-slate-700 bg-slate-800/50 p-2 overflow-x-auto custom-scrollbar">
+                {seasons.map((season, idx) => (
+                    <button
+                        key={season.id}
+                        onClick={() => setActiveSeasonIdx(idx)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${idx === activeSeasonIdx ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}
+                    >
+                        {season.name || `Season ${season.season_number || idx + 1}`}
+                    </button>
+                ))}
+                <button
+                    onClick={handleAddSeason}
+                    className="px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-lg shrink-0 transition-colors ml-2 flex items-center gap-1"
+                >
+                    <span className="text-blue-400 text-lg leading-none">+</span> Add Season
+                </button>
+            </div>
 
-                return (
-                    <div key={season.id || idx} className="bg-slate-900/50 border border-slate-700 rounded-lg overflow-hidden">
-                        <div className="p-4 bg-slate-800/30 flex justify-between items-center border-b border-slate-700/50">
-                            <div className="flex gap-4 items-center">
-                                {season.poster_path ? (
-                                    <img src={`https://image.tmdb.org/t/p/w92${season.poster_path}`} className="w-12 h-18 rounded object-cover" alt="" />
-                                ) : <div className="w-12 h-18 bg-slate-800 rounded flex items-center justify-center text-xs text-slate-500 text-center">No Image</div>}
+            {/* Active Season Body */}
+            {activeSeason && (
+                <div className="p-6 space-y-6">
+                    {/* Season Editor */}
+                    <div className="flex flex-col md:flex-row gap-6 items-start relative group">
+                        <div className="w-full md:w-32 shrink-0 space-y-2">
+                            <div className="aspect-[2/3] bg-slate-800 rounded-lg overflow-hidden border border-slate-700 shadow-md">
+                                {activeSeason.poster_path ? (
+                                    <img src={`https://image.tmdb.org/t/p/w185${activeSeason.poster_path}`} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="w-full h-full flex flex-col items-center justify-center text-xs text-slate-500">No Image</div>
+                                )}
+                            </div>
+                            <input
+                                type="text"
+                                value={activeSeason.poster_path || ''}
+                                onChange={(e) => handleUpdateSeason('poster_path', e.target.value)}
+                                placeholder="/path.jpg"
+                                className="w-full px-2 py-1.5 text-[10px] bg-slate-900 border border-slate-600 rounded text-slate-300 focus:border-blue-500 outline-none block"
+                            />
+                        </div>
 
+                        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                            <div>
+                                <label className="block text-xs font-medium text-slate-400 mb-1">Season Name</label>
+                                <input
+                                    type="text"
+                                    value={activeSeason.name || ''}
+                                    onChange={(e) => handleUpdateSeason('name', e.target.value)}
+                                    className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:border-blue-500 outline-none"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <h4 className="text-white font-medium">{season.name || `Season ${season.season_number}`}</h4>
-                                    <p className="text-xs text-slate-400 mt-1">
-                                        {season.air_date ? new Date(season.air_date).getFullYear() : 'Unknown Year'} • {season.episode_count || episodes.length} Episodes
-                                    </p>
+                                    <label className="block text-xs font-medium text-slate-400 mb-1">Number</label>
+                                    <input
+                                        type="number"
+                                        value={activeSeason.season_number || 0}
+                                        onChange={(e) => handleUpdateSeason('season_number', parseInt(e.target.value) || 0)}
+                                        className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:border-blue-500 outline-none"
+                                    />
                                 </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-400 mb-1">Air Date</label>
+                                    <input
+                                        type="date"
+                                        value={activeSeason.air_date || ''}
+                                        onChange={(e) => handleUpdateSeason('air_date', e.target.value)}
+                                        className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:border-blue-500 outline-none"
+                                    />
+                                </div>
+                            </div>
+                            <div className="col-span-1 md:col-span-2">
+                                <label className="block text-xs font-medium text-slate-400 mb-1">Overview</label>
+                                <textarea
+                                    value={activeSeason.overview || ''}
+                                    onChange={(e) => handleUpdateSeason('overview', e.target.value)}
+                                    rows={3}
+                                    className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white resize-y focus:border-blue-500 outline-none"
+                                />
                             </div>
                         </div>
 
-                        {episodes.length > 0 && (
-                            <div className="p-0 max-h-96 overflow-y-auto custom-scrollbar">
-                                <table className="w-full text-sm text-left">
-                                    <thead className="bg-slate-800/20 text-xs text-slate-400 uppercase sticky top-0 backdrop-blur-md">
-                                        <tr>
-                                            <th className="px-4 py-2 font-medium w-16">Ep</th>
-                                            <th className="px-4 py-2 font-medium">Title</th>
-                                            <th className="px-4 py-2 font-medium w-24">Air Date</th>
-                                            <th className="px-4 py-2 font-medium w-16 text-right">Rating</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-700/30">
-                                        {episodes.map((ep, eIdx) => (
-                                            <tr key={ep.id || eIdx} className="hover:bg-slate-800/20">
-                                                <td className="px-4 py-3 font-medium text-slate-300">S{season.season_number} E{ep.episode_number}</td>
-                                                <td className="px-4 py-3">
-                                                    <p className="text-white">{ep.name || `Episode ${ep.episode_number}`}</p>
-                                                    {ep.overview && <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">{ep.overview}</p>}
-                                                </td>
-                                                <td className="px-4 py-3 text-slate-400">{ep.air_date || '-'}</td>
-                                                <td className="px-4 py-3 text-slate-400 text-right">{ep.vote_average ? ep.vote_average.toFixed(1) : '-'}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
+                        <button
+                            onClick={handleRemoveSeason}
+                            className="absolute -top-2 -right-2 p-2 bg-slate-900 border border-slate-700 text-slate-400 hover:text-red-400 hover:border-red-900 rounded-full md:opacity-0 md:group-hover:opacity-100 transition-all shadow-lg"
+                            title="Delete Entire Season"
+                        >
+                            🗑️
+                        </button>
                     </div>
-                )
-            })}
+
+                    <hr className="border-slate-700/50" />
+
+                    {/* Episodes Editor */}
+                    <div>
+                        <div className="flex justify-between items-center mb-4">
+                            <h4 className="text-lg font-medium text-white flex items-center gap-2">
+                                <span className="text-blue-400">📺</span> Episodes ({activeSeason.episodes?.length || 0})
+                            </h4>
+                            <button
+                                onClick={handleAddEpisode}
+                                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 rounded-lg text-sm transition-colors flex items-center gap-1 font-medium shadow-sm"
+                            >
+                                <span className="text-blue-400 text-lg leading-none">+</span> Add Episode
+                            </button>
+                        </div>
+
+                        <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                            {(activeSeason.episodes || []).map((ep: any, eIdx: number) => (
+                                <div key={ep.id || eIdx} className="bg-slate-800/60 border border-slate-700 rounded-lg p-3 sm:p-4 flex flex-col sm:flex-row gap-4 items-start relative group">
+                                    <div className="w-full sm:w-32 space-y-2 shrink-0">
+                                        <div className="aspect-video bg-slate-900 rounded overflow-hidden border border-slate-700 shadow-inner">
+                                            {ep.still_path ? (
+                                                <img src={`https://image.tmdb.org/t/p/w185${ep.still_path}`} alt="" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-[10px] text-slate-500">No Img</div>
+                                            )}
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={ep.still_path || ''}
+                                            onChange={(e) => handleUpdateEpisode(eIdx, 'still_path', e.target.value)}
+                                            placeholder="/path.jpg"
+                                            className="w-full px-2 py-1 text-[10px] bg-slate-900 border border-slate-600 rounded text-slate-400 text-center outline-none focus:border-blue-500"
+                                        />
+                                    </div>
+                                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-12 gap-3 w-full">
+                                        <div className="col-span-2 space-y-1">
+                                            <label className="text-[10px] text-slate-500 uppercase font-medium">Ep #</label>
+                                            <input type="number" value={ep.episode_number || 0} onChange={(e) => handleUpdateEpisode(eIdx, 'episode_number', parseInt(e.target.value) || 0)} className="w-full px-2 py-1.5 bg-slate-900 border border-slate-600 rounded text-sm text-white focus:border-blue-500 outline-none" />
+                                        </div>
+                                        <div className="col-span-5 space-y-1">
+                                            <label className="text-[10px] text-slate-500 uppercase font-medium">Title</label>
+                                            <input type="text" value={ep.name || ''} onChange={(e) => handleUpdateEpisode(eIdx, 'name', e.target.value)} className="w-full px-2 py-1.5 bg-slate-900 border border-slate-600 rounded text-sm text-white focus:border-blue-500 outline-none" placeholder="Episode Title" />
+                                        </div>
+                                        <div className="col-span-3 space-y-1">
+                                            <label className="text-[10px] text-slate-500 uppercase font-medium">Air Date</label>
+                                            <input type="date" value={ep.air_date || ''} onChange={(e) => handleUpdateEpisode(eIdx, 'air_date', e.target.value)} className="w-full px-2 py-1.5 bg-slate-900 border border-slate-600 rounded text-sm text-white focus:border-blue-500 outline-none" />
+                                        </div>
+                                        <div className="col-span-2 space-y-1">
+                                            <label className="text-[10px] text-slate-500 uppercase font-medium">Rating</label>
+                                            <input type="number" step="0.1" value={ep.vote_average || 0} onChange={(e) => handleUpdateEpisode(eIdx, 'vote_average', parseFloat(e.target.value) || 0)} className="w-full px-2 py-1.5 bg-slate-900 border border-slate-600 rounded text-sm text-white focus:border-blue-500 outline-none" />
+                                        </div>
+                                        <div className="col-span-12 space-y-1 mt-1">
+                                            <label className="text-[10px] text-slate-500 uppercase font-medium">Overview</label>
+                                            <textarea rows={2} value={ep.overview || ''} onChange={(e) => handleUpdateEpisode(eIdx, 'overview', e.target.value)} className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-sm text-white focus:border-blue-500 outline-none resize-y" placeholder="Short plot summary..." />
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={() => handleRemoveEpisode(eIdx)}
+                                        className="sm:absolute sm:top-2 sm:right-2 p-1.5 bg-slate-900 border border-slate-700 text-slate-500 hover:text-red-400 hover:border-red-900 rounded-lg sm:opacity-0 group-hover:opacity-100 transition-all shadow-sm self-end sm:self-auto"
+                                        title="Remove Episode from Season"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                            ))}
+                            {(!activeSeason.episodes || activeSeason.episodes.length === 0) && (
+                                <p className="text-slate-500 text-sm italic text-center py-8 border border-dashed border-slate-700 rounded-lg">No episodes yet. Click "+ Add Episode" above to create one.</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Footer / Save Action */}
+            <div className="p-4 bg-slate-800/80 border-t border-slate-700 flex justify-end">
+                <button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 disabled:opacity-50 text-white font-medium rounded-lg transition-colors shadow flex items-center gap-2"
+                >
+                    {isSaving ? '⏳ Saving...' : '💾 Save Season Guide'}
+                </button>
+            </div>
         </div>
     );
 }
@@ -1068,7 +1306,7 @@ export default function ContentEditPage() {
                     {content.content_type === 'tv' && (
                         <EditSection title="Episodes & Season Guide" icon="📺" defaultOpen={false}>
                             <div className="pt-4">
-                                <SeasonsViewer seasons={content.seasons || []} />
+                                <SeasonsViewer initialSeasons={content.seasons || []} contentId={content.id} />
                             </div>
                         </EditSection>
                     )}
