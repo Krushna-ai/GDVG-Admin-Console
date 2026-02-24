@@ -49,11 +49,11 @@ jobs:
 
       - name: Run Sync Changes Script
         env:
-          DAYS_BACK: ${{ github.event.inputs.days_back || '7' }}
+          DAYS_BACK: ${{ inputs.days_back || '7' }}
         run: npx tsx scripts/sync-changes.ts
 
       - name: Report Results
         if: always()
         run: |
           echo "## Sync Changes Results" >> $GITHUB_STEP_SUMMARY
-          echo "Days back: ${{ github.event.inputs.days_back || '7' }}" >> $GITHUB_STEP_SUMMARY
+          echo "Days back: ${{ inputs.days_back || '7' }}" >> $GITHUB_STEP_SUMMARY

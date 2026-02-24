@@ -40,9 +40,9 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           TMDB_ACCESS_TOKEN: ${{ secrets.TMDB_ACCESS_TOKEN }}
           WIKI_USER_AGENT: ${{ secrets.WIKI_USER_AGENT }}
-          BATCH_SIZE: ${{ github.event.inputs.batch_size || '200' }}
-          START_FROM_ID: ${{ github.event.inputs.start_from_id }}
-          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+          BATCH_SIZE: ${{ inputs.batch_size || '200' }}
+          START_FROM_ID: ${{ inputs.start_from_id }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
         run: npx tsx scripts/enrich-people.ts
 
       - name: Summary
@@ -50,7 +50,7 @@ jobs:
         run: |
           echo "## 👥 People Enrichment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Batch Size**: ${{ github.event.inputs.batch_size || 200 }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Dry Run**: ${{ github.event.inputs.dry_run || false }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Batch Size**: ${{ inputs.batch_size || 200 }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Dry Run**: ${{ inputs.dry_run || false }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Run again to process the next batch. Script resumes automatically." >> $GITHUB_STEP_SUMMARY

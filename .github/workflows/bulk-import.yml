@@ -73,14 +73,14 @@ jobs:
       - name: Run Bulk Import Script
         run: npx tsx scripts/bulk-import.ts
         env:
-          IMPORT_REGION: ${{ github.event.inputs.region }}
-          IMPORT_TYPE: ${{ github.event.inputs.content_type }}
-          IMPORT_LIMIT: ${{ github.event.inputs.limit }}
+          IMPORT_REGION: ${{ inputs.region }}
+          IMPORT_TYPE: ${{ inputs.content_type }}
+          IMPORT_LIMIT: ${{ inputs.limit }}
 
       - name: Report Results
         if: always()
         run: |
           echo "## Bulk Import Results" >> $GITHUB_STEP_SUMMARY
-          echo "Region: ${{ github.event.inputs.region }}" >> $GITHUB_STEP_SUMMARY
-          echo "Type: ${{ github.event.inputs.content_type }}" >> $GITHUB_STEP_SUMMARY
-          echo "Limit: ${{ github.event.inputs.limit }}" >> $GITHUB_STEP_SUMMARY
+          echo "Region: ${{ inputs.region }}" >> $GITHUB_STEP_SUMMARY
+          echo "Type: ${{ inputs.content_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "Limit: ${{ inputs.limit }}" >> $GITHUB_STEP_SUMMARY

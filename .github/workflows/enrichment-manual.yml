@@ -40,7 +40,7 @@ env:
 
 jobs:
   quality-check:
-    if: github.event.inputs.run_quality_check == 'true'
+    if: inputs.run_quality_check == 'true'
     runs-on: ubuntu-latest
     
     steps:
@@ -67,7 +67,7 @@ jobs:
     if: |
       always() &&
       (needs.quality-check.result == 'success' || needs.quality-check.result == 'skipped') &&
-      github.event.inputs.run_queue_refresh == 'true'
+      inputs.run_queue_refresh == 'true'
     runs-on: ubuntu-latest
     
     steps:
@@ -94,7 +94,7 @@ jobs:
     if: |
       always() &&
       (needs.queue-refresh.result == 'success' || needs.queue-refresh.result == 'skipped') &&
-      github.event.inputs.enrich_content == 'true'
+      inputs.enrich_content == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 300
     
@@ -114,7 +114,7 @@ jobs:
       - name: Enrich Content
         env:
           WIKI_USER_AGENT: ${{ secrets.WIKI_USER_AGENT }}
-          BATCH_SIZE: ${{ github.event.inputs.content_batch_size || '10000' }}
+          BATCH_SIZE: ${{ inputs.content_batch_size || '10000' }}
           DRY_RUN: 'false'
         run: npx tsx scripts/enrich-queue.ts
 
@@ -129,7 +129,7 @@ jobs:
     if: |
       always() &&
       (needs.queue-refresh.result == 'success' || needs.queue-refresh.result == 'skipped') &&
-      github.event.inputs.enrich_people == 'true'
+      inputs.enrich_people == 'true'
     runs-on: ubuntu-latest
     
     steps:
@@ -148,7 +148,7 @@ jobs:
       - name: Enrich People
         env:
           WIKI_USER_AGENT: ${{ secrets.WIKI_USER_AGENT }}
-          BATCH_SIZE: ${{ github.event.inputs.people_batch_size || '2000' }}
+          BATCH_SIZE: ${{ inputs.people_batch_size || '2000' }}
           DRY_RUN: 'false'
         run: npx tsx scripts/enrich-people.ts
 
