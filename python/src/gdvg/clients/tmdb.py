@@ -86,10 +86,22 @@ class TMDBClient:
         if self._client:
             await self._client.aclose()
     
+    def _should_retry_tmdb(retry_state):
+        """Custom retry condition for TMDB API."""
+        if retry_state.outcome.failed:
+            exc = retry_state.outcome.exception()
+            if isinstance(exc, httpx.TimeoutException):
+                return True
+            if isinstance(exc, httpx.HTTPStatusError):
+                # Only retry on rate limits (429) or server errors (5xx)
+                status = exc.response.status_code
+                return status == 429 or status >= 500
+        return False
+
     @retry(
         stop=stop_after_attempt(TMDB_MAX_RETRIES),
         wait=wait_exponential(multiplier=TMDB_RETRY_BACKOFF_FACTOR, min=1, max=30),
-        retry=retry_if_exception_type((httpx.HTTPStatusError, httpx.TimeoutException)),
+        retry=_should_retry_tmdb,
         reraise=True,
     )
     async def _request(
@@ -136,10 +148,14 @@ class TMDBClient:
             return response.json()
             
         except httpx.HTTPStatusError as e:
-            logger.error(f"TMDB API error: {e.response.status_code} - {endpoint}")
+            status = e.response.status_code
+            if status == 429 or status >= 500:
+                logger.warning(f"TMDB API transient error {status} - {endpoint} (retrying if attempts remain)")
+            else:
+                logger.error(f"TMDB API error: {status} - {endpoint}")
             raise
         except Exception as e:
-            logger.error(f"TMDB request failed: {e} - {endpoint}")
+            logger.warning(f"TMDB request failed (retrying if configured): {e} - {endpoint}")
             raise
     
     # ============================================
