@@ -1056,6 +1056,17 @@ export default function ContentEditPage() {
         setContent({ ...content, [field]: value });
     };
 
+    const updateWikidataField = (field: string, value: any) => {
+        if (!content) return;
+        setContent({
+            ...content,
+            wikidata_metadata: {
+                ...(content.wikidata_metadata || {}),
+                [field]: value
+            }
+        });
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 -m-8 p-8 flex items-center justify-center">
@@ -1495,14 +1506,16 @@ export default function ContentEditPage() {
                                 <input
                                     type="number"
                                     value={content.wikidata_metadata?.duration || ''}
-                                    readOnly
-                                    className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-slate-400 cursor-not-allowed"
+                                    onChange={(e) => updateWikidataField('duration', parseInt(e.target.value) || null)}
+                                    className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white"
                                 />
                             </div>
                             <div>
                                 <label className="block text-slate-400 text-sm mb-1">Filming Dates</label>
-                                <div className="flex gap-2 text-sm text-slate-400 bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 items-center">
-                                    {content.wikidata_metadata?.filming_start || '?'} <span className="text-slate-600">→</span> {content.wikidata_metadata?.filming_end || '?'}
+                                <div className="flex gap-2">
+                                    <input type="date" value={content.wikidata_metadata?.filming_start || ''} onChange={(e) => updateWikidataField('filming_start', e.target.value)} className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white text-sm" />
+                                    <span className="text-slate-600 flex items-center">→</span>
+                                    <input type="date" value={content.wikidata_metadata?.filming_end || ''} onChange={(e) => updateWikidataField('filming_end', e.target.value)} className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white text-sm" />
                                 </div>
                             </div>
                             <div>
@@ -1510,8 +1523,8 @@ export default function ContentEditPage() {
                                 <input
                                     type="text"
                                     value={content.wikidata_metadata?.aspect_ratio || ''}
-                                    readOnly
-                                    className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-slate-400 cursor-not-allowed"
+                                    onChange={(e) => updateWikidataField('aspect_ratio', e.target.value)}
+                                    className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white"
                                 />
                             </div>
                             <div>
@@ -1519,15 +1532,20 @@ export default function ContentEditPage() {
                                 <input
                                     type="text"
                                     value={content.wikidata_metadata?.distributors?.join(', ') || ''}
-                                    readOnly
-                                    className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-slate-400 cursor-not-allowed"
+                                    onChange={(e) => updateWikidataField('distributors', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                                    placeholder="Distributor 1, Distributor 2"
+                                    className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white"
                                 />
                             </div>
                             <div className="md:col-span-3">
                                 <label className="block text-slate-400 text-sm mb-1">Production Companies (Wikidata)</label>
-                                <div className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-slate-400 text-sm">
-                                    {content.wikidata_metadata?.production_companies?.join(', ') || 'No companies linked'}
-                                </div>
+                                <input
+                                    type="text"
+                                    value={content.wikidata_metadata?.production_companies?.join(', ') || ''}
+                                    onChange={(e) => updateWikidataField('production_companies', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                                    placeholder="Company 1, Company 2"
+                                    className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white"
+                                />
                             </div>
                             <div className="md:col-span-3">
                                 <label className="block text-slate-400 text-sm mb-1">Raw Wikidata JSON</label>
