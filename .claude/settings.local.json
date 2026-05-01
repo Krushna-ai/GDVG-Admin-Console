@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__kimi-code__kimi_glob",
+      "mcp__kimi-code__kimi_read_file",
+      "mcp__kimi-code__kimi_agent",
+      "mcp__kimi-code__kimi_research",
+      "mcp__kimi-code__kimi_grep"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "supabase"
+  ]
+}

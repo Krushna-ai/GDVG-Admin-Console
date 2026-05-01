@@ -87,6 +87,7 @@ export async function logAPICall(
     options: APICallOptions,
     result: APICallResult
 ): Promise<void> {
+    if (process.env.DISABLE_API_LOGGING === 'true') return;
     try {
         const { error } = await supabase
             .from('api_usage_log')
