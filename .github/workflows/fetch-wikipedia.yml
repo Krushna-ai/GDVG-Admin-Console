@@ -1,0 +1,39 @@
+name: Fetch Wikipedia Articles
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Number of articles to fetch'
+        default: '200'
+      mode:
+        description: 'Mode: devptest / devp15 / full'
+        default: 'devptest'
+  schedule:
+    - cron: '30 18 * * *'  # midnight IST (18:30 UTC)
+
+jobs:
+  fetch-wikipedia:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Fetch Wikipedia articles
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          WIKI_USER_AGENT: ${{ secrets.WIKI_USER_AGENT }}
+        run: |
+          npm run script:fetch-wikipedia -- \
+            --limit ${{ github.event.inputs.limit || '200' }} \
+            --mode ${{ github.event.inputs.mode || 'devptest' }}

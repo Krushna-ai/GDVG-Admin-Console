@@ -140,38 +140,56 @@ export async function findWikipediaTitle(
 }
 
 /**
- * Fetches the plain-text summary of a Wikipedia article using the REST API.
- * Returns the extract field — already clean text, no HTML stripping needed.
+ * Fetches the full plain-text article from Wikipedia using the TextExtracts API.
+ * Returns the full extract — much more content than the REST summary endpoint.
  */
 export async function fetchArticleSummary(
     wikipediaTitle: string,
     lang: string = 'en'
 ): Promise<string | null> {
-    const url = `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeTitle(wikipediaTitle)}`;
-    console.log(`  🔍 Fetching summary (${lang}): "${wikipediaTitle}"`);
+    const url = `https://${lang}.wikipedia.org/w/api.php` +
+        `?action=query` +
+        `&titles=${encodeURIComponent(wikipediaTitle)}` +
+        `&prop=extracts` +
+        `&explaintext=true` +
+        `&exsectionformat=plain` +
+        `&format=json` +
+        `&formatversion=2`;
+
+    console.log(`  🔍 Fetching full article (${lang}): "${wikipediaTitle}"`);
 
     const response = await apiFetch(url);
     if (!response) return null;
 
     try {
         const data: any = await response.json();
+        const pages = data?.query?.pages;
+        if (!pages || pages.length === 0) return null;
 
-        if (data.type === 'disambiguation') {
-            console.log(`  ℹ️  "${wikipediaTitle}" is a disambiguation page`);
+        const page = pages[0];
+        if (page.missing) {
+            console.log(`  ℹ️  Page not found: "${wikipediaTitle}"`);
             return null;
         }
 
-        const extract: string | undefined = data?.extract;
-        if (!extract) {
+        const extract: string | undefined = page?.extract;
+        if (!extract || extract.trim().length === 0) {
             console.log(`  ℹ️  No extract for: "${wikipediaTitle}"`);
             return null;
         }
 
-        console.log(`  ✅ Summary fetched (${extract.length} chars)`);
-        return extract;
+        // Clean up excessive newlines
+        const cleaned = extract
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+
+        console.log(`  ✅ Full article fetched (${cleaned.length} chars)`);
+        return cleaned;
 
     } catch (error) {
-        console.error(`  ❌ fetchArticleSummary error: ${error instanceof Error ? error.message : String(error)}`);
+        console.error(`  ❌ fetchArticleSummary error: ${
+            error instanceof Error ? error.message : String(error)
+        }`);
         return null;
     }
 }

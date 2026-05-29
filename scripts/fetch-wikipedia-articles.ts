@@ -1,23 +1,58 @@
+/**
+ * FETCH WIKIPEDIA ARTICLES
+ * ========================
+ * 
+ * DEV PHASE MODES (controlled by --mode CLI arg):
+ * 
+ * --mode devptest (DEFAULT during dev phase)
+ *   Fetches Wikipedia articles ONLY for 2025-2026 content.
+ *   Purpose: Test Wikipedia fetch accuracy and section 
+ *   detection quality on recent, well-documented content.
+ *   Targets: ~359 items (130 anime + 153 KR TV + 55 KR movies + 21 KR drama)
+ * 
+ * --mode devp15 (post-2015 dataset)
+ *   Fetches Wikipedia articles for all content from 2015 onwards.
+ *   Purpose: Broader dev testing with larger dataset.
+ *   Targets: ~2,732 published items (2015-2026)
+ * 
+ * --mode full (production, no year filter)
+ *   Fetches Wikipedia articles for ALL published Asian + anime content.
+ *   Use only when ready for full production run.
+ * 
+ * Pre-2015 content is archived (status='archived') and excluded
+ * from all Wikipedia fetch modes.
+ * 
+ * Usage:
+ *   npm run script:fetch-wikipedia -- --limit 100 --mode devptest
+ *   npm run script:fetch-wikipedia -- --limit 500 --mode devp15
+ *   npm run script:fetch-wikipedia -- --limit 1000 --mode full
+ */
+
 import { config } from 'dotenv';
 import { supabase } from './lib/supabase';
-import { findWikipediaTitle, fetchArticleSummary, fetchArticleSections } from './lib/wikipedia-full';
+import { findWikipediaTitle, fetchArticleSummary } from './lib/wikipedia-full';
 
 config({ path: '.env.local' });
 
 const ASIAN_COUNTRIES = ['KR', 'JP', 'CN', 'TH', 'TW', 'HK', 'IN'];
 
-function parseCliArgs(): { limit: number } {
+function parseCliArgs(): { limit: number; mode: string } {
     const args = process.argv.slice(2);
     let limit = 50;
+    let mode = 'devptest'; // default to dev phase test mode
 
     for (let i = 0; i < args.length; i++) {
         if (args[i] === '--limit' && args[i + 1]) {
             limit = parseInt(args[i + 1], 10);
             i++;
         }
+        if (args[i] === '--mode' && args[i + 1]) {
+            mode = args[i + 1];
+            i++;
+        }
     }
 
-    return { limit };
+    return { limit, mode };
 }
 
 function detectLang(originCountry: string[] | null, contentType: string): string {
@@ -35,21 +70,38 @@ function extractYear(dateStr: string | null | undefined): number | undefined {
 }
 
 async function main(): Promise<void> {
-    const { limit } = parseCliArgs();
+    const { limit, mode } = parseCliArgs();
 
     console.log(`\n📖 Wikipedia Article Fetcher`);
     console.log('='.repeat(50));
     console.log(`Target: Asian + Anime content`);
+    console.log(`Mode:   ${mode} ${
+        mode === 'devptest' ? '(2025-2026 only)' :
+        mode === 'devp15' ? '(2015+ content)' :
+        '(all content, no year filter)'
+    }\n`);
     console.log(`Limit:  ${limit}\n`);
 
-    const { data: items, error: fetchError } = await supabase
+    let query = supabase
         .from('content')
-        .select('id, title, content_type, origin_country, first_air_date, wikipedia_title')
+        .select('id, title, content_type, origin_country, first_air_date, release_date, wikipedia_title')
         .eq('status', 'published')
         .or(`origin_country.ov.{${ASIAN_COUNTRIES.join(',')}},content_type.eq.anime`)
         .is('wikipedia_raw_article', null)
-        .order('popularity', { ascending: false, nullsFirst: false })
-        .limit(limit);
+        .order('popularity', { ascending: false, nullsFirst: false });
+
+    if (mode === 'devptest') {
+        query = query.or(
+            'first_air_date.gte.2025-01-01,release_date.gte.2025-01-01'
+        );
+    } else if (mode === 'devp15') {
+        query = query.or(
+            'first_air_date.gte.2015-01-01,release_date.gte.2015-01-01'
+        );
+    }
+    // mode === 'full' → no year filter
+
+    const { data: items, error: fetchError } = await query.limit(limit);
 
     if (fetchError) {
         console.error('❌ Failed to fetch content:', fetchError.message);
@@ -102,42 +154,24 @@ async function main(): Promise<void> {
                 continue;
             }
 
-            // Steps 3 & 4: Fetch summary and sections (sequential — each has internal rate delay)
+            // Step 3: Fetch summary
             const summary = await fetchArticleSummary(foundTitle, lang);
-            const sections = await fetchArticleSections(foundTitle, lang);
 
-            // Step 5: Combine into raw article, filter empty parts
-            const parts: string[] = [
-                summary,
-                sections?.plot ?? null,
-                sections?.cast ?? null,
-                sections?.production ?? null,
-            ].filter((p): p is string => typeof p === 'string' && p.length > 0);
-
-            const combined = parts.join('\n\n').trim();
-
-            if (combined.length === 0) {
+            if (!summary) {
                 skipped++;
-                if (skipped <= 10 || skipped % 20 === 0) {
-                    console.log(`  [${i + 1}/${items.length}] ⏭  Empty article: "${item.title}"`);
-                }
+                console.log(`  [${i + 1}/${items.length}] ⏭  No summary: "${item.title}"`);
                 continue;
             }
 
-            // Step 6: Save to DB
+            const combined = summary.trim();
+
+            // Step 4: Save to DB
             const { error: updateError } = await supabase
                 .from('content')
                 .update({
                     wikipedia_title: foundTitle,
                     wikipedia_raw_article: combined,
                     wikipedia_article_fetched_at: new Date().toISOString(),
-                    wikipedia_sections_found: (sections
-                        ? [
-                            sections.plot ? 'plot' : null,
-                            sections.cast ? 'cast' : null,
-                            sections.production ? 'production' : null
-                        ].filter(Boolean)
-                        : []) as string[],
                 })
                 .eq('id', item.id);
 
