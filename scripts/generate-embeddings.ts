@@ -26,16 +26,77 @@ function parseCliArgs(): { limit: number } {
 // SOURCE TEXT BUILDER
 // ============================================
 
+/**
+ * SOURCE TEXT FOR EMBEDDINGS
+ * ==========================
+ * 
+ * CURRENT: Optimized for bge-large-en-v1.5 (512 token limit)
+ * Fields are carefully selected to fit within 512 tokens while
+ * maximizing semantic signal. Wikipedia full text is excluded
+ * as it exceeds the token limit and gets silently truncated.
+ * 
+ * FUTURE IMPROVEMENTS (when upgrading embedding model):
+ * 
+ * 1. Switch to a model with larger context window
+ *    e.g. text-embedding-3-large (8191 tokens) or
+ *    voyage-large-2 (16000 tokens) for richer embeddings
+ * 
+ * 2. Implement chunked embeddings for Wikipedia articles
+ *    Split wikipedia_raw_article into 512-token chunks,
+ *    embed each chunk separately, store in ai_embeddings
+ *    table (already exists with HNSW index, ready to use)
+ * 
+ * 3. Add AniList community tags for anime once
+ *    properly imported (slow burn, found family,
+ *    enemies to lovers etc.) — high quality
+ *    semantic signals from real community data
+ * 
+ * 4. Include wiki_plot, wiki_cast_notes, wiki_production
+ *    once section extraction is implemented via Cloudflare
+ *    Workers AI or local Ollama
+ * 
+ * Current token estimate per item: ~200-250 tokens
+ * Safe headroom before 512 token limit: ~250-300 tokens
+ */
+
 function buildSourceText(item: any): string {
-    const parts = [
-        item.title || '',
-        item.overview || '',
-        (item.genres as any[])?.map((g: any) => g?.name).filter(Boolean).join(' ') || '',
-        item.vibe_description || '',
-        ((item.mood_tags as string[]) || []).join(' '),
-        ((item.trope_tags as string[]) || []).join(' '),
-    ];
-    return parts.filter(Boolean).join(' ').trim();
+    const parts: string[] = [];
+
+    // Title
+    parts.push(item.title);
+
+    // Original title if different
+    if (item.original_title &&
+        item.original_title !== item.title) {
+        parts.push(item.original_title);
+    }
+
+    // Tagline
+    if (item.tagline) parts.push(item.tagline);
+
+    // Overview — truncate to 300 chars
+    if (item.overview) {
+        parts.push(item.overview.slice(0, 300));
+    }
+
+    // Genres
+    const genres = (item.genres as any[])
+        ?.map((g: any) => g?.name)
+        .filter(Boolean) || [];
+    if (genres.length > 0) {
+        parts.push(genres.join(', '));
+    }
+
+    // Keywords — top 5 only
+    const keywords = (item.keywords as any[])
+        ?.map((k: any) => k?.name)
+        .filter(Boolean)
+        .slice(0, 5) || [];
+    if (keywords.length > 0) {
+        parts.push(keywords.join(', '));
+    }
+
+    return parts.filter(Boolean).join(' | ');
 }
 
 // ============================================
@@ -64,7 +125,7 @@ async function main(): Promise<void> {
     // Step 2: fetch published content not yet embedded
     let contentQuery = supabase
         .from('content')
-        .select('id, title, overview, genres, vibe_description, mood_tags, trope_tags')
+        .select('id, title, original_title, tagline, overview, genres, keywords')
         .eq('status', 'published')
         .limit(limit);
 
