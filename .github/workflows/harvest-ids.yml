@@ -1,10 +1,10 @@
 name: ID Harvester (Monthly)
 
 on:
-  schedule:
-    # 1st of month, 2 AM UTC
-    - cron: '0 2 1 * *'
-  workflow_dispatch:
+  # schedule:  # disabled during dev phase
+  #   # 1st of month, 2 AM UTC
+  #   - cron: '0 2 1 * *'
+  workflow_dispatch:  # manual only
     inputs:
       max_pages:
         description: 'Max pages per region/sort combo'

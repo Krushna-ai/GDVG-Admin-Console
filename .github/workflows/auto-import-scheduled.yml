@@ -1,9 +1,10 @@
 name: Auto-Import (Scheduled)
 
 on:
-  schedule:
-    # Run at 3:00 AM IST (21:30 UTC previous day)
-    - cron: '30 21 * * *'
+  # schedule:  # disabled during dev phase
+  #   # Run at 3:00 AM IST (21:30 UTC previous day)
+  #   - cron: '30 21 * * *'
+  workflow_dispatch:  # manual only
 
 env:
   NODE_VERSION: '20'

@@ -1,9 +1,10 @@
 name: Auto-Enrichment (Scheduled)
 
 on:
-  schedule:
-    # Run at 2:00 AM IST (20:30 UTC previous day)
-    - cron: '30 20 * * *'
+  # schedule:  # disabled during dev phase
+  #   # Run at 2:00 AM IST (20:30 UTC previous day)
+  #   - cron: '30 20 * * *'
+  workflow_dispatch:  # manual only
 
 env:
   NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}

@@ -1,10 +1,10 @@
 name: Data Quality Validation
 
 on:
-  schedule:
-    # Run daily at 4 AM IST (10:30 PM UTC)
-    - cron: '30 22 * * *'
-  workflow_dispatch:
+  # schedule:  # disabled during dev phase
+  #   # Run daily at 4 AM IST (10:30 PM UTC)
+  #   - cron: '30 22 * * *'
+  workflow_dispatch:  # manual only
 
 env:
   NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}

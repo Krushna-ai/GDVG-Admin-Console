@@ -1,10 +1,10 @@
 name: Sync TMDB Changes
 
 on:
-  schedule:
-    # Run every Sunday at 2:00 AM IST (20:30 UTC Saturday)
-    - cron: '30 20 * * 0'
-  workflow_dispatch:
+  # schedule:  # disabled during dev phase
+  #   # Run every Sunday at 2:00 AM IST (20:30 UTC Saturday)
+  #   - cron: '30 20 * * 0'
+  workflow_dispatch:  # manual only
     inputs:
       days_back:
         description: 'Days to look back for changes'
