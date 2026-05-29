@@ -27,25 +27,8 @@ export async function getLatestQualityReport(type: 'content' | 'people' = 'conte
     return data;
 }
 
-// Deprecated functions - kept as stubs to prevent import errors during transition
-// These will be removed completely in the next cleanup pass
-
 export async function detectMetadataGaps() {
     console.log('⚠️ detectMetadataGaps is deprecated. Reading from quality_reports instead.');
     const report = await getLatestQualityReport('content');
     return report ? (report.priority_items || []) : [];
 }
-
-export async function detectPopularityGaps() {
-    return [];
-}
-
-export async function detectTemporalGaps() {
-    return [];
-}
-
-export async function storeGaps(gaps: any[]) {
-    // No-op
-    return 0;
-}
-

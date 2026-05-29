@@ -92,18 +92,54 @@ async function executeSparqlQuery(query: string): Promise<WikidataSparqlResult> 
   url.searchParams.set('query', query);
   url.searchParams.set('format', 'json');
 
-  const response = await fetch(url.toString(), {
-    headers: {
-      'User-Agent': USER_AGENT,
-      'Accept': 'application/sparql-results+json',
-    },
-  });
+  const maxAttempts = 3;
 
-  if (!response.ok) {
-    throw new Error(`Wikidata SPARQL query failed: ${response.status} ${response.statusText}`);
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await fetch(url.toString(), {
+        headers: {
+          'User-Agent': USER_AGENT,
+          'Accept': 'application/sparql-results+json',
+        },
+      });
+
+      if (response.status === 429) {
+        if (attempt === maxAttempts) {
+          throw new Error(`Wikidata SPARQL error: 429 Too Many Requests — retries exhausted`);
+        }
+        const waitTime = 1000 * Math.pow(2, attempt);
+        console.log(`  ⏳ Rate limited (429), waiting ${waitTime}ms (attempt ${attempt}/${maxAttempts})`);
+        await delay(waitTime);
+        continue;
+      }
+
+      if (response.status === 503) {
+        if (attempt === maxAttempts) {
+          throw new Error(`Wikidata SPARQL error: 503 Service Unavailable — retries exhausted`);
+        }
+        const waitTime = 1000 * attempt;
+        console.log(`  ⏳ Service unavailable (503), waiting ${waitTime}ms (attempt ${attempt}/${maxAttempts})`);
+        await delay(waitTime);
+        continue;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Wikidata SPARQL query failed: ${response.status} ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      // Network/fetch exceptions
+      if (attempt === maxAttempts) {
+        throw error;
+      }
+      const waitTime = 500 * attempt;
+      console.log(`  🔌 Network error, waiting ${waitTime}ms (attempt ${attempt}/${maxAttempts})`);
+      await delay(waitTime);
+    }
   }
 
-  return await response.json();
+  throw new Error('Wikidata SPARQL error: unexpected end of retry loop');
 }
 
 /**

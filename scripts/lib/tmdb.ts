@@ -4,18 +4,67 @@ async function tmdbFetch<T>(endpoint: string, params: Record<string, string> = {
     const token = process.env.TMDB_ACCESS_TOKEN;
     if (!token) throw new Error('Missing TMDB_ACCESS_TOKEN environment variable');
 
-    const url = new URL(`${TMDB_BASE_URL}${endpoint}`);
-    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+    const maxAttempts = 5;
 
-    const res = await fetch(url.toString(), {
-        headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-        },
-    });
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            await delay(250);
 
-    if (!res.ok) throw new Error(`TMDB API error: ${res.status} ${res.statusText}`);
-    return res.json();
+            const url = new URL(`${TMDB_BASE_URL}${endpoint}`);
+            Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+
+            const res = await fetch(url.toString(), {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!res.ok) {
+                if (res.status === 429) {
+                    if (attempt === maxAttempts) {
+                        throw new Error(`TMDB API error: ${res.status} ${res.statusText} — retries exhausted`);
+                    }
+                    const waitTime = 1000 * Math.pow(2, attempt);
+                    console.log(`  ⏳ Rate limited (429), waiting ${waitTime}ms (attempt ${attempt}/${maxAttempts})`);
+                    await delay(waitTime);
+                    continue;
+                }
+
+                if (res.status === 500 || res.status === 503) {
+                    if (attempt === maxAttempts) {
+                        throw new Error(`TMDB API error: ${res.status} ${res.statusText} — retries exhausted`);
+                    }
+                    const waitTime = 1000 * attempt;
+                    console.log(`  ⚠️ Server error (${res.status}), waiting ${waitTime}ms (attempt ${attempt}/${maxAttempts})`);
+                    await delay(waitTime);
+                    continue;
+                }
+
+                // Any other non-ok status: throw immediately
+                throw new Error(`TMDB API error: ${res.status} ${res.statusText}`);
+            }
+
+            return res.json();
+        } catch (error: any) {
+            // If it's an HTTP error we already decided not to retry, rethrow immediately
+            if (error?.message?.includes('TMDB API error') && !error?.message?.includes('retries exhausted')) {
+                throw error;
+            }
+
+            // Network / socket errors
+            if (attempt === maxAttempts) {
+                throw new Error(`TMDB API network error after ${maxAttempts} attempts: ${error?.message || error}`);
+            }
+
+            const waitTime = 1000 * Math.pow(2, attempt);
+            console.log(`  🔌 Network error, waiting ${waitTime}ms (attempt ${attempt}/${maxAttempts})`);
+            await delay(waitTime);
+        }
+    }
+
+    // Should never reach here, but TypeScript needs a fallback
+    throw new Error('TMDB API error: unexpected end of retry loop');
 }
 
 export function getMovieDetails(id: number) {
@@ -26,7 +75,7 @@ export function getMovieDetails(id: number) {
 
 export function getTvDetails(id: number) {
     return tmdbFetch<any>(`/tv/${id}`, {
-        append_to_response: 'credits,aggregate_credits,keywords,videos,images,watch/providers,external_ids,content_ratings,alternative_titles,translations,recommendations,similar,reviews',
+        append_to_response: 'credits,aggregate_credits,keywords,videos,images,watch/providers,external_ids,release_dates,content_ratings,alternative_titles,translations,recommendations,similar,reviews',
     });
 }
 
@@ -94,7 +143,7 @@ export interface TmdbSeason {
 }
 
 export async function getSeasonDetails(tvTmdbId: number, seasonNumber: number): Promise<TmdbSeason> {
-    await delay(100);
+    await delay(400);
     return tmdbFetch<TmdbSeason>(`/tv/${tvTmdbId}/season/${seasonNumber}`);
 }
 
@@ -125,6 +174,6 @@ export interface TmdbCollection {
 }
 
 export async function getCollectionDetails(collectionId: number): Promise<TmdbCollection> {
-    await delay(100);
+    await delay(400);
     return tmdbFetch<TmdbCollection>(`/collection/${collectionId}`);
 }

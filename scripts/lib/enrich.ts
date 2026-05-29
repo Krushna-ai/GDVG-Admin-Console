@@ -142,10 +142,13 @@ function extractContentRating(details: any, contentType: 'movie' | 'tv'): string
 /**
  * Determine role type based on cast order
  */
-function getRoleType(order: number): 'main' | 'support' | 'guest' {
-    if (order <= 5) return 'main';
-    if (order <= 15) return 'support';
-    return 'guest';
+function getRoleType(
+  order: number,
+  gender?: number
+): 'main' | 'support' | 'guest' {
+  if (order <= 2) return 'main';
+  if (order <= 12) return 'support';
+  return 'guest';
 }
 
 /**
@@ -402,7 +405,12 @@ export async function enrichAndSaveContent(
 
         // 4. Process cast (ALL members - no limit)
         let peopleCount = 0;
-        const castMembers = details.credits?.cast || [];
+        // For TV shows use aggregate_credits for full
+        // multi-season cast. Falls back to credits.cast.
+        const castMembers = contentType === 'tv'
+            ? (details.aggregate_credits?.cast ||
+               details.credits?.cast || [])
+            : (details.credits?.cast || []);
 
         console.log(`  👥 Processing ${castMembers.length} cast members unconditionally...`);
 
@@ -426,7 +434,7 @@ export async function enrichAndSaveContent(
                         person.id,
                         cast.character || 'Unknown',
                         cast.order || 999,
-                        getRoleType(cast.order || 999)
+                        getRoleType(cast.order || 999, cast.gender)
                     );
                     peopleCount++;
                 }
@@ -548,7 +556,7 @@ export async function updateContentWithCredits(
                         person.id,
                         cast.character || 'Unknown',
                         cast.order || 999,
-                        getRoleType(cast.order || 999)
+                        getRoleType(cast.order || 999, cast.gender)
                     );
                     peopleCount++;
                 }

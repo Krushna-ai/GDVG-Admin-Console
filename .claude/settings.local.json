@@ -5,7 +5,9 @@
       "mcp__kimi-code__kimi_read_file",
       "mcp__kimi-code__kimi_agent",
       "mcp__kimi-code__kimi_research",
-      "mcp__kimi-code__kimi_grep"
+      "mcp__kimi-code__kimi_grep",
+      "mcp__supabase__apply_migration",
+      "mcp__supabase__execute_sql"
     ]
   },
   "enableAllProjectMcpServers": true,
