@@ -87,13 +87,32 @@ function buildSourceText(item: any): string {
         parts.push(genres.join(', '));
     }
 
-    // Keywords — top 5 only
+    // Keywords — top 10 only
     const keywords = (item.keywords as any[])
         ?.map((k: any) => k?.name)
         .filter(Boolean)
-        .slice(0, 5) || [];
+        .slice(0, 10) || [];
     if (keywords.length > 0) {
         parts.push(keywords.join(', '));
+    }
+
+    // Mood tags
+    const moodTags = (item.mood_tags as string[])
+        ?.filter(Boolean) || [];
+    if (moodTags.length > 0) {
+        parts.push(moodTags.join(', '));
+    }
+
+    // Trope tags
+    const tropeTags = (item.trope_tags as string[])
+        ?.filter(Boolean) || [];
+    if (tropeTags.length > 0) {
+        parts.push(tropeTags.join(', '));
+    }
+
+    // Wiki plot — first 500 chars
+    if (item.wiki_plot) {
+        parts.push(item.wiki_plot.slice(0, 500));
     }
 
     return parts.filter(Boolean).join(' | ');
@@ -108,36 +127,13 @@ async function main(): Promise<void> {
 
     console.log(`\n🔢 Embedding Generation`);
     console.log('='.repeat(50));
-    console.log(`Fetching up to ${limit} items without embeddings...\n`);
-
-    // Step 1: get already-embedded content IDs
-    const { data: embedded, error: embeddedError } = await supabase
-        .from('content_embeddings')
-        .select('content_id');
-
-    if (embeddedError) {
-        console.error('Failed to fetch existing embeddings:', embeddedError.message);
-        process.exit(1);
-    }
-
-    const embeddedIds = embedded?.map((e: any) => e.content_id) || [];
-
-    // Step 2: fetch published content not yet embedded
-    let contentQuery = supabase
-        .from('content')
-        .select('id, title, original_title, tagline, overview, genres, keywords')
-        .eq('status', 'published')
-        .limit(limit);
-
-    if (embeddedIds.length > 0) {
-        contentQuery = contentQuery.not('id', 'in', `(${embeddedIds.join(',')})`);
-    }
-
-    const { data: items, error: fetchError } = await contentQuery;
+    console.log(`Fetching up to ${limit} items without embeddings...`);
+    const { data: items, error: fetchError } = await supabase
+      .rpc('get_content_for_embedding', { p_limit: limit });
 
     if (fetchError) {
-        console.error('Failed to fetch content:', fetchError.message);
-        process.exit(1);
+      console.error('Failed to fetch content:', fetchError);
+      process.exit(1);
     }
 
     if (!items || items.length === 0) {
